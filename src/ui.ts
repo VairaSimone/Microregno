@@ -1,6 +1,6 @@
 import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
-import { generateTerrain, housingCapacity, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
+import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, GameSnapshot, Resource } from './game/types';
 
 const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
@@ -344,9 +344,14 @@ function renderObjectives(snapshot: GameSnapshot): void {
 
   $('objective-count').textContent = completed + '/3';
   const capacity = housingCapacity(state);
-  $('world-population-note').textContent = state.population >= capacity
+  const nextMilestone = POPULATION_MILESTONES.find((milestone) => !(state.milestones ?? []).includes(milestone.population));
+  const capacityNote = state.population >= capacity
     ? 'Capienza piena: costruisci una casa o migliora il municipio.'
-    : 'Posti liberi: ' + (capacity - state.population) + ' · prossimo traguardo: 8/12/18/24 abitanti.';
+    : 'Posti liberi: ' + (capacity - state.population);
+  const rewardNote = nextMilestone
+    ? 'Premio +' + nextMilestone.reward + ' monete a ' + nextMilestone.population
+    : 'Tutti i premi di crescita ottenuti';
+  $('world-population-note').textContent = snapshot.mode === 'kingdom' ? capacityNote + ' · ' + rewardNote : capacityNote;
 }
 
 function renderInspector(snapshot: GameSnapshot): void {
@@ -512,7 +517,7 @@ export function setupUI(): void {
       : state.resources.food < 18
         ? 'Le dispense scendono sotto 18: la crescita si ferma finché non produci altro cibo.'
         : state.population >= 8
-          ? 'Primo traguardo raggiunto. Ora puoi espanderti e puntare a una sfida giornaliera.'
+          ? 'Hai superato il primo traguardo. Completa gli obiettivi a destra, migliora gli edifici e usa le monete con criterio.'
           : 'Costruisci prima una fattoria. Con cibo sufficiente e posti liberi, arriveranno nuovi abitanti.';
 
     renderTutorial(snapshot);
