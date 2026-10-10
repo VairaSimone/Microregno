@@ -137,15 +137,15 @@ export function ensureWorldState(state: GameState): GameState {
     citizens = citizens.filter((citizen) => !removable.includes(citizen.id));
     while (citizens.length > state.population) citizens.pop();
   }
-  const homes = state.buildings.filter((building) => (BUILDINGS[building.type].housing ?? 0) > 0);
+  const homes = state.buildings.filter((building) => (BUILDINGS[building.type]?.housing ?? 0) > 0);
   const occupied = new Map<string, number>();
   citizens = citizens.map((citizen, index) => {
     const oldHome = homes.find((building) => building.id === citizen.homeId);
-    const oldCapacity = oldHome ? (BUILDINGS[oldHome.type].housing ?? 0) * oldHome.level : 0;
+    const oldCapacity = oldHome ? (BUILDINGS[oldHome.type]?.housing ?? 0) * oldHome.level : 0;
     const oldUsed = oldHome ? occupied.get(oldHome.id) ?? 0 : 0;
     const selected = oldHome && oldUsed < oldCapacity
       ? oldHome
-      : homes.find((building) => (occupied.get(building.id) ?? 0) < (BUILDINGS[building.type].housing ?? 0) * building.level);
+      : homes.find((building) => (occupied.get(building.id) ?? 0) < (BUILDINGS[building.type]?.housing ?? 0) * building.level);
     if (selected) occupied.set(selected.id, (occupied.get(selected.id) ?? 0) + 1);
     return { ...citizen, homeId: selected?.id ?? null, familyId: citizen.familyId || 'family-' + (Math.floor(index / 2) + 1) };
   });
