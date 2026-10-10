@@ -565,7 +565,26 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
         '<div class="realm-needs">' + realmMeter('Fame', citizen.hunger) + realmMeter('Energia', citizen.energy) + realmMeter('Felicità', citizen.happiness) + realmMeter('Salute', citizen.health) + '</div>' +
         '<div class="realm-citizen-footer"><span>' + escapeRealmHtml(citizen.lastAction) + '</span><b>Abilità: ' + Math.round(citizen.skills[citizen.profession]) + '/100</b></div></article>';
     }).join('');
-    const employment = '<div class="realm-card"><div class="realm-card-title"><h3>Filiere produttive</h3><span>BENI LAVORATI</span></div>' + goodsStrip +
+    const hasMarket = state.buildings.some((building) => building.type === 'market');
+    const hasMerchant = world.citizens.some((citizen) => citizen.profession === 'merchant' && citizen.status === 'resident');
+    const marketPanel = '<div class="realm-market-grid">' + ([
+      { id: 'grain' as const, name: 'Grano' },
+      { id: 'flour' as const, name: 'Farina' },
+      { id: 'bread' as const, name: 'Pane' },
+      { id: 'tools' as const, name: 'Attrezzi' },
+      { id: 'medicine' as const, name: 'Rimedi' },
+    ]).map((item) => {
+      const amount = Math.min(5, Math.floor(goods[item.id]));
+      const demand = world.market.demand[item.id];
+      const demandLabel = demand >= 1.2 ? 'Domanda alta' : demand <= 0.8 ? 'Domanda bassa' : 'Domanda regolare';
+      return '<div class="realm-market-good"><div><strong>' + item.name + '</strong><small>' + demandLabel + ' · ' + Math.round(demand * 100) + '%</small></div>' +
+        '<b>' + world.market.prices[item.id] + ' <small>monete/u.</small></b>' +
+        realmActionButton(amount > 0 ? 'Vendi ' + amount + ' · +' + (amount * world.market.prices[item.id]) : 'Nessuna scorta', 'tradeGoods', item.id, String(amount), !hasMarket || !hasMerchant || amount < 1) +
+        '</div>';
+    }).join('') + '</div><p class="realm-market-note">' +
+      (!hasMarket ? 'Costruisci un mercato per aprire le vendite.' : !hasMerchant ? 'Assegna un cittadino al mestiere Mercante per vendere le scorte.' : 'Le quotazioni cambiano ogni 120 minuti di gioco. Accumularne troppi riduce il prezzo; i beni rari possono valere di più.') +
+      '</p>';
+    const employment = '<div class="realm-card"><div class="realm-card-title"><h3>Filiere produttive</h3><span>BENI LAVORATI</span></div>' + goodsStrip + marketPanel +
       '<p>Le fattorie generano grano; mugnai e fornai lo trasformano in farina e pane. L’officina consuma legname e pietra per produrre attrezzi. Magazzini aggiuntivi aumentano la capienza dei beni a ' +
       (100 + state.buildings.filter((building) => building.type === 'warehouse').reduce((sum, building) => sum + 80 * building.level, 0)) + ' unità.</p>' +
       '<div class="realm-chain">' + ['farm', 'mill', 'bakery', 'workshop'].map((type) => {
@@ -602,6 +621,7 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
         { value: 'managed', label: 'Taglio controllato', note: 'Produzione standard' },
         { value: 'intensive', label: 'Taglio intensivo', note: 'Legname +25%, maggiore pressione ambientale' },
       ]) +
+      '<div class="realm-card"><div class="realm-card-title"><h3>Salute dei boschi</h3><span>RIGENERAZIONE NATURALE</span></div>' + realmMeter('Integrità forestale', world.forestHealth) + '<p>Il taglio intensivo aumenta subito la resa, ma impoverisce i boschi. La protezione favorisce la rigenerazione; sotto il 35% le segherie perdono efficienza.</p></div>' +
       policyCard('Guardie e pattuglie', 'Le pattuglie riducono alcuni rischi degli eventi. La torre di guardia offre protezione aggiuntiva.', 'guard', world.policies.guard, [
         { value: 'none', label: 'Nessuna pattuglia', note: 'Nessun costo ricorrente' },
         { value: 'patrol', label: 'Pattuglie attive', note: 'Più sicurezza e fiducia' },
@@ -710,6 +730,7 @@ export function setupUI(): void {
     else if (action === 'project') dispatch('microregno:realm-action', { type: 'project', id });
     else if (action === 'event') dispatch('microregno:realm-action', { type: 'event', id });
     else if (action === 'diplomacy') dispatch('microregno:realm-action', { type: 'diplomacy', id, value });
+    else if (action === 'tradeGoods') dispatch('microregno:realm-action', { type: 'tradeGoods', good: id as keyof GoodsBag, amount: Number(value) });
   });
   realmContent.addEventListener('change', (event) => {
     const select = (event.target as HTMLElement).closest<HTMLSelectElement>('select[data-citizen]');
