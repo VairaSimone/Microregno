@@ -17,6 +17,7 @@ const $ = <T extends HTMLElement>(id: string): T => {
 const formatNumber = (value: number): string =>
   new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(Math.floor(value));
 const formatRate = (value: number): string => value.toFixed(Math.abs(value) < 0.1 ? 2 : 1);
+const formatDelta = (value: number): string => value > 0 ? '+' + value : String(value);
 
 const dispatch = (name: string, detail?: unknown): void => {
   window.dispatchEvent(new CustomEvent(name, { detail }));
@@ -271,7 +272,9 @@ function renderCitizenPanel(snapshot: GameSnapshot): void {
         const label = document.createElement('strong');
         label.textContent = choice.label;
         const detail = document.createElement('small');
-        detail.textContent = choice.detail;
+        const peopleEffect = choice.populationDelta ? ' · Abitanti ' + formatDelta(choice.populationDelta) : '';
+        const housingEffect = choice.housingDelta ? ' · Posti ' + formatDelta(choice.housingDelta) : '';
+        detail.textContent = choice.detail + ' · Umore ' + formatDelta(choice.moodDelta) + ' · Fiducia ' + formatDelta(choice.trustDelta) + peopleEffect + housingEffect;
         button.append(label, detail);
         button.addEventListener('click', () => dispatch('microregno:request-choice', choice.id));
         host.append(button);
