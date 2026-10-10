@@ -177,9 +177,6 @@ export function realmModifiers(state: GameState): { taxMultiplier: number; foodC
   return { taxMultiplier, foodConsumptionMultiplier, guardProtection, tradeIncome };
 }
 
-function appendWorld(state: GameState, world: WorldState, message: string): GameState {
-  return { ...state, world: { ...record(world, message), chronicle: [message, ...world.chronicle].slice(0, 12) } };
-}
 function addCitizenForState(state: GameState, world: WorldState, profession: Profession = 'farmer'): WorldState {
   const citizen = makeCitizen(state.seed, world.nextCitizenId - 1, state.gameMinutes);
   citizen.id = 'citizen-' + world.nextCitizenId;
