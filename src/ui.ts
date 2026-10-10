@@ -297,7 +297,7 @@ function renderCitizenPanel(snapshot: GameSnapshot): void {
       const canAfford = Object.entries(choice.cost).every(([resource, amount]) =>
         state.resources[resource as Resource] >= (amount ?? 0),
       );
-      const hasHousing = !choice.populationDelta || state.population + choice.populationDelta <= housingCapacity(state);
+      const hasHousing = !choice.populationDelta || state.population + choice.populationDelta <= housingCapacity(state) + (choice.housingDelta ?? 0);
       button.disabled = !canAfford || !hasHousing;
       button.title = !canAfford
         ? 'Risorse insufficienti per questa scelta.'
