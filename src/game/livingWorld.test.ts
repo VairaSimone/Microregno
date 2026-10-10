@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState, advanceTime, resourceRates } from './engine';
-import { advanceRealmMinute, canExploreRegion, createWorldState, getInterestGroups, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
+import { advanceRealmMinute, canExploreRegion, createWorldState, ensureWorldState, getInterestGroups, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
 import type { Building } from './types';
 
 describe('living world simulation', () => {
@@ -12,6 +12,19 @@ describe('living world simulation', () => {
     const rebuilt = createWorldState(migrated.seed, migrated.population, migrated.gameMinutes);
     expect(rebuilt.citizens).toHaveLength(5);
     expect(rebuilt.citizens.every((citizen) => citizen.health > 0 && citizen.traits.length > 0)).toBe(true);
+  });
+
+  it('repairs incomplete citizen data and prevents duplicate future citizen IDs', () => {
+    const state = createInitialState();
+    state.world!.nextCitizenId = 2;
+    state.world!.citizens[0]!.id = 'citizen-42';
+    state.world!.citizens[1]!.id = 'citizen-42';
+    (state.world!.citizens[2] as unknown as { traits: string[] | null }).traits = null;
+    (state.world!.citizens[2] as unknown as { skills: Record<string, number> | null }).skills = null;
+    const repaired = ensureWorldState(state).world!;
+    expect(new Set(repaired.citizens.map((citizen) => citizen.id)).size).toBe(repaired.citizens.length);
+    expect(repaired.nextCitizenId).toBeGreaterThan(42);
+    expect(repaired.citizens.every((citizen) => citizen.traits.length > 0 && Object.values(citizen.skills).every(Number.isFinite))).toBe(true);
   });
 
   it('lets the player change a citizen profession and persists the journal entry', () => {
@@ -61,12 +74,38 @@ describe('living world simulation', () => {
     expect(next.world!.citizens.every((citizen) => citizen.hunger < 60)).toBe(true);
   });
 
+  it('does not treat a tiny food remainder as a full ration for every citizen', () => {
+    const state = createInitialState(); state.resources.food = 0.2;
+    state.world!.citizens.forEach((citizen) => { citizen.hunger = 60; });
+    const next = advanceRealmMinute(state);
+    expect(next.world!.citizens.every((citizen) => citizen.hunger > 60)).toBe(true);
+  });
+
   it('uses bread as a substitute when the main food reserve is empty', () => {
     const state = createInitialState(); state.resources.food = 0; state.world!.goods.bread = 5;
     state.world!.citizens.forEach((citizen) => { citizen.hunger = 60; });
     const next = advanceRealmMinute(state);
     expect(next.world!.goods.bread).toBeLessThan(5);
     expect(next.world!.citizens.every((citizen) => citizen.hunger < 60)).toBe(true);
+  });
+
+  it('does not run a mill or bakery without the relevant worker', () => {
+    const state = createInitialState();
+    state.buildings.push({ id: 'unstaffed-mill', type: 'mill', x: 4, y: 4, level: 1 }, { id: 'unstaffed-bakery', type: 'bakery', x: 4, y: 5, level: 1 });
+    state.world!.goods.grain = 40; state.world!.goods.flour = 10;
+    state.world!.citizens.forEach((citizen) => { citizen.profession = 'farmer'; citizen.workplaceId = null; });
+    const next = advanceRealmMinute(state);
+    expect(next.world!.goods.grain).toBe(40);
+    expect(next.world!.goods.flour).toBe(10);
+    expect(next.world!.goods.bread).toBe(state.world!.goods.bread);
+  });
+
+  it('does not count an unstaffed productive building as productive', () => {
+    const state = createInitialState();
+    const farm: Building = { id: 'unstaffed-farm', type: 'farm', x: 4, y: 4, level: 1 };
+    state.buildings.push(farm);
+    state.world!.citizens.forEach((citizen) => { citizen.profession = 'scout'; citizen.workplaceId = null; });
+    expect(worldBuildingMultiplier(state, farm)).toBe(0);
   });
 
   it('supports assigning a citizen to a specific workplace', () => {
