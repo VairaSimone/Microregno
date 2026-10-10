@@ -17,9 +17,9 @@ describe('living world simulation', () => {
   it('lets the player change a citizen profession and persists the journal entry', () => {
     const state = createInitialState();
     const citizen = state.world!.citizens[0]!;
-    const result = performRealmAction(state, { type: 'assign', citizenId: citizen.id, value: 'farmer' });
+    const result = performRealmAction(state, { type: 'assign', citizenId: citizen.id, value: 'scout' });
     expect(result.ok).toBe(true);
-    expect(result.state.world?.citizens[0]?.profession).toBe('farmer');
+    expect(result.state.world?.citizens[0]?.profession).toBe('scout');
     expect(result.state.world?.chronicle[0]).toContain(citizen.name);
     expect(state.world?.citizens[0]?.profession).toBe('farmer');
   });
