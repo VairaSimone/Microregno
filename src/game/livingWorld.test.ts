@@ -272,6 +272,21 @@ describe('living world simulation', () => {
     expect(recovered.world!.forestHealth).toBe(100);
   });
 
+  it('keeps citizen needs and inventories finite through four seasons', () => {
+    let state = createInitialState(8128);
+    state.buildings.push({ id: 'long-run-farm', type: 'farm', x: 4, y: 4, level: 1 });
+    state.buildings.push({ id: 'long-run-house', type: 'house', x: 4, y: 5, level: 1 });
+    for (let season = 0; season < 4; season++) state = advanceTime(state, 360);
+    const world = state.world!;
+    expect(state.gameMinutes).toBe(1440);
+    expect(world.citizens).toHaveLength(state.population);
+    expect(Object.values(state.resources).every((value) => Number.isFinite(value) && value >= 0)).toBe(true);
+    expect(Object.values(world.goods).every((value) => Number.isFinite(value) && value >= 0 && value <= 100 + state.buildings.filter((building) => building.type === 'warehouse').reduce((sum, building) => sum + 80 * building.level, 0))).toBe(true);
+    expect(world.citizens.every((citizen) => [citizen.hunger, citizen.energy, citizen.happiness, citizen.health].every((value) => Number.isFinite(value) && value >= 0 && value <= 100))).toBe(true);
+    expect(Number.isFinite(world.forestHealth) && world.forestHealth >= 0 && world.forestHealth <= 100).toBe(true);
+    expect(Number.isFinite(world.researchPoints) && world.researchPoints >= 0).toBe(true);
+  });
+
   it('requires discoveries or cartography before entering distant regions', () => {
     const state = createInitialState();
     expect(canExploreRegion(state.world!, 'forest')).toBe(true);
