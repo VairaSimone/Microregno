@@ -57,7 +57,7 @@ this.state=result.state;
 this.kingdom=this.state;
 const saved=saveKingdom(this.kingdom);
 this.savedAt=Date.now();
-window.dispatchEvent(new CustomEvent('microregno:save-status',{detail:saved?'Salvataggio locale attivo':'Salvataggio non disponibile in questo browser'}));
+this.reportSaveStatus(saved,'kingdom');
 this.notice('Traguardo raggiunto: '+result.earned.map(n=>n+' abitanti').join(', ')+'. Il Consiglio ti ricompensa con '+result.reward+' monete!');
 }
 private complete():void{this.completed=true;const score=challengeScore(this.state),old=loadChallengeSave(this.challenge.date);this.best=Math.max(this.best,score);this.reportSaveStatus(saveChallenge({date:this.challenge.date,state:this.state,completed:true,score,bestScore:Math.max(old?.bestScore??0,score)}),'challenge');this.notice('Sfida completata! Hai guadagnato: '+this.challenge.reward+'.');}
