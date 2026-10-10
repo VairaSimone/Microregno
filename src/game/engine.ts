@@ -4,7 +4,7 @@ import type {BuildCheck,Building,BuildingType,GameState,Resource,Terrain} from '
 function random(seed:number):()=>number{let v=seed>>>0;return()=>{v=(v*1664525+1013904223)>>>0;return v/4294967296;};}
 export function generateTerrain(seed:number):Terrain[][]{const r=random(seed);const map:Terrain[][]=Array.from({length:BOARD_SIZE},()=>Array.from({length:BOARD_SIZE},()=>{const n=r();return n<.065?'water':n<.21?'forest':n<.275?'rock':'grass';}));for(let y=4;y<=7;y++)for(let x=4;x<=7;x++)map[y]![x]='grass';[[7,2],[8,2],[7,3],[8,3],[7,4]].forEach(([x,y])=>map[y]![x]='water');[[2,5],[2,6],[3,5],[9,7],[10,7],[9,8],[5,2],[5,3],[6,2]].forEach(([x,y])=>map[y]![x]='forest');[[9,2],[10,2],[9,3],[10,3],[8,8],[8,9]].forEach(([x,y])=>map[y]![x]='rock');return map;}
 export function createInitialState(seed=2310):GameState{return{version:1,seed,resources:{wood:42,stone:24,food:42,coins:18},population:5,gameMinutes:0,buildings:[{id:'town-hall-1',type:'townHall',x:5,y:6,level:1}],lastSavedAt:Date.now(),community:createCommunityState(seed,0)};}
-export function housingCapacity(s:GameState):number{return s.buildings.reduce((n,b)=>n+(BUILDINGS[b.type].housing??0)*b.level,0);}
+export function housingCapacity(s:GameState):number{return s.buildings.reduce((n,b)=>n+(BUILDINGS[b.type].housing??0)*b.level,0)+(s.community?.housingBonus??0);}
 export function resourceTotal(s:GameState):number{return Object.values(s.resources).reduce((a,b)=>a+b,0);}
 export const POPULATION_MILESTONES=[{population:8,reward:10},{population:12,reward:15},{population:18,reward:25},{population:24,reward:40}] as const;
 export function awardPopulationMilestones(s:GameState):{state:GameState;reward:number;earned:number[]}{
