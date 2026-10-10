@@ -481,6 +481,14 @@ export function advanceRealmMinute(input: GameState): GameState {
     const forestChange = world.policies.forest === 'protected' ? 0.6 - sawmillLevels * 0.08 : world.policies.forest === 'managed' ? 0.12 - sawmillLevels * 0.42 : -0.35 - sawmillLevels * 1.25;
     const forestHealth = clamp(world.forestHealth + forestChange);
     nextWorld = { ...nextWorld, forestHealth };
+    const warehouseLevels = state.buildings.filter((building) => building.type === 'warehouse').reduce((sum, building) => sum + building.level, 0);
+    const spoilageMultiplier = warehouseLevels > 0 ? Math.max(0.18, 0.35 - (warehouseLevels - 1) * 0.06) : 1;
+    const spoilage: Record<keyof GoodsBag, number> = { grain: 0.025, flour: 0.035, bread: 0.06, tools: 0.004, medicine: 0.015 };
+    (Object.keys(spoilage) as Array<keyof GoodsBag>).forEach((good) => {
+      goods[good] = Math.round(goods[good] * (1 - spoilage[good] * spoilageMultiplier) * 100) / 100;
+    });
+    nextWorld = { ...nextWorld, goods: { ...goods } };
+    if (warehouseLevels === 0 && world.goods.bread > 12 && goods.bread < world.goods.bread - 1) notes.push('Una parte del pane si è deteriorata: un magazzino può ridurre lo spreco delle scorte.');
     if (world.forestHealth >= 35 && forestHealth < 35) notes.push('I boschi sono esausti: la produzione della segheria cala finché il territorio non si rigenera.');
     if (community && world.policies.tax === 'high') { community.morale = clamp(community.morale - 1); community.trust = clamp(community.trust - 1); }
     else if (community && world.policies.tax === 'low') { community.morale = clamp(community.morale + 1); community.trust = clamp(community.trust + 1); }
