@@ -53,8 +53,8 @@ const rates:Record<Resource,number>={wood:0,stone:0,food:-s.population*.035*seas
 for(const b of s.buildings)for(const [resource,amount] of Object.entries(productionForBuilding(b,map,gameMinutes,morale)) as [Resource,number][])rates[resource]+=amount;
 return rates;}
 export function demolish(s:GameState,id:string):GameState{const b=s.buildings.find(v=>v.id===id);if(!b||b.type==='townHall')return s;const resources={...s.resources};(Object.keys(BUILDINGS[b.type].cost) as Resource[]).forEach(r=>resources[r]+=Math.floor((BUILDINGS[b.type].cost[r]??0)*.3));return{...s,resources,buildings:s.buildings.filter(v=>v.id!==id)};}
-export function advanceTime(s:GameState,minutes:number):GameState{
-const next:GameState={...s,resources:{...s.resources},buildings:s.buildings.map(b=>({...b})),community:s.community??createCommunityState(s.seed,s.gameMinutes)};
+export function advanceTime(s:GameState,minutes:number,processCommunity=true):GameState{
+const next:GameState={...s,resources:{...s.resources},buildings:s.buildings.map(b=>({...b})),community:processCommunity?(s.community??createCommunityState(s.seed,s.gameMinutes)):s.community};
 const duration=Math.max(0,Math.min(360,Math.floor(minutes))),map=generateTerrain(s.seed);
 for(let minute=0;minute<duration;minute++){
 const morale=next.community?.morale??60;
@@ -63,8 +63,7 @@ const season=getSeason(next.gameMinutes);
 next.resources.food=Math.max(0,next.resources.food-next.population*.035*season.foodConsumptionMultiplier);
 next.resources.coins+=next.population*.006*((next.community?.trust??50)>=75?1.2:1);
 next.gameMinutes++;
-const communityUpdate=advanceCommunityMinute(next);
-next.community=communityUpdate.community;
+if(processCommunity){const communityUpdate=advanceCommunityMinute(next);next.community=communityUpdate.community;}
 if(next.gameMinutes%20===0&&next.resources.food>=18&&next.population<housingCapacity(next)&&(next.community?.morale??60)>=20)next.population++;
 (Object.keys(next.resources) as Resource[]).forEach(r=>next.resources[r]=Math.max(0,Math.round(next.resources[r]*100)/100));
 }
