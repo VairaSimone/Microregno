@@ -14,6 +14,7 @@ const $ = <T extends HTMLElement>(id: string): T => {
 
 const formatNumber = (value: number): string =>
   new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(Math.floor(value));
+const formatRate = (value: number): string => value.toFixed(Math.abs(value) < 0.1 ? 2 : 1);
 
 const dispatch = (name: string, detail?: unknown): void => {
   window.dispatchEvent(new CustomEvent(name, { detail }));
@@ -390,11 +391,11 @@ export function setupUI(): void {
 
     const rates = resourceRates(state, generateTerrain(state.seed));
     const foodRate = rates.food;
-    $('rate-food').textContent = (foodRate >= 0 ? '+' : '') + foodRate.toFixed(1) + '/min';
+    $('rate-food').textContent = (foodRate >= 0 ? '+' : '') + formatRate(foodRate) + '/min';
 
     (['wood', 'stone', 'coins'] as Resource[]).forEach((resource) => {
       const rate = rates[resource];
-      $('rate-' + resource).textContent = Math.abs(rate) > 0.0001 ? (rate > 0 ? '+' : '') + rate.toFixed(1) + '/min' : '—';
+      $('rate-' + resource).textContent = Math.abs(rate) > 0.0001 ? (rate > 0 ? '+' : '') + formatRate(rate) + '/min' : '—';
     });
 
     $('population-rate').textContent = state.resources.food < 18 ? 'serve cibo' : state.population < housingCapacity(state) ? 'può crescere' : 'case piene';
