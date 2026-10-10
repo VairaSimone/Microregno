@@ -34,6 +34,7 @@ return cost;}
 export function upgradeBuilding(s:GameState,id:string):{state:GameState;check:BuildCheck}{
 const building=s.buildings.find(b=>b.id===id);
 if(!building)return{state:s,check:{ok:false,reason:'Seleziona prima un edificio.'}};
+if(building.type==='road')return{state:s,check:{ok:false,reason:'Le strade non si migliorano: costruisci altri tratti per collegare il borgo.'}};
 if(building.level>=MAX_BUILDING_LEVEL)return{state:s,check:{ok:false,reason:'Questo edificio è già al livello massimo.'}};
 const cost=upgradeCost(building);
 for(const [resource,amount] of Object.entries(cost) as [Resource,number][])if(s.resources[resource]<amount)return{state:s,check:{ok:false,reason:'Servono '+amount+' '+(resource==='wood'?'legname':resource==='stone'?'pietra':resource)+' per migliorare questo edificio.'}};
