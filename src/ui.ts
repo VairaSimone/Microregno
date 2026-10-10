@@ -253,6 +253,8 @@ function renderCitizenPanel(snapshot: GameSnapshot): void {
   $('community-morale').textContent = String(community.morale);
   $('community-trust').textContent = String(community.trust);
   $('community-fulfilled').textContent = String(community.fulfilledRequests);
+  $('community-morale').title = community.morale >= 75 ? 'La comunità è entusiasta: produzione +5%.' : community.morale <= 25 ? 'Il morale è basso: produzione −10%.' : community.morale < 20 ? 'Il morale è troppo basso: la popolazione non cresce.' : 'Il morale influenza la produzione e la crescita.';
+  $('community-trust').title = community.trust >= 75 ? 'La comunità si fida: le monete generate dagli abitanti aumentano del 20%.' : 'Con fiducia alta gli abitanti generano più monete.';
   $('community-outcome').textContent = community.lastOutcome;
 
   const host = $('community-options');
@@ -501,6 +503,38 @@ function addStat(host: HTMLElement, labelText: string, valueText: string): void 
 
 export function setupUI(): void {
   const dialog = $('help-dialog') as HTMLDialogElement;
+  const historyDialog = $('community-history-dialog') as HTMLDialogElement;
+
+  $('community-history-button').addEventListener('click', () => {
+    if (!latestSnapshot) return;
+    const community = latestSnapshot.state.community;
+    const list = $('community-history-list');
+    list.innerHTML = '';
+    if (community) {
+      $('community-history-summary').textContent = 'Umore ' + community.morale + '/100 · Fiducia ' + community.trust + '/100 · richieste accolte ' + community.fulfilledRequests + ' · ignorate ' + community.ignoredRequests + '. Le soglie della comunità influenzano produzione, crescita e monete.';
+      const entries = community.history;
+      if (entries.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'community-history-empty';
+        empty.textContent = 'La cronaca è ancora vuota. Rispondi alla prima richiesta per lasciare un segno nella storia del borgo.';
+        list.append(empty);
+      } else {
+        entries.forEach((entry, index) => {
+          const row = document.createElement('div');
+          row.className = 'community-history-entry';
+          const marker = document.createElement('b');
+          marker.textContent = String(entries.length - index).padStart(2, '0');
+          const text = document.createElement('span');
+          text.textContent = entry;
+          row.append(marker, text);
+          list.append(row);
+        });
+      }
+    }
+    if (!historyDialog.open) historyDialog.showModal();
+  });
+  $('close-community-history').addEventListener('click', () => historyDialog.close());
+  $('close-community-history-footer').addEventListener('click', () => historyDialog.close());
 
   const openGuide = (): void => {
     if (!dialog.open) dialog.showModal();
