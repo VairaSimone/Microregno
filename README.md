@@ -91,5 +91,5 @@ Il workflow di deploy è manuale per evitare tentativi di pubblicazione prima di
 - **public/assets/**: sprite SVG originali.
 
 ## Limiti
-I salvataggi e i record sono locali. Le stagioni si alternano rapidamente per rendere visibili i cambiamenti in una sessione breve; i cittadini sono ancora agenti semplici e non hanno percorsi o bisogni individuali persistenti.
+I salvataggi e i record sono locali. Le stagioni si alternano rapidamente per rendere visibili i cambiamenti in una sessione breve. I cittadini hanno bisogni, attività giornaliere e percorsi locali verso casa, lavoro o piazza, ma la navigazione è limitata alla mappa attuale: non sono ancora presenti una simulazione urbana completa, routine lavorative dettagliate per ogni edificio o un sistema di animazioni individuali avanzato.
  Account, sincronizzazione, classifiche online e anti-cheat richiedono un backend e non sono inclusi in questa base. La licenza open source non è ancora stata scelta.
