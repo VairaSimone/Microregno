@@ -215,22 +215,43 @@ export function ensureWorldState(state: GameState): GameState {
     citizens.push(citizen);
     nextCitizenId++;
   }
-  const activeTrips = (Array.isArray(existing.expeditions) ? existing.expeditions : []).filter((trip) =>
-    trip && typeof trip.id === 'string' && trip.status === 'active' && REGIONS.some((region) => region.id === trip.region)
-    && typeof trip.scoutId === 'string' && Number.isFinite(trip.startedAt) && Number.isFinite(trip.eta));
-  const activeTripsById = new Map(activeTrips.map((trip) => [trip.id, trip]));
-  citizens = citizens.map((citizen) => {
-    if (citizen.status !== 'exploring') return citizen;
-    const trip = citizen.expeditionId ? activeTripsById.get(citizen.expeditionId) : undefined;
-    const belongsToTrip = trip && (Array.isArray(trip.crewIds) ? trip.crewIds.includes(citizen.id) : trip.scoutId === citizen.id);
-    return belongsToTrip ? citizen : { ...citizen, status: 'resident', activity: 'socializing', expeditionId: null, lastAction: 'È tornato alla vita del borgo dopo aver corretto una spedizione incompleta' };
-  });
   if (citizens.length > state.population) {
     const remove = citizens.length - state.population;
     const removable = citizens.filter((citizen) => citizen.status !== 'exploring').slice(-remove).map((citizen) => citizen.id);
     citizens = citizens.filter((citizen) => !removable.includes(citizen.id));
     while (citizens.length > state.population) citizens.pop();
   }
+  const knownCitizenIds = new Set(citizens.map((citizen) => citizen.id));
+  const validExpeditions = existing.expeditions
+    .filter((trip) => trip && typeof trip.id === 'string' && REGIONS.some((region) => region.id === trip.region)
+      && typeof trip.scoutId === 'string' && knownCitizenIds.has(trip.scoutId)
+      && Number.isFinite(trip.startedAt) && trip.startedAt >= 0 && Number.isFinite(trip.eta) && trip.eta >= trip.startedAt
+      && ['active', 'success', 'partial', 'failed'].includes(trip.status))
+    .map((trip) => {
+      const crewIds = [...new Set([trip.scoutId, ...(Array.isArray(trip.crewIds) ? trip.crewIds.filter((id): id is string => typeof id === 'string' && knownCitizenIds.has(id)) : [])])].slice(0, 3);
+      return { ...trip, crewIds, successChance: Number.isFinite(trip.successChance) ? clamp(trip.successChance) : 45 };
+    });
+  const assignedActiveCrew = new Set<string>();
+  const activeTripsByCitizen = new Map<string, Expedition>();
+  for (const trip of validExpeditions.filter((entry) => entry.status === 'active')) {
+    const crewIds = trip.crewIds ?? [trip.scoutId];
+    if (crewIds.some((id) => assignedActiveCrew.has(id))) continue;
+    for (const id of crewIds) {
+      assignedActiveCrew.add(id);
+      activeTripsByCitizen.set(id, trip);
+    }
+  }
+  citizens = citizens.map((citizen) => {
+    const activeTrip = activeTripsByCitizen.get(citizen.id);
+    if (activeTrip) return { ...citizen, status: 'exploring', activity: 'exploring', expeditionId: activeTrip.id, lastAction: 'Sta esplorando il territorio' };
+    if (citizen.status === 'exploring') return { ...citizen, status: 'resident', activity: 'socializing', expeditionId: null, lastAction: 'È tornato alla vita del borgo dopo aver corretto una spedizione incompleta' };
+    return { ...citizen, expeditionId: null, activity: citizen.activity === 'exploring' ? 'socializing' : citizen.activity };
+  });
+  const presentCitizenIds = new Set(citizens.map((citizen) => citizen.id));
+  citizens = citizens.map((citizen) => ({
+    ...citizen,
+    relationships: Object.fromEntries(Object.entries(citizen.relationships).filter(([id]) => id !== citizen.id && presentCitizenIds.has(id))),
+  }));
   const homes = state.buildings.filter((building) => (BUILDINGS[building.type]?.housing ?? 0) > 0);
   const occupied = new Map<string, number>();
   citizens = citizens.map((citizen, index) => {
@@ -263,9 +284,9 @@ export function ensureWorldState(state: GameState): GameState {
     },
     researchPoints: Number.isFinite(existing.researchPoints) ? Math.max(0, Math.min(100000, existing.researchPoints)) : 0,
     researchProgress: Number.isFinite(existing.researchProgress) ? Math.max(0, existing.researchProgress) : 0,
-    researched: [...new Set(existing.researched.filter((id): id is ResearchId => RESEARCH.some((entry) => entry.id === id))],
+    researched: [...new Set(existing.researched.filter((id): id is ResearchId => RESEARCH.some((entry) => entry.id === id)))],
     activeResearch: RESEARCH.some((entry) => entry.id === existing.activeResearch) ? existing.activeResearch : null,
-    expeditions: existing.expeditions.filter((expedition) => expedition && typeof expedition.id === 'string' && REGIONS.some((region) => region.id === expedition.region) && typeof expedition.scoutId === 'string' && Number.isFinite(expedition.startedAt) && Number.isFinite(expedition.eta) && ['active', 'success', 'partial', 'failed'].includes(expedition.status)).map((expedition) => ({ ...expedition, crewIds: Array.isArray(expedition.crewIds) ? expedition.crewIds.filter((id): id is string => typeof id === 'string') : [expedition.scoutId], eta: Math.max(0, expedition.eta), successChance: Number.isFinite(expedition.successChance) ? clamp(expedition.successChance) : 45 })).slice(-8),
+    expeditions: validExpeditions.slice(-8),
     discoveredRegions: [...new Set(existing.discoveredRegions.filter((id): id is RegionId => REGIONS.some((region) => region.id === id)))],
     chronicle: existing.chronicle.filter((entry): entry is string => typeof entry === 'string').slice(0, 12),
     activeEvent: existing.activeEvent && typeof existing.activeEvent.id === 'string' && typeof existing.activeEvent.title === 'string' && typeof existing.activeEvent.description === 'string' && Number.isFinite(existing.activeEvent.startedAt) && existing.activeEvent.startedAt >= 0 && Array.isArray(existing.activeEvent.choices) && existing.activeEvent.choices.length > 0 && existing.activeEvent.choices.length <= 8 && existing.activeEvent.choices.every(validEventChoice) ? existing.activeEvent : null,
