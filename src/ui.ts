@@ -179,8 +179,12 @@ function renderBuildList(snapshot: GameSnapshot): void {
 
     const icon = document.createElement('span');
     icon.className = 'build-icon';
-    icon.textContent = definition.icon;
     icon.setAttribute('aria-hidden', 'true');
+    const sprite = document.createElement('img');
+    sprite.src = new URL('assets/' + type + '.svg', document.baseURI).toString();
+    sprite.alt = '';
+    sprite.draggable = false;
+    icon.append(sprite);
 
     const copy = document.createElement('span');
     copy.className = 'build-copy';
