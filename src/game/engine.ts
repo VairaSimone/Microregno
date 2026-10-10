@@ -5,6 +5,12 @@ export function generateTerrain(seed:number):Terrain[][]{const r=random(seed);co
 export function createInitialState(seed=2310):GameState{return{version:1,seed,resources:{wood:42,stone:24,food:42,coins:18},population:5,gameMinutes:0,buildings:[{id:'town-hall-1',type:'townHall',x:5,y:6,level:1}],lastSavedAt:Date.now()};}
 export function housingCapacity(s:GameState):number{return s.buildings.reduce((n,b)=>n+(BUILDINGS[b.type].housing??0)*b.level,0);}
 export function resourceTotal(s:GameState):number{return Object.values(s.resources).reduce((a,b)=>a+b,0);}
+export const POPULATION_MILESTONES=[{population:8,reward:10},{population:12,reward:15},{population:18,reward:25},{population:24,reward:40}] as const;
+export function awardPopulationMilestones(s:GameState):{state:GameState;reward:number;earned:number[]}{
+const claimed=Array.isArray(s.milestones)?s.milestones:[],newMilestones=POPULATION_MILESTONES.filter(m=>s.population>=m.population&&!claimed.includes(m.population));
+if(newMilestones.length===0)return{state:s,reward:0,earned:[]};
+const reward=newMilestones.reduce((total,m)=>total+m.reward,0),earned=newMilestones.map(m=>m.population);
+return{state:{...s,resources:{...s.resources,coins:s.resources.coins+reward},milestones:[...claimed,...earned]},reward,earned};}
 function near(map:Terrain[][],x:number,y:number,wanted:Terrain,distance=2):boolean{for(let row=Math.max(0,y-distance);row<=Math.min(BOARD_SIZE-1,y+distance);row++)for(let col=Math.max(0,x-distance);col<=Math.min(BOARD_SIZE-1,x+distance);col++)if(Math.abs(col-x)+Math.abs(row-y)<=distance&&map[row]![col]===wanted)return true;return false;}
 export function canBuild(s:GameState,map:Terrain[][],x:number,y:number,type:BuildingType):BuildCheck{
 if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=BOARD_SIZE||y>=BOARD_SIZE)return{ok:false,reason:'Questa casella è fuori dal territorio.'};
