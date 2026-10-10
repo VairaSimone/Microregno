@@ -74,11 +74,13 @@ if(route.length<2)return;
 const coats=[0x8d5b45,0x416b8e,0x8b9b54,0x8a6aa5,0xb56b4b,0x4b7f74,0x6d8260,0x986b3f];
 const hair=[0x4b3528,0x3d342c,0x7c5638,0x43372f,0x6a4934,0x302c2a,0x8b6546,0x554033];
 const skins=[0xe7bf9a,0xc98f69,0xf0d0ad,0xb97859,0xe4b58d,0xd8a47c,0xf0c8a1,0xbd8767];
-const count=Math.min(8,this.state.population);
+const residents=(this.state.world?.citizens??[]).filter((citizen)=>citizen.status==='resident').slice(0,8);
+const professionCoats:Record<string,number>={farmer:0x8b9850,lumberjack:0x836144,miner:0x666f79,merchant:0x466f9a,miller:0xb7a16a,baker:0xb96d4b,scholar:0x8276a5,scout:0x447d72,builder:0xa96a4a,guard:0x536b51,artisan:0x9b7751};
+const count=Math.min(8,residents.length);
 for(let i=0;i<count;i++){
-const index=(i*2)%route.length,p=route[index]!;
+const index=(i*2)%route.length,p=route[index]!,resident=residents[i]!;
 const shadow=this.add.ellipse(0,0,10,4,0x314b39,.22);
-const body=this.add.ellipse(0,-7,7,9,coats[i%coats.length]);
+const body=this.add.ellipse(0,-7,7,9,professionCoats[resident.profession]??coats[i%coats.length]);
 const head=this.add.circle(0,-14,3.2,skins[i%skins.length]);
 const cap=this.add.ellipse(0,-16,5.5,2.5,hair[i%hair.length]);
 const citizen=this.add.container(p.x,p.y+4,[shadow,body,head,cap]).setDepth((walkTiles[index]![0]+walkTiles[index]![1])*10+7);
