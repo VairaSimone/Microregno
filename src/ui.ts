@@ -1,7 +1,7 @@
 import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
 import { getSeason } from './game/community';
-import { canExploreRegion, PROFESSION_LABELS, PROFESSIONS, PROJECTS, RESEARCH, REGIONS } from './game/livingWorld';
+import { canExploreRegion, PROFESSION_LABELS, PROFESSIONS, PROJECTS, RESEARCH, REGIONS, worldBuildingMultiplier } from './game/livingWorld';
 import type { GoodsBag, Profession } from './game/types';
 import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, GameSnapshot, Resource } from './game/types';
@@ -458,14 +458,15 @@ function renderInspector(snapshot: GameSnapshot): void {
     addStat(stats, 'Livello', selected.level + ' / ' + MAX_BUILDING_LEVEL);
     if (definition.housing) addStat(stats, 'Capienza abitativa', '+' + definition.housing * selected.level);
 
-    const output = productionForBuilding(selected, generateTerrain(snapshot.state.seed), snapshot.state.gameMinutes, snapshot.state.community?.morale ?? 60);
+    const output = productionForBuilding(selected, generateTerrain(snapshot.state.seed), snapshot.state.gameMinutes, snapshot.state.community?.morale ?? 60, worldBuildingMultiplier(snapshot.state, selected));
     Object.entries(output).forEach(([resource, amount]) => {
       addStat(stats, RESOURCE_LABELS[resource as Resource] + ' / min', '+' + Number(amount).toLocaleString('it-IT', { maximumFractionDigits: 2 }));
     });
-    if (!definition.housing && Object.keys(output).length === 0) addStat(stats, 'Funzione', 'Centro del regno');
+    if (selected.type === 'road') addStat(stats, 'Funzione', 'Trasporto · +8% agli edifici produttivi adiacenti');
+    else if (!definition.housing && Object.keys(output).length === 0) addStat(stats, 'Funzione', 'Edificio di servizio');
 
     const upgrade = $('upgrade-button') as HTMLButtonElement;
-    const canUpgrade = selected.level < MAX_BUILDING_LEVEL && !snapshot.challengeCompleted;
+    const canUpgrade = selected.type !== 'road' && selected.level < MAX_BUILDING_LEVEL && !snapshot.challengeCompleted;
     upgrade.classList.toggle('hidden', !canUpgrade);
     if (canUpgrade) {
       const cost = upgradeCost(selected);
