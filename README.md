@@ -19,6 +19,14 @@ npm run dev
 
 Per verificare e compilare: **npm run typecheck**, **npm test**, **npm run build**. La cartella **dist/** contiene il sito statico pubblicabile su GitHub Pages, Netlify, Cloudflare Pages o altro hosting statico.
 
+### Pubblicare su GitHub Pages
+
+1. Apri **Settings → Pages** nel repository e scegli **GitHub Actions** come sorgente di pubblicazione.
+2. Apri **Actions → Deploy Microregno → Run workflow** e avvia il workflow sul branch `main`.
+3. Quando il job termina correttamente, GitHub mostra l'URL pubblico nella pagina del workflow e in **Settings → Pages**.
+
+Il workflow di deploy è manuale per evitare tentativi di pubblicazione prima di aver configurato Pages. Il workflow CI continua invece a verificare test e build a ogni push/PR.
+
 ## Struttura
 - **src/game/engine.ts**: costruzioni, produzione, popolazione e terreno.
 - **src/game/KingdomScene.ts**: rendering e input Phaser.
