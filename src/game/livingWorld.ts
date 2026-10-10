@@ -328,7 +328,7 @@ export function advanceRealmMinute(input: GameState): GameState {
   const bakers = citizens.filter((citizen) => citizen.profession === 'baker' && citizen.status === 'resident').length;
   const breadProduced = Math.min(goods.flour, Math.min(bakeries * 0.14, bakers * 0.11));
   goods.flour -= breadProduced; goods.bread += breadProduced;
-  if (goods.bread > 0 && state.gameMinutes % 18 === 0) goods.bread = Math.max(0, goods.bread - state.population * 0.035);
+  if (goods.bread > 0 && state.gameMinutes > 0 && state.gameMinutes % 18 === 0) goods.bread = Math.max(0, goods.bread - state.population * 0.035);
   const workshops = state.buildings.filter((building) => building.type === 'workshop').length;
   const artisans = citizens.filter((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident').length;
   if (workshops > 0 && artisans > 0 && state.gameMinutes % 45 === 0 && resources.wood >= 2 && resources.stone >= 1) {
@@ -338,13 +338,13 @@ export function advanceRealmMinute(input: GameState): GameState {
   const cap = goodsCapacity(state);
   (Object.keys(goods) as Array<keyof GoodsBag>).forEach((key) => { goods[key] = clamp(goods[key], 0, cap); });
 
-  let nextWorld: WorldState = { ...world, citizens, goods, researchPoints: world.researchPoints + 0.018 + (state.buildings.some((building) => building.type === 'school') ? citizens.filter((citizen) => citizen.profession === 'scholar').length * 0.035 : 0) };
+  let nextWorld: WorldState = { ...world, citizens, goods, researchPoints: world.researchPoints + 0.025 + (state.buildings.some((building) => building.type === 'school') ? citizens.filter((citizen) => citizen.profession === 'scholar').length * 0.09 : 0) };
   const scholars = state.buildings.some((building) => building.type === 'school')
     ? citizens.filter((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident').length : 0;
   if (nextWorld.activeResearch) {
     const definition = RESEARCH.find((entry) => entry.id === nextWorld.activeResearch);
     if (definition) {
-      nextWorld = { ...nextWorld, researchProgress: nextWorld.researchProgress + 0.085 + scholars * 0.2 + (nextWorld.completedProjects.includes('grand-archive') ? 0.06 : 0) };
+      nextWorld = { ...nextWorld, researchProgress: nextWorld.researchProgress + 0.24 + scholars * 0.43 + (nextWorld.completedProjects.includes('grand-archive') ? 0.12 : 0) };
       if (nextWorld.researchProgress >= definition.duration) {
         nextWorld = { ...nextWorld, researched: [...new Set([...nextWorld.researched, definition.id])], activeResearch: null, researchProgress: 0 };
         notes.push('Ricerca completata: ' + definition.name + '.');
@@ -357,7 +357,7 @@ export function advanceRealmMinute(input: GameState): GameState {
     if (expedition.eta > state.gameMinutes) continue;
     const index = expeditions.findIndex((entry) => entry.id === expedition.id);
     if (index < 0) continue;
-    const success = expedition.successChance >= 70;
+    const success = expedition.successChance >= 60;
     const scout = citizens.find((citizen) => citizen.id === expedition.scoutId);
     if (scout) citizens = citizens.map((citizen) => citizen.id === scout.id ? { ...citizen, status: 'resident', expeditionId: null, energy: clamp(citizen.energy + 18), lastAction: success ? 'È tornato da una spedizione' : 'È tornato stanco da una spedizione difficile' } : citizen);
     if (success) {
@@ -387,6 +387,12 @@ export function advanceRealmMinute(input: GameState): GameState {
     if (mood >= 72) community.morale = clamp(community.morale + 1);
     else if (mood < 42) community.morale = clamp(community.morale - 1);
   }
+  if (community && state.gameMinutes > 0 && state.gameMinutes % 60 === 0) {
+    if (world.policies.tax === 'high') { community.morale = clamp(community.morale - 1); community.trust = clamp(community.trust - 1); }
+    else if (world.policies.tax === 'low') { community.morale = clamp(community.morale + 1); community.trust = clamp(community.trust + 1); }
+    if (world.policies.food === 'generous' && goods.bread > 0) community.morale = clamp(community.morale + 1);
+    if (world.policies.guard === 'patrol') community.trust = clamp(community.trust + 1);
+  }
   const now = state.gameMinutes;
   if (!nextWorld.activeEvent && now >= nextWorld.nextEventAt) {
     const id = nextWorld.queuedEvent ?? 'random';
@@ -414,6 +420,7 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
   let world = state.world!;
   let resources = { ...state.resources };
   let community = state.community ? { ...state.community } : undefined;
+  let population = state.population;
   const fail = (message: string) => ({ state, ok: false, message });
   const finish = (message: string) => ({
     state: { ...state, resources, community, world: { ...world, chronicle: [message, ...world.chronicle].slice(0, 12) } },
@@ -459,7 +466,7 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     const carriesTools = world.goods.tools > 0;
     resources.food -= 8;
     const goods = { ...world.goods, tools: Math.max(0, world.goods.tools - (carriesTools ? 1 : 0)) };
-    const chance = Math.min(98, 45 + scout.skills.scout * 0.45 + (carriesTools ? 16 : 0) + (world.researched.includes('cartography') ? 10 : 0));
+    const chance = Math.min(98, 45 + scout.skills.scout * 0.45 + (carriesTools ? 16 : 0) + (world.researched.includes('cartography') ? 10 : 0) + realmModifiers(state).guardProtection * 12);
     const id = 'expedition-' + state.gameMinutes + '-' + scout.id + '-' + region.id;
     const expedition: Expedition = { id, region: region.id, scoutId: scout.id, startedAt: state.gameMinutes, eta: state.gameMinutes + region.duration, status: 'active', successChance: chance, outcome: 'La squadra è in viaggio.' };
     world = { ...world, goods, citizens: world.citizens.map((citizen) => citizen.id === scout.id ? { ...citizen, status: 'exploring', expeditionId: id, lastAction: 'Sta esplorando: ' + region.name } : citizen), expeditions: [...world.expeditions, expedition].slice(-8) };
@@ -489,6 +496,7 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     resources = applyReward(resources, choice.reward ?? {});
     const goods = applyGoods(payGoods(world.goods, choice.goodsCost ?? {}), choice.goodsReward ?? {});
     let citizens = world.citizens;
+    if (choice.populationDelta) population = Math.max(0, population + choice.populationDelta);
     if (choice.populationDelta && choice.populationDelta > 0) {
       const profession = choice.profession ?? 'farmer';
       world = addCitizenForState({ ...state, resources }, world);
