@@ -10,7 +10,7 @@ export interface CommunityState { morale: number; trust: number; fulfilledReques
 export type ResourceBag = Record<Resource, number>;
 export type Profession = 'farmer' | 'lumberjack' | 'miner' | 'merchant' | 'miller' | 'baker' | 'scholar' | 'scout' | 'builder' | 'guard' | 'artisan';
 export type CitizenStatus = 'resident' | 'exploring';
-export interface Citizen { id: string; name: string; age: number; profession: Profession; traits: string[]; skills: Record<Profession, number>; hunger: number; energy: number; happiness: number; health: number; experience: number; status: CitizenStatus; expeditionId: string | null; lastAction: string; relationships: Record<string, number>; bornAt: number }
+export interface Citizen { id: string; name: string; age: number; profession: Profession; traits: string[]; skills: Record<Profession, number>; hunger: number; energy: number; happiness: number; health: number; experience: number; status: CitizenStatus; expeditionId: string | null; lastAction: string; relationships: Record<string, number>; homeId: string | null; familyId: string; bornAt: number }
 export interface GoodsBag { grain: number; flour: number; bread: number; tools: number; medicine: number }
 export type TaxPolicy = 'low' | 'balanced' | 'high';
 export type FoodPolicy = 'reserve' | 'balanced' | 'generous';
