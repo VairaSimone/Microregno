@@ -2,7 +2,7 @@ import { BUILDINGS } from './definitions';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
   GameState, GoodsBag, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition,
-  RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, WorldState,
+  MarketState, RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, TradableGood, WorldState,
 } from './types';
 
 export const PROFESSION_LABELS: Record<Profession, string> = {
@@ -40,6 +40,27 @@ const NAMES = ['Ada', 'Berto', 'Mira', 'Neri', 'Lina', 'Elio', 'Rina', 'Timo', '
 const TRAITS = ['curioso', 'generoso', 'ambizioso', 'paziente', 'socievole', 'pratico', 'prudente', 'inventivo'];
 const INITIAL_JOBS: Profession[] = ['farmer', 'farmer', 'builder', 'merchant', 'scout', 'lumberjack', 'miner', 'artisan', 'baker', 'scholar'];
 const DEFAULT_GOODS: GoodsBag = { grain: 12, flour: 4, bread: 6, tools: 2, medicine: 1 };
+const MARKET_BASE_PRICES: Record<TradableGood, number> = { grain: 1, flour: 2, bread: 3, tools: 6, medicine: 5 };
+const MARKET_GOOD_LABELS: Record<TradableGood, string> = { grain: 'grano', flour: 'farina', bread: 'pane', tools: 'attrezzi', medicine: 'rimedi' };
+function createMarketState(gameMinutes = 0): MarketState {
+  return { prices: { ...MARKET_BASE_PRICES }, demand: { grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1 }, cycle: 0, nextShiftAt: gameMinutes + 120 };
+}
+function refreshMarket(seed: number, gameMinutes: number, market: MarketState, goods: GoodsBag): MarketState {
+  const cycle = market.cycle + 1;
+  const keys = Object.keys(MARKET_BASE_PRICES) as TradableGood[];
+  const demand = { ...market.demand };
+  const prices = { ...market.prices };
+  keys.forEach((good, index) => {
+    const score = Math.abs(Math.trunc(seed * 31 + cycle * 137 + index * 227)) % 101;
+    let factor = 0.62 + score / 150;
+    if (goods[good] > 16) factor *= 0.82;
+    if (goods[good] < 3) factor *= 1.12;
+    factor = Math.max(0.5, Math.min(1.55, factor));
+    demand[good] = Math.round(factor * 100) / 100;
+    prices[good] = Math.max(1, Math.round(MARKET_BASE_PRICES[good] * factor));
+  });
+  return { prices, demand, cycle, nextShiftAt: gameMinutes + 120 };
+}
 const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', forest: 'managed', guard: 'none' };
 
 function clamp(value: number, low = 0, high = 100): number {
@@ -89,6 +110,7 @@ export function createWorldState(seed: number, population = 5, gameMinutes = 0):
     researched: [], expeditions: [], discoveredRegions: [], chronicle: ['È nato un nuovo Consiglio del Regno. I cittadini ora hanno bisogni, mestieri e ambizioni.'],
     activeEvent: null, nextEventAt: gameMinutes + 240, queuedEvent: null,
     projectStages: { aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 },
+    market: createMarketState(gameMinutes), forestHealth: 100,
     completedProjects: [], factions, tradeRoutes: [],
   };
 }
@@ -143,6 +165,8 @@ export function ensureWorldState(state: GameState): GameState {
     nextEventAt: Number.isFinite(existing.nextEventAt) ? existing.nextEventAt : state.gameMinutes + 240,
     queuedEvent: existing.queuedEvent ?? null,
     projectStages: Object.assign({ aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 }, existing.projectStages),
+    market: { ...createMarketState(state.gameMinutes), ...(existing.market ?? {}), prices: { ...MARKET_BASE_PRICES, ...(existing.market?.prices ?? {}) }, demand: { grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1, ...(existing.market?.demand ?? {}) }, cycle: Number.isFinite(existing.market?.cycle) ? existing.market!.cycle : 0, nextShiftAt: Number.isFinite(existing.market?.nextShiftAt) ? existing.market!.nextShiftAt : state.gameMinutes + 120 },
+    forestHealth: Number.isFinite(existing.forestHealth) ? clamp(existing.forestHealth!) : 100,
     completedProjects: [...new Set(existing.completedProjects)],
     factions: existing.factions,
     tradeRoutes: [...new Set(existing.tradeRoutes)],
@@ -168,6 +192,7 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
     multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
   }
   if (world.researched.includes('tools') && ['farm', 'sawmill', 'quarry', 'market'].includes(building.type)) multiplier *= 1.12;
+  if (building.type !== 'road' && state.buildings.some((entry) => entry.type === 'road' && Math.abs(entry.x - building.x) + Math.abs(entry.y - building.y) <= 1)) multiplier *= 1.08;
   if (world.completedProjects.includes('artisan-quarter')) multiplier *= 1.08;
   if (building.type === 'farm' && world.researched.includes('irrigation')) multiplier *= 1.15;
   if (building.type === 'farm' && world.completedProjects.includes('aqueduct')) multiplier *= 1.12;
@@ -175,6 +200,7 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   if (building.type === 'sawmill') {
     multiplier *= world.policies.forest === 'protected' ? (world.researched.includes('forestry') ? 0.88 : 0.72)
       : world.policies.forest === 'intensive' ? 1.25 : 1;
+    if (world.forestHealth < 35) multiplier *= 0.55 + world.forestHealth / 100 * 0.45;
   }
   return multiplier;
 }
@@ -398,6 +424,10 @@ export function advanceRealmMinute(input: GameState): GameState {
   }
 
   let nextWorld: WorldState = { ...world, citizens, goods, researchPoints: world.researchPoints + 0.025 + (state.buildings.some((building) => building.type === 'school') ? citizens.filter((citizen) => citizen.profession === 'scholar').length * 0.09 : 0) };
+  if (state.gameMinutes >= nextWorld.market.nextShiftAt) {
+    nextWorld = { ...nextWorld, market: refreshMarket(state.seed, state.gameMinutes, nextWorld.market, goods) };
+    notes.push('La domanda del mercato è cambiata: le quotazioni di grano, pane e beni lavorati sono aggiornate.');
+  }
   const scholars = state.buildings.some((building) => building.type === 'school')
     ? citizens.filter((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident').length : 0;
   if (nextWorld.activeResearch) {
@@ -445,11 +475,19 @@ export function advanceRealmMinute(input: GameState): GameState {
     if (mood >= 72) community.morale = clamp(community.morale + 1);
     else if (mood < 42) community.morale = clamp(community.morale - 1);
   }
-  if (community && state.gameMinutes > 0 && state.gameMinutes % 60 === 0) {
-    if (world.policies.tax === 'high') { community.morale = clamp(community.morale - 1); community.trust = clamp(community.trust - 1); }
-    else if (world.policies.tax === 'low') { community.morale = clamp(community.morale + 1); community.trust = clamp(community.trust + 1); }
-    if (world.policies.food === 'generous' && goods.bread > 0) community.morale = clamp(community.morale + 1);
-    if (world.policies.guard === 'patrol') community.trust = clamp(community.trust + 1);
+  if (state.gameMinutes > 0 && state.gameMinutes % 60 === 0) {
+    const sawmillLevels = state.buildings.filter((building) => building.type === 'sawmill').reduce((sum, building) => sum + building.level, 0);
+    const forestChange = world.policies.forest === 'protected' ? 0.6 - sawmillLevels * 0.08 : world.policies.forest === 'managed' ? 0.12 - sawmillLevels * 0.42 : -0.35 - sawmillLevels * 1.25;
+    const forestHealth = clamp(world.forestHealth + forestChange);
+    nextWorld = { ...nextWorld, forestHealth };
+    if (world.forestHealth >= 35 && forestHealth < 35) notes.push('I boschi sono esausti: la produzione della segheria cala finché il territorio non si rigenera.');
+    if (community && world.policies.tax === 'high') { community.morale = clamp(community.morale - 1); community.trust = clamp(community.trust - 1); }
+    else if (community && world.policies.tax === 'low') { community.morale = clamp(community.morale + 1); community.trust = clamp(community.trust + 1); }
+    if (community && world.policies.food === 'generous' && goods.bread > 0) community.morale = clamp(community.morale + 1);
+    if (world.policies.guard === 'patrol') {
+      if (resources.coins >= 2) { resources.coins -= 2; if (community) community.trust = clamp(community.trust + 1); }
+      else if (community) { community.trust = clamp(community.trust - 2); community.morale = clamp(community.morale - 1); notes.push('Le guardie non sono state pagate: il Consiglio deve rifinanziare le pattuglie.'); }
+    }
   }
   const now = state.gameMinutes;
   if (!nextWorld.activeEvent && now >= nextWorld.nextEventAt) {
@@ -564,6 +602,19 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     world = { ...world, citizens, goods, activeEvent: null, queuedEvent: choice.chain ?? null, nextEventAt: state.gameMinutes + (choice.chain ? 75 : 300), researchPoints: world.researchPoints + (choice.researchDelta ?? 0) };
     community = applyCommunityEffects(community, choice.moodDelta ?? 0, choice.trustDelta ?? 0);
     return finish(event.title + ' — ' + choice.label + '. ' + choice.detail);
+  }
+  if (action.type === 'tradeGoods') {
+    if (!state.buildings.some((building) => building.type === 'market')) return fail('Costruisci un mercato prima di vendere i beni lavorati.');
+    if (!world.citizens.some((citizen) => citizen.profession === 'merchant' && citizen.status === 'resident')) return fail('Assegna almeno un cittadino al mestiere Mercante.');
+    if (!Object.prototype.hasOwnProperty.call(world.goods, action.good)) return fail('Questo bene non è commerciabile.');
+    const amount = Math.floor(action.amount);
+    if (!Number.isFinite(amount) || amount < 1 || amount > 50) return fail('Puoi vendere da 1 a 50 unità per volta.');
+    if (world.goods[action.good] < amount) return fail('Scorte insufficienti: non hai ' + amount + ' unità di ' + MARKET_GOOD_LABELS[action.good] + '.');
+    const price = Math.max(1, world.market.prices[action.good]);
+    const revenue = Math.floor(amount * price);
+    world = { ...world, goods: { ...world.goods, [action.good]: world.goods[action.good] - amount } };
+    resources.coins += revenue;
+    return finish('Vendute ' + amount + ' unità di ' + MARKET_GOOD_LABELS[action.good] + ' a ' + price + ' monete ciascuna: +' + revenue + ' monete. Domanda attuale: ' + Math.round(world.market.demand[action.good] * 100) + '%.');
   }
   if (action.type === 'diplomacy') {
     const faction = world.factions.find((entry) => entry.id === action.id);
