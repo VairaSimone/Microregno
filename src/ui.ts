@@ -1,10 +1,12 @@
 import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
+import { getSeason } from './game/community';
 import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, GameSnapshot, Resource } from './game/types';
 
 const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
 const TUTORIAL_SEEN_KEY = 'microregno:tutorial-seen:v1';
+let renderedRequestId: string | null | undefined;
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
@@ -217,6 +219,88 @@ function renderBuildList(snapshot: GameSnapshot): void {
   $('map-instruction').textContent = snapshot.selectedBuildType
     ? 'Costruisci: ' + BUILDINGS[snapshot.selectedBuildType].name + ' · scegli una casella d’erba libera.'
     : 'Seleziona una costruzione a destra, poi scegli dove piazzarla.';
+}
+
+function renderCitizenPanel(snapshot: GameSnapshot): void {
+  const communityHost = $('community-content');
+  const challengeHost = $('challenge-content');
+  const isChallenge = snapshot.mode === 'challenge';
+  communityHost.classList.toggle('hidden', isChallenge);
+  challengeHost.classList.toggle('hidden', !isChallenge);
+  if (isChallenge) return;
+
+  const state = snapshot.state;
+  const community = state.community;
+  if (!community) return;
+  const season = getSeason(state.gameMinutes);
+  const request = community.activeRequest;
+  $('community-eyebrow').textContent = 'VOCI DAL BORGO · ' + season.name.toLocaleUpperCase('it-IT');
+  $('season-badge').textContent = season.icon;
+  $('season-badge').setAttribute('aria-label', season.name);
+  $('season-badge').setAttribute('title', season.description);
+  $('community-season-note').textContent = season.description;
+  $('community-title').textContent = request?.title ?? 'La piazza si prende una pausa';
+  $('community-description').textContent = request?.description
+    ?? 'Per ora non ci sono richieste urgenti. Il Consiglio ha un momento per prepararsi alla prossima decisione.';
+  $('community-person').textContent = request
+    ? request.citizen.toLocaleUpperCase('it-IT') + ' · ' + request.role.toLocaleUpperCase('it-IT')
+    : 'CONSIGLIO DEL BORGO';
+  const wait = request
+    ? Math.max(0, request.deadline - state.gameMinutes)
+    : Math.max(0, community.nextRequestAt - state.gameMinutes);
+  const timerText = String(Math.floor(wait / 60)).padStart(2, '0') + ':' + String(wait % 60).padStart(2, '0');
+  $('community-deadline').textContent = request ? 'Scade tra ' + timerText : 'Prossima tra ' + timerText;
+  $('community-morale').textContent = String(community.morale);
+  $('community-trust').textContent = String(community.trust);
+  $('community-fulfilled').textContent = String(community.fulfilledRequests);
+  $('community-outcome').textContent = community.lastOutcome;
+
+  const host = $('community-options');
+  const requestId = request?.id ?? null;
+  if (renderedRequestId !== requestId) {
+    host.innerHTML = '';
+    renderedRequestId = requestId;
+    if (request) {
+      request.options.forEach((choice) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'community-option';
+        button.dataset.optionId = choice.id;
+        const label = document.createElement('strong');
+        label.textContent = choice.label;
+        const detail = document.createElement('small');
+        detail.textContent = choice.detail;
+        button.append(label, detail);
+        button.addEventListener('click', () => dispatch('microregno:request-choice', choice.id));
+        host.append(button);
+      });
+    } else {
+      const quiet = document.createElement('div');
+      quiet.className = 'community-empty';
+      quiet.textContent = 'Nessuna scelta richiesta in questo momento.';
+      host.append(quiet);
+    }
+  }
+
+  if (request) {
+    Array.from(host.querySelectorAll<HTMLButtonElement>('.community-option')).forEach((button) => {
+      const choice = request.options.find((entry) => entry.id === button.dataset.optionId);
+      if (!choice) {
+        button.disabled = true;
+        return;
+      }
+      const canAfford = Object.entries(choice.cost).every(([resource, amount]) =>
+        state.resources[resource as Resource] >= (amount ?? 0),
+      );
+      const hasHousing = !choice.populationDelta || state.population + choice.populationDelta <= housingCapacity(state);
+      button.disabled = !canAfford || !hasHousing;
+      button.title = !canAfford
+        ? 'Risorse insufficienti per questa scelta.'
+        : !hasHousing
+          ? 'Posti abitativi insufficienti.'
+          : choice.detail;
+    });
+  }
 }
 
 function renderObjectives(snapshot: GameSnapshot): void {
@@ -520,6 +604,7 @@ export function setupUI(): void {
           ? 'Hai superato il primo traguardo. Completa gli obiettivi a destra, migliora gli edifici e usa le monete con criterio.'
           : 'Costruisci prima una fattoria. Con cibo sufficiente e posti liberi, arriveranno nuovi abitanti.';
 
+    renderCitizenPanel(snapshot);
     renderTutorial(snapshot);
     renderBuildList(snapshot);
     renderObjectives(snapshot);
