@@ -165,7 +165,7 @@ export function ensureWorldState(state: GameState): GameState {
     nextEventAt: Number.isFinite(existing.nextEventAt) ? existing.nextEventAt : state.gameMinutes + 240,
     queuedEvent: existing.queuedEvent ?? null,
     projectStages: Object.assign({ aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 }, existing.projectStages),
-    market: { ...createMarketState(state.gameMinutes), ...(existing.market ?? {}), prices: { ...MARKET_BASE_PRICES, ...(existing.market?.prices ?? {}) }, demand: { grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1, ...(existing.market?.demand ?? {}) }, cycle: Number.isFinite(existing.market?.cycle) ? existing.market!.cycle : 0, nextShiftAt: Number.isFinite(existing.market?.nextShiftAt) ? existing.market!.nextShiftAt : state.gameMinutes + 120 },
+    market: { ...createMarketState(state.gameMinutes), ...(existing.market ?? {}), prices: { ...MARKET_BASE_PRICES, ...(existing.market?.prices ?? {}) }, demand: Object.assign({ grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1 }, existing.market?.demand), cycle: Number.isFinite(existing.market?.cycle) ? existing.market!.cycle : 0, nextShiftAt: Number.isFinite(existing.market?.nextShiftAt) ? existing.market!.nextShiftAt : state.gameMinutes + 120 },
     forestHealth: Number.isFinite(existing.forestHealth) ? clamp(existing.forestHealth!) : 100,
     completedProjects: [...new Set(existing.completedProjects)],
     factions: existing.factions,
