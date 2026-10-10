@@ -93,6 +93,7 @@ describe('living world simulation', () => {
 
   it('opens a time-driven event and applies the chosen consequence', () => {
     const state = createInitialState(777);
+    state.buildings.push({ id: 'event-test-house', type: 'house', x: 4, y: 4, level: 1 });
     state.resources.food = 100;
     state.resources.coins = 40;
     const after = advanceTime(state, 240);
@@ -156,6 +157,31 @@ describe('living world simulation', () => {
     stored.buildings.push({ id: 'warehouse-test', type: 'warehouse', x: 4, y: 4, level: 1 });
     const preserved = advanceTime(stored, 60);
     expect(preserved.world!.goods.bread).toBeGreaterThan(spoiled.world!.goods.bread);
+  });
+
+  it('makes droughts temporarily reduce farm efficiency', () => {
+    const state = createInitialState();
+    const farm: Building = { id: 'farm-weather-test', type: 'farm', x: 5, y: 4, level: 1 };
+    state.buildings.push(farm);
+    const clearWeather = worldBuildingMultiplier(state, farm);
+    state.world!.weather = { id: 'drought', endsAt: 100 };
+    const duringDrought = worldBuildingMultiplier(state, farm);
+    expect(duringDrought).toBeCloseTo(clearWeather * 0.68);
+    state.gameMinutes = 100;
+    expect(worldBuildingMultiplier(state, farm)).toBeCloseTo(clearWeather);
+  });
+
+  it('varies event families between seed variants instead of repeating one event', () => {
+    const titles = new Set<number | string>();
+    for (const seed of [101, 205, 777, 1234, 9182, 712, 55, 87]) {
+      const state = createInitialState(seed);
+      state.resources.food = 100;
+      state.resources.coins = 40;
+      state.buildings.push({ id: 'event-house-' + seed, type: 'house', x: 4, y: 4, level: 1 });
+      const withEvent = advanceTime(state, 240);
+      titles.add(withEvent.world!.activeEvent!.title);
+    }
+    expect(titles.size).toBeGreaterThan(1);
   });
 
   it('makes intensive forestry deplete the woods while protection regenerates them', () => {
