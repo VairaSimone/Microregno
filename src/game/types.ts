@@ -2,9 +2,14 @@ export type Resource='wood'|'stone'|'food'|'coins';
 export type BuildingType='townHall'|'house'|'farm'|'sawmill'|'quarry'|'market';
 export type Terrain='grass'|'forest'|'rock'|'water';
 export type GameMode='kingdom'|'challenge';
+export type SeasonId='spring'|'summer'|'autumn'|'winter';
+export interface SeasonInfo{id:SeasonId;name:string;icon:string;description:string;farmMultiplier:number;foodConsumptionMultiplier:number}
+export interface CitizenRequestOption{id:string;label:string;detail:string;cost:Partial<ResourceBag>;reward:Partial<ResourceBag>;moodDelta:number;trustDelta:number;populationDelta?:number}
+export interface CitizenRequest{id:string;citizen:string;role:string;title:string;description:string;deadline:number;options:CitizenRequestOption[]}
+export interface CommunityState{morale:number;trust:number;fulfilledRequests:number;ignoredRequests:number;requestNumber:number;nextRequestAt:number;activeRequest:CitizenRequest|null;history:string[];lastOutcome:string}
 export type ResourceBag=Record<Resource,number>;
 export interface Building{id:string;type:BuildingType;x:number;y:number;level:number}
-export interface GameState{version:1;seed:number;resources:ResourceBag;population:number;gameMinutes:number;buildings:Building[];lastSavedAt:number;milestones?:number[]}
+export interface GameState{version:1;seed:number;resources:ResourceBag;population:number;gameMinutes:number;buildings:Building[];lastSavedAt:number;milestones?:number[];community?:CommunityState}
 export interface BuildingDefinition{type:BuildingType;name:string;shortName:string;description:string;icon:string;cost:Partial<ResourceBag>;unlockedAt:number;housing?:number;production?:Partial<ResourceBag>}
 export interface BuildCheck{ok:boolean;reason?:string}
 export interface DailyChallenge{date:string;seed:number;title:string;description:string;kind:'population'|'resources'|'buildings';target:number;buildingType?:BuildingType;reward:string}
