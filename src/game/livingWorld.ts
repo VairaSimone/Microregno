@@ -2,7 +2,7 @@ import { BUILDINGS } from './definitions';
 import { getSeason } from './community';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
-  GameState, GoodsBag, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition,
+  GameState, GoodsBag, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
   MarketState, RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, TradableGood, WorldState,
 } from './types';
 
