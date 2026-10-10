@@ -1,1 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" viewBox="0 0 140 120"><ellipse cx="68" cy="105" rx="50" ry="8" fill="#35593d" opacity=".2"/><path d="M19 79 68 53 120 82 69 110Z" fill="#a3b17f" stroke="#788d62" stroke-width="2"/><path d="M33 68 67 49 102 69 67 90Z" fill="#c9b28a" stroke="#8e8868" stroke-width="2"/><path d="M33 68 67 90 67 104 33 82Z" fill="#d8c098" stroke="#8e8868" stroke-width="2"/><path d="M67 90 102 69 102 83 67 104Z" fill="#a99c78" stroke="#817d62" stroke-width="2"/><path d="M25 65 67 38 111 63 101 69 67 49 35 70Z" fill="#6e8653" stroke="#4d6e45" stroke-width="2"/><path d="M25 65 67 90 67 97 25 72Z" fill="#4d7045"/><path d="M67 90 111 63 111 70 67 97Z" fill="#3d6040"/><path d="M43 75 56 83 56 97 43 89Z" fill="#a86e42"/><path d="M76 79 92 70 92 84 76 93Z" fill="#d7b577" stroke="#8d6744" stroke-width="1.5"/><path d="M89 95 106 85M93 100 111 89" stroke="#a46d41" stroke-width="6" stroke-linecap="round"/><path d="M50 48V32L64 24 78 32V48" fill="#98734c" stroke="#6f583e" stroke-width="2"/><path d="M47 32 64 22 81 32 64 42Z" fill="#b8764e"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" viewBox="0 0 140 120">
+<ellipse cx="70" cy="108" rx="49" ry="7" fill="#25462e" opacity=".22"/>
+<path d="M20 76 70 49 120 76 70 105Z" fill="#c6b58a" stroke="#8a8965" stroke-width="2"/>
+<path d="M31 69 70 91 70 104 31 82Z" fill="#d9c69a" stroke="#958566" stroke-width="2"/><path d="M70 91 109 69 109 82 70 104Z" fill="#a99b77" stroke="#827859" stroke-width="2"/>
+<path d="M27 58 70 32 113 57 105 64 70 43 35 64Z" fill="#93603e" stroke="#5f432e" stroke-width="2.5"/>
+<path d="M27 58 70 83 70 91 27 66Z" fill="#67432e"/><path d="M70 83 113 57 113 65 70 91Z" fill="#563a2c"/>
+<path d="M38 62 70 43 101 62 70 81Z" fill="#d5aa6a" stroke="#885c36" stroke-width="2"/>
+<path d="M48 73 60 80 60 99 48 92Z" fill="#624630"/><path d="M79 68 92 61 92 76 79 83Z" fill="#7bb7b2" stroke="#f4e5bf" stroke-width="2"/>
+<path d="M20 92 56 112" stroke="#805438" stroke-width="8" stroke-linecap="round"/><path d="M20 92 56 112" stroke="#d7a365" stroke-width="4" stroke-linecap="round"/>
+<path d="M30 97 36 94M38 102 44 99M46 107 52 104" stroke="#8e613a" stroke-width="1.5"/>
+<path d="M88 92 117 75M91 99 122 81M96 105 126 88" stroke="#8e5937" stroke-width="7" stroke-linecap="round"/><path d="M88 92 117 75M91 99 122 81M96 105 126 88" stroke="#d9a46a" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

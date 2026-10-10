@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" viewBox="0 0 140 120"><ellipse cx="70" cy="108" rx="45" ry="7" fill="#35593d" opacity=".2"/><path d="M26 68 70 42 114 68 70 96Z" fill="#cdbb93" stroke="#8a7758" stroke-width="2"/><path d="M36 62 70 42 104 62 70 82Z" fill="#dbcba8" stroke="#a08c64" stroke-width="2"/><path d="M36 62 70 82 70 103 36 83Z" fill="#c9b18a" stroke="#917853" stroke-width="2"/><path d="M70 82 104 62 104 82 70 103Z" fill="#ac9978" stroke="#827052" stroke-width="2"/><path d="M29 60 70 28 111 60 103 66 70 41 37 66Z" fill="#73513b" stroke="#513c2c" stroke-width="2"/><path d="M49 74 64 83V101L49 92Z" fill="#6d4b34"/><path d="M79 72 95 63V80L79 89Z" fill="#7fb3b1" stroke="#f0e4c2" stroke-width="2"/><path d="M49 50 59 43 69 48 59 56Z" fill="#e2bd68" stroke="#91733d" stroke-width="2"/><path d="M59 56V69M49 50V63M69 48V62" stroke="#8c7042" stroke-width="2"/><path d="M76 48 93 39" stroke="#dab66a" stroke-width="5" stroke-linecap="round"/><path d="M91 34 100 30 97 41Z" fill="#ad8b55"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="120" viewBox="0 0 140 120">
+<ellipse cx="70" cy="108" rx="47" ry="7" fill="#28472f" opacity=".22"/>
+<path d="M20 78 70 49 120 78 70 108Z" fill="#c9bb93" stroke="#8b8868" stroke-width="2"/>
+<path d="M31 71 70 93 109 71V84L70 107 31 84Z" fill="#bdae88" stroke="#847a5b" stroke-width="2"/>
+<path d="M27 59 70 31 113 59 104 66 70 44 36 66Z" fill="#6d6250" stroke="#494438" stroke-width="2.5"/>
+<path d="M37 62 70 82 103 62V78L70 98 37 78Z" fill="#dfd0a7" stroke="#8c7d5c" stroke-width="2"/>
+<path d="M48 72 60 79V99L48 92Z" fill="#76513a"/><path d="M80 70 92 63V78L80 85Z" fill="#7ab7b2" stroke="#f8e9c2" stroke-width="1.7"/>
+<path d="M50 51 62 44 72 50 60 58Z" fill="#d8b76f" stroke="#87623a" stroke-width="2"/><path d="M60 58V71" stroke="#87623a" stroke-width="3"/>
+<path d="M76 43 91 35 97 39 82 48Z" fill="#c4c9ba" stroke="#656e65" stroke-width="2"/><path d="M83 47 78 57" stroke="#656e65" stroke-width="3"/>
+<path d="M23 81 70 109 117 81" fill="none" stroke="#f2e4bd" stroke-width="2"/>
+</svg>
