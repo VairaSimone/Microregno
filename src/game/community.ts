@@ -39,8 +39,6 @@ function buildRequest(seed: number, number: number, gameMinutes: number, state?:
   const season = getSeason(gameMinutes);
   const hasRoom = state ? state.population < capacityOf(state.buildings) + (state.community?.housingBonus ?? 0) : true;
   const food = state?.resources.food ?? 42;
-  const wood = state?.resources.wood ?? 42;
-  const coins = state?.resources.coins ?? 18;
   const requests: Array<() => CitizenRequest> = [
     () => ({
       id: seed + '-request-' + number,
