@@ -1,4 +1,4 @@
-import {MAX_BUILDING_LEVEL,OFFLINE_CAP_MINUTES} from './definitions';
+import {BUILDINGS,MAX_BUILDING_LEVEL,OFFLINE_CAP_MINUTES} from './definitions';
 import {advanceTime,createInitialState} from './engine';
 import {localDateKey} from './challenge';
 import type {Building,ChallengeSave,GameState} from './types';
@@ -18,6 +18,11 @@ const unique=safe.filter((b,i,list)=>list.findIndex(other=>other.x===b.x&&other.
 v.buildings=unique;
 if(!v.buildings.some(b=>b.type==='townHall'))return createInitialState();
 v.buildings=v.buildings.filter((b,i,list)=>b.type!=='townHall'||list.findIndex(other=>other.type==='townHall')===i);
+const hall=v.buildings.find(b=>b.type==='townHall');
+if(hall){
+const nonHallCapacity=v.buildings.filter(b=>b.type!=='townHall').reduce((total,b)=>total+(BUILDINGS[b.type].housing??0)*b.level,0);
+while(hall.level<MAX_BUILDING_LEVEL&&nonHallCapacity+(BUILDINGS.townHall.housing??0)*hall.level<v.population)hall.level++;
+}
 return v;
 }
 return createInitialState();}
