@@ -1,5 +1,6 @@
 import {BOARD_SIZE,BUILDINGS,MAX_BUILDING_LEVEL} from './definitions';
 import {advanceCommunityMinute,createCommunityState,getSeason} from './community';
+import {advanceRealmMinute,createWorldState,ensureWorldState,realmModifiers,worldBuildingMultiplier} from './livingWorld';
 import type {BuildCheck,Building,BuildingType,GameState,Resource,Terrain} from './types';
 function random(seed:number):()=>number{let v=seed>>>0;return()=>{v=(v*1664525+1013904223)>>>0;return v/4294967296;};}
 export function generateTerrain(seed:number):Terrain[][]{const r=random(seed);const map:Terrain[][]=Array.from({length:BOARD_SIZE},()=>Array.from({length:BOARD_SIZE},()=>{const n=r();return n<.065?'water':n<.21?'forest':n<.275?'rock':'grass';}));for(let y=4;y<=7;y++)for(let x=4;x<=7;x++)map[y]![x]='grass';[[7,2],[8,2],[7,3],[8,3],[7,4]].forEach(([x,y])=>map[y]![x]='water');[[2,5],[2,6],[3,5],[9,7],[10,7],[9,8],[5,2],[5,3],[6,2]].forEach(([x,y])=>map[y]![x]='forest');[[9,2],[10,2],[9,3],[10,3],[8,8],[8,9]].forEach(([x,y])=>map[y]![x]='rock');return map;}
@@ -39,8 +40,8 @@ for(const [resource,amount] of Object.entries(cost) as [Resource,number][])if(s.
 const resources={...s.resources};
 for(const [resource,amount] of Object.entries(cost) as [Resource,number][])resources[resource]-=amount;
 return{state:{...s,resources,buildings:s.buildings.map(b=>b.id===id?{...b,level:b.level+1}:b)},check:{ok:true}};}
-export function productionForBuilding(b:Building,map:Terrain[][],gameMinutes=0,morale=50):Partial<Record<Resource,number>>{
-const production:Partial<Record<Resource,number>>={},def=BUILDINGS[b.type],season=getSeason(gameMinutes);let multiplier=1;
+export function productionForBuilding(b:Building,map:Terrain[][],gameMinutes=0,morale=50,workforceMultiplier=1):Partial<Record<Resource,number>>{
+const production:Partial<Record<Resource,number>>={},def=BUILDINGS[b.type],season=getSeason(gameMinutes);let multiplier=workforceMultiplier;
 if(b.type==='farm')multiplier*=season.farmMultiplier;
 if(b.type==='farm'&&near(map,b.x,b.y,'water',3))multiplier*=1.15;
 if(b.type==='sawmill'&&near(map,b.x,b.y,'forest',2))multiplier*=1.1;
@@ -48,22 +49,24 @@ if(morale>=75)multiplier*=1.05;else if(morale<=25)multiplier*=.9;
 for(const [resource,amount] of Object.entries(def.production??{}) as [Resource,number][])production[resource]=amount*b.level*multiplier;
 return production;}
 export function resourceRates(s:GameState,map:Terrain[][],gameMinutes=s.gameMinutes):Record<Resource,number>{
-const season=getSeason(gameMinutes),morale=s.community?.morale??60,trust=s.community?.trust??50;
-const rates:Record<Resource,number>={wood:0,stone:0,food:-s.population*.035*season.foodConsumptionMultiplier,coins:s.population*.006*(trust>=75?1.2:1)};
-for(const b of s.buildings)for(const [resource,amount] of Object.entries(productionForBuilding(b,map,gameMinutes,morale)) as [Resource,number][])rates[resource]+=amount;
+const season=getSeason(gameMinutes),morale=s.community?.morale??60,trust=s.community?.trust??50,modifiers=realmModifiers(s);
+const rates:Record<Resource,number>={wood:0,stone:0,food:-s.population*.035*season.foodConsumptionMultiplier*modifiers.foodConsumptionMultiplier,coins:s.population*.006*(trust>=75?1.2:1)*modifiers.taxMultiplier+modifiers.tradeIncome};
+for(const b of s.buildings)for(const [resource,amount] of Object.entries(productionForBuilding(b,map,gameMinutes,morale,worldBuildingMultiplier(s,b))) as [Resource,number][])rates[resource]+=amount;
 return rates;}
 export function demolish(s:GameState,id:string):GameState{const b=s.buildings.find(v=>v.id===id);if(!b||b.type==='townHall')return s;const resources={...s.resources};(Object.keys(BUILDINGS[b.type].cost) as Resource[]).forEach(r=>resources[r]+=Math.floor((BUILDINGS[b.type].cost[r]??0)*.3));return{...s,resources,buildings:s.buildings.filter(v=>v.id!==id)};}
-export function advanceTime(s:GameState,minutes:number,processCommunity=true):GameState{
-const next:GameState={...s,resources:{...s.resources},buildings:s.buildings.map(b=>({...b})),community:processCommunity?(s.community??createCommunityState(s.seed,s.gameMinutes)):s.community};
-const duration=Math.max(0,Math.min(360,Math.floor(minutes))),map=generateTerrain(s.seed);
+export function advanceTime(s:GameState,minutes:number,processCommunity=true,processRealm=true):GameState{
+const base=processRealm?ensureWorldState(s):s;
+let next:GameState={...base,resources:{...base.resources},buildings:base.buildings.map(b=>({...b})),community:processCommunity?(base.community??createCommunityState(base.seed,base.gameMinutes)):base.community};
+const duration=Math.max(0,Math.min(360,Math.floor(minutes))),map=generateTerrain(base.seed);
 for(let minute=0;minute<duration;minute++){
-const morale=next.community?.morale??60;
-for(const b of next.buildings)for(const [resource,amount] of Object.entries(productionForBuilding(b,map,next.gameMinutes,morale)) as [Resource,number][])next.resources[resource]+=amount;
+const morale=next.community?.morale??60,modifiers=realmModifiers(next);
+for(const b of next.buildings)for(const [resource,amount] of Object.entries(productionForBuilding(b,map,next.gameMinutes,morale,worldBuildingMultiplier(next,b))) as [Resource,number][])next.resources[resource]+=amount;
 const season=getSeason(next.gameMinutes);
-next.resources.food=Math.max(0,next.resources.food-next.population*.035*season.foodConsumptionMultiplier);
-next.resources.coins+=next.population*.006*((next.community?.trust??50)>=75?1.2:1);
+next.resources.food=Math.max(0,next.resources.food-next.population*.035*season.foodConsumptionMultiplier*modifiers.foodConsumptionMultiplier);
+next.resources.coins+=next.population*.006*((next.community?.trust??50)>=75?1.2:1)*modifiers.taxMultiplier+modifiers.tradeIncome;
 next.gameMinutes++;
-if(processCommunity){const communityUpdate=advanceCommunityMinute(next);next.community=communityUpdate.community;}
+if(processCommunity)next=advanceCommunityMinute(next);
+if(processRealm)next=advanceRealmMinute(next);
 if(next.gameMinutes%20===0&&next.resources.food>=18&&next.population<housingCapacity(next)&&(next.community?.morale??60)>=20)next.population++;
 (Object.keys(next.resources) as Resource[]).forEach(r=>next.resources[r]=Math.max(0,Math.round(next.resources[r]*100)/100));
 }
