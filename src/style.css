@@ -652,3 +652,7 @@ dialog p strong { color: #38583b; }
     transition: none !important;
   }
 }
+
+
+#upgrade-button { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
+@media (min-width: 901px) { #upgrade-button { min-height: 31px; } }
