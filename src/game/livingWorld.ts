@@ -423,7 +423,7 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
   let population = state.population;
   const fail = (message: string) => ({ state, ok: false, message });
   const finish = (message: string) => ({
-    state: { ...state, resources, community, world: { ...world, chronicle: [message, ...world.chronicle].slice(0, 12) } },
+    state: { ...state, population, resources, community, world: { ...world, chronicle: [message, ...world.chronicle].slice(0, 12) } },
     ok: true, message,
   });
 
