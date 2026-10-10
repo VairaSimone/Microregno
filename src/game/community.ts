@@ -35,9 +35,9 @@ function capacityOf(buildings: Building[]): number {
   return buildings.reduce((total, building) => total + (BUILDINGS[building.type].housing ?? 0) * building.level, 0);
 }
 
-function buildRequest(seed: number, number: number, gameMinutes: number, state?: Pick<GameState, 'population' | 'buildings' | 'resources'>): CitizenRequest {
+function buildRequest(seed: number, number: number, gameMinutes: number, state?: Pick<GameState, 'population' | 'buildings' | 'resources' | 'community'>): CitizenRequest {
   const season = getSeason(gameMinutes);
-  const hasRoom = state ? state.population < capacityOf(state.buildings) : true;
+  const hasRoom = state ? state.population < capacityOf(state.buildings) + (state.community?.housingBonus ?? 0) : true;
   const food = state?.resources.food ?? 42;
   const wood = state?.resources.wood ?? 42;
   const coins = state?.resources.coins ?? 18;
@@ -167,6 +167,7 @@ export function ensureCommunity(state: GameState): GameState {
     && Number.isFinite(current.nextRequestAt)
     && Array.isArray(current.history)
     && requestLooksValid
+    && (current.housingBonus === undefined || (Number.isFinite(current.housingBonus) && current.housingBonus >= 0))
   ) return state;
   return { ...state, community: createCommunityState(state.seed, state.gameMinutes) };
 }
@@ -220,7 +221,7 @@ export function resolveCitizenRequest(
       return { state, ok: false, message: 'Non hai abbastanza ' + name + ' per questa scelta.' };
     }
   }
-  if (selected.populationDelta && state.population + selected.populationDelta > capacityOf(state.buildings)) {
+  if (selected.populationDelta && state.population + selected.populationDelta > capacityOf(state.buildings) + (community.housingBonus ?? 0)) {
     return { state, ok: false, message: 'Non ci sono posti abitativi liberi. Costruisci o migliora una casa prima di accogliere nuovi abitanti.' };
   }
 
