@@ -18,9 +18,10 @@ if(type==='quarry'&&!near(map,x,y,'rock',3))return{ok:false,reason:'La cava deve
 export function buildAt(s:GameState,map:Terrain[][],x:number,y:number,type:BuildingType):{state:GameState;check:BuildCheck}{const check=canBuild(s,map,x,y,type);if(!check.ok)return{state:s,check};const resources={...s.resources};for(const [r,n] of Object.entries(BUILDINGS[type].cost) as [Resource,number][])resources[r]-=n;const b:Building={id:type+'-'+s.gameMinutes+'-'+s.buildings.length+'-'+x+'-'+y,type,x,y,level:1};return{state:{...s,resources,buildings:[...s.buildings,b]},check:{ok:true}};}
 
 export function upgradeCost(building:Building):Partial<Record<Resource,number>>{
-if(building.type==='townHall')return{wood:18*building.level,stone:12*building.level};
+if(building.type==='townHall')return{wood:18*building.level,stone:12*building.level,coins:6*building.level};
 const cost:Partial<Record<Resource,number>>={};
 for(const [resource,amount] of Object.entries(BUILDINGS[building.type].cost) as [Resource,number][])cost[resource]=Math.ceil(amount*.75*building.level);
+cost.coins=3*building.level;
 return cost;}
 export function upgradeBuilding(s:GameState,id:string):{state:GameState;check:BuildCheck}{
 const building=s.buildings.find(b=>b.id===id);
