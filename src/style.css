@@ -898,3 +898,10 @@ dialog p strong { color: #38583b; }
 .realm-market-good .realm-action-button{max-width:130px;min-width:74px}
 .realm-market-note{font-size:10px!important;color:#7a8877!important;line-height:1.5;margin-top:8px!important}
 @media(max-width:760px){.realm-market-grid{grid-template-columns:1fr}}
+
+.realm-frontier-map{background:#f4f6ed;border:1px solid #d6dece;border-radius:15px;padding:10px}
+.realm-frontier-map svg{display:block;width:100%;height:auto;max-height:340px}
+.realm-map-legend{display:flex;flex-wrap:wrap;gap:12px;padding:11px 5px 3px;font-size:10px;color:#72816d}
+.realm-map-legend span{display:flex;align-items:center;gap:6px}
+.realm-map-legend i{height:9px;width:9px;border-radius:50%;display:inline-block}
+.realm-map-legend i.known{background:#75a875}.realm-map-legend i.open{background:#d9be6d}.realm-map-legend i.fog{background:#abb4a4}
