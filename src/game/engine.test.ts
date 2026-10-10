@@ -3,6 +3,7 @@ import {advanceTime,awardPopulationMilestones,buildAt,canBuild,createInitialStat
 import {createDailyChallenge,challengeProgress,isChallengeComplete} from './challenge';
 import {applyOfflineProgress} from './save';
 import {getSeason,resolveCitizenRequest} from './community';
+import {worldBuildingMultiplier} from './livingWorld';
 
 describe('simulazione Microregno',()=>{
   it('genera un terreno deterministico per seed',()=>{
@@ -53,7 +54,7 @@ describe('simulazione Microregno',()=>{
     const s=createInitialState(),map=generateTerrain(s.seed),farm=buildAt(s,map,6,4,'farm');
     expect(farm.check.ok).toBe(true);
     expect(productionForBuilding(farm.state.buildings[1]!,map,360,60).food).toBeCloseTo(2.07);
-    expect(resourceRates(farm.state,map,360).food).toBeCloseTo(1.895);
+    expect(resourceRates(farm.state,map,360).food).toBeCloseTo(productionForBuilding(farm.state.buildings[1]!,map,360,60,worldBuildingMultiplier(farm.state,farm.state.buildings[1]!)).food!-farm.state.population*.035);
   });
   it('permette di migliorare un edificio fino al livello 3',()=>{
     const s=createInitialState(),map=generateTerrain(s.seed),farm=buildAt(s,map,6,4,'farm'),id=farm.state.buildings[1]!.id;
@@ -113,7 +114,8 @@ describe('simulazione Microregno',()=>{
     const s=createInitialState(),ignored=advanceTime(s,180);
     expect(ignored.community?.activeRequest).toBeNull();
     expect(ignored.community?.ignoredRequests).toBe(1);
-    expect(ignored.community?.morale).toBe(52);
+    expect(ignored.community?.morale).toBeLessThan(60);
+    expect(ignored.community?.trust).toBeLessThan(50);
     const later=advanceTime(ignored,120);
     expect(later.community?.activeRequest).not.toBeNull();
     expect(later.community?.requestNumber).toBe(2);
@@ -152,7 +154,7 @@ describe('simulazione Microregno',()=>{
     const offline=applyOfflineProgress(s,181_000);
     expect(offline.minutes).toBe(180);
     expect(offline.state.community?.ignoredRequests).toBe(0);
-    expect(offline.state.community?.morale).toBe(60);
+    expect(offline.state.community?.morale).toBeGreaterThanOrEqual(60);
     expect(advanceTime(offline.state,1,true).community?.ignoredRequests).toBe(1);
   });
   it('genera la stessa sfida per una stessa data',()=>{

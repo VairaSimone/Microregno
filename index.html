@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="it"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#172d25"/><meta name="description" content="Costruisci un regno, gestisci le risorse e affronta una nuova sfida ogni giorno."/><title>Microregno — Una terra tutta tua</title><link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/></head>
 <body><div class="app-shell">
-<header class="topbar"><a class="brand" href="./"><span class="brand-mark">◆</span><span><strong>MICROREGNO</strong><small>Una terra tutta tua</small></span></a><div class="topbar-center"><i></i><span id="world-status">Il tuo regno è in pace</span></div><div class="topbar-actions"><span class="version-pill">PRE-RELEASE 0.1</span><button class="icon-button" id="help-button" aria-label="Come si gioca">?</button></div></header>
+<header class="topbar"><a class="brand" href="./"><span class="brand-mark">◆</span><span><strong>MICROREGNO</strong><small>Una terra tutta tua</small></span></a><div class="topbar-center"><i></i><span id="world-status">Il tuo regno è in pace</span></div><div class="topbar-actions"><span class="version-pill">PRE-RELEASE 0.1</span><button class="realm-launch-button" id="realm-dashboard-button" type="button">⚑ <span>Sala del Regno</span></button><button class="icon-button" id="help-button" aria-label="Come si gioca">?</button></div></header>
 <section class="resourcebar" aria-label="Risorse"><div class="resource-chip"><span class="symbol wood">♧</span><div><small>LEGNAME</small><strong id="resource-wood">42</strong></div><em id="rate-wood">—</em></div><div class="resource-chip"><span class="symbol stone">◆</span><div><small>PIETRA</small><strong id="resource-stone">24</strong></div><em id="rate-stone">—</em></div><div class="resource-chip"><span class="symbol food">✳</span><div><small>CIBO</small><strong id="resource-food">42</strong></div><em id="rate-food">—</em></div><div class="resource-chip"><span class="symbol coins">◉</span><div><small>MONETE</small><strong id="resource-coins">18</strong></div><em id="rate-coins">—</em></div><div class="resource-chip"><span class="symbol people">♟</span><div><small>ABITANTI</small><strong id="population-count">5 / 5</strong></div><em id="population-rate">villaggio</em></div></section>
 <main class="layout">
 <aside class="left-column"><section class="panel mode-panel"><div class="kicker">IL TUO VIAGGIO</div><button id="kingdom-mode" class="mode-button active"><b>⌂</b><span><strong>Il mio regno</strong><small>Costruisci senza fretta</small></span><i>›</i></button><button id="challenge-mode" class="mode-button"><b>✦</b><span><strong>Sfida del giorno</strong><small>Una mappa, una missione</small></span><i>›</i></button></section>
@@ -47,8 +47,10 @@
 <div><b>04 · Produci materiali</b><span>La Segheria genera legname vicino agli alberi. La Cava produce pietra vicino alla roccia.</span></div>
 <div><b>05 · Porta il borgo a 8</b><span>Ogni 20 minuti di gioco arriva un abitante se hai almeno 18 cibo, umore sufficiente e un posto libero. A 8 si sblocca il Mercato.</span></div>
 <div><b>06 · Ascolta il borgo</b><span>Gli abitanti portano richieste con tre possibili risposte. Ogni scelta costa o concede risorse e cambia umore e fiducia. Le richieste scadono dopo 3 minuti reali: ignorarle ha conseguenze.</span></div>
-<div><b>07 · Preparati alle stagioni</b><span>La stagione cambia ogni 6 ore di gioco. In autunno le fattorie rendono di più, in inverno il raccolto cala e il consumo di cibo aumenta. Il morale alto aumenta la produzione; la fiducia alta migliora le entrate in monete.</span></div>
+<div><b>07 · Preparati alle stagioni</b><span>La stagione cambia ogni 360 minuti di gioco (circa 6 minuti reali). In autunno le fattorie rendono di più, in inverno il raccolto cala e il consumo di cibo aumenta. Il morale alto aumenta la produzione; la fiducia alta migliora le entrate in monete.</span></div>
 <div><b>08 · Ricorda le decisioni</b><span>Apri la cronaca del borgo per rileggere le ultime scelte. I traguardi di popolazione danno monete da investire nei miglioramenti degli edifici.</span></div>
+<div><b>09 · Governa cittadini reali</b><span>Apri la Sala del Regno per assegnare professioni, osservare fame, energia, felicità e salute, gestire famiglie e relazioni e organizzare le filiere grano → farina → pane.</span></div>
+<div><b>10 · Esplora la frontiera</b><span>Leggi, ricerca, spedizioni, diplomazia, eventi concatenati e grandi opere si trovano nella Sala del Regno. Le decisioni consumano risorse e producono conseguenze permanenti nel salvataggio.</span></div>
 </div>
 <p class="help-footnote">Scegli l'edificio, poi scegli la casella sulla mappa. Le caselle rosse non sono valide. Le sfide giornaliere sono facoltative e separate dal tuo regno.</p>
 <div class="dialog-actions"><button id="start-playing" class="primary">Inizia la guida</button><button id="skip-tutorial" class="secondary">Gioca liberamente</button></div>
@@ -60,4 +62,20 @@
   <div id="community-history-list" class="community-history-list"></div>
   <div class="dialog-actions"><button id="close-community-history-footer" class="primary">Torna al borgo</button></div>
 </dialog>
+
+<dialog id="realm-dialog" class="realm-dialog">
+  <div class="dialog-top"><small class="eyebrow">GESTIONE STRATEGICA · FRONTIERA VIVENTE</small><button id="close-realm-dialog" class="icon-button" aria-label="Chiudi Sala del Regno">×</button></div>
+  <h2>Il Consiglio del Regno</h2>
+  <p class="realm-dialog-intro">I cittadini hanno bisogni e competenze; l’economia reagisce ai lavoratori; gli eventi aprono nuove storie. Le decisioni importanti vengono conservate nella cronaca.</p>
+  <nav id="realm-tabs" class="realm-tabs" aria-label="Sezioni della Sala del Regno">
+    <button type="button" data-tab="citizens" class="active" aria-selected="true">Cittadini & Economia</button>
+    <button type="button" data-tab="laws" aria-selected="false">Leggi</button>
+    <button type="button" data-tab="exploration" aria-selected="false">Esplorazione</button>
+    <button type="button" data-tab="research" aria-selected="false">Ricerca</button>
+    <button type="button" data-tab="projects" aria-selected="false">Progetti & Eventi</button>
+  </nav>
+  <div id="realm-content" class="realm-content"></div>
+  <div class="dialog-actions"><button id="close-realm-dialog-footer" class="primary">Torna al borgo</button></div>
+</dialog>
+
 <script type="module" src="./src/main.ts"></script></body></html>

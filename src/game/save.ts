@@ -1,6 +1,7 @@
 import {BUILDINGS,MAX_BUILDING_LEVEL,OFFLINE_CAP_MINUTES} from './definitions';
 import {advanceTime,createInitialState} from './engine';
 import {ensureCommunity} from './community';
+import {ensureWorldState} from './livingWorld';
 import {localDateKey} from './challenge';
 import type {Building,ChallengeSave,GameState} from './types';
 const KEY='microregno:kingdom:v1',CHALLENGE='microregno:challenge:';
@@ -13,8 +14,8 @@ function write(key:string,v:unknown):boolean{try{if(typeof localStorage==='undef
 export function loadKingdom():GameState{
 const stored=read<unknown>(KEY);
 if(valid(stored)){
-const v=ensureCommunity(stored);
-const types=['townHall','house','farm','sawmill','quarry','market'];
+const v=ensureWorldState(ensureCommunity(stored));
+const types=['townHall','house','farm','sawmill','quarry','market','road','mill','bakery','warehouse','school','watchtower','workshop'];
 const safe=(v.buildings as Building[]).filter(b=>!!b&&typeof b==='object'&&typeof b.id==='string'&&Number.isInteger(b.x)&&Number.isInteger(b.y)&&b.x>=0&&b.x<12&&b.y>=0&&b.y<12&&types.includes(b.type)&&Number.isInteger(b.level)&&b.level>=1&&b.level<=MAX_BUILDING_LEVEL);
 const unique=safe.filter((b,i,list)=>list.findIndex(other=>other.x===b.x&&other.y===b.y)===i);
 v.buildings=unique;
@@ -41,7 +42,7 @@ return{state:copy,minutes};}
 export function loadChallengeSave(date=localDateKey()):ChallengeSave|null{
 const v=read<ChallengeSave>(CHALLENGE+date);
 if(!v||v.date!==date||!valid(v.state)||typeof v.completed!=='boolean'||!Number.isFinite(v.score)||!Number.isFinite(v.bestScore))return null;
-return {...v,state:ensureCommunity(v.state)};
+return {...v,state:ensureWorldState(ensureCommunity(v.state))};
 }
 export function saveChallenge(s:ChallengeSave):boolean{return write(CHALLENGE+s.date,s);}
 export function resetKingdom():void{try{if(typeof localStorage!=='undefined')localStorage.removeItem(KEY);}catch{/* Browser storage may be disabled. */}}
