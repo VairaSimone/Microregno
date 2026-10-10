@@ -687,6 +687,7 @@ export function setupUI(): void {
     if (!realmDialog.open) realmDialog.showModal();
   });
   $('close-realm-dialog').addEventListener('click', () => realmDialog.close());
+  $('close-realm-dialog-footer').addEventListener('click', () => realmDialog.close());
   $('realm-tabs').addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-tab]');
     if (!button) return;
