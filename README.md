@@ -12,6 +12,12 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Salvataggio locale, progressione offline limitata, regno persistente e sfida giornaliera.
 - Richieste dei cittadini con scelte a tempo, conseguenze su umore e fiducia, cronaca persistente e scadenze.
 - Quattro stagioni con effetti reali su raccolti, consumo di cibo, produzione e colore del territorio.
+- Cittadini persistenti con nomi, tratti, bisogni, salute, energia, umore, competenze e mestieri assegnabili.
+- Filiere produttive: grano, farina, pane, strumenti e rimedi; mulino, panificio, officina e magazzino.
+- Sala del Regno con leggi economiche, gestione delle dispense, politiche forestali e pattuglie.
+- Ricerca in sei percorsi, spedizioni esplorative, nuove regioni, reperti, rischi e ricompense.
+- Diplomazia con tre comunità vicine, accordi permanenti e rotte commerciali.
+- Quattro grandi progetti a tre fasi e avvenimenti concatenati con conseguenze su risorse e comunità.
 - Obiettivi, record locali, demolizione con rimborso parziale e interfaccia responsive.
 
 ## Come si gioca
@@ -41,6 +47,18 @@ Il primo obiettivo è portare il borgo a **8 abitanti**. La guida in gioco segue
 
 La grafica degli edifici è inclusa localmente come SVG con dimensioni esplicite; non dipende da immagini caricate da siti terzi.
 
+
+### Sala del Regno e simulazione vivente
+
+Apri **Sala del Regno** nella barra superiore per passare fra cinque sezioni:
+- **Cittadini & Economia**: assegna mestieri, osserva fame, energia, felicità e salute, e gestisci le filiere grano → farina → pane. Le abilità crescono facendo il mestiere; il personale influisce sulla resa degli edifici.
+- **Leggi**: tasse (basse, equilibrate o alte), dispense (riserva, equilibrio o generosità), gestione dei boschi e pattuglie. Le politiche modificano davvero i tassi economici e la sicurezza.
+- **Esplorazione**: assegna il mestiere Esploratore e invia spedizioni per ottenere scorte, attrezzi e punti conoscenza. Il successo dipende dalle competenze e dagli strumenti; le zone lontane richiedono cartografia o grandi opere.
+- **Ricerca**: avvia una sola ricerca alla volta. I punti conoscenza arrivano lentamente e aumentano con la scuola e gli studiosi. Irrigazione, utensili, commercio, istruzione, cartografia e silvicoltura offrono benefici permanenti.
+- **Progetti & Eventi**: finanzia tre fasi per acquedotto, ponte, quartiere artigiano e grande archivio. Gli eventi emergono durante la partita; alcune decisioni avviano una seconda storia dopo un intervallo.
+
+Gli accordi diplomatici si gestiscono nella sezione Esplorazione. Doni e scambi aumentano le relazioni; a 55 punti può essere firmato un trattato, che genera entrate ricorrenti. Tutti i cittadini, scorte, progressi di ricerca, spedizioni, leggi, eventi, progetti e relazioni sono inclusi nel salvataggio locale. I salvataggi precedenti vengono migrati automaticamente alla prima apertura.
+
 ## Requisiti e avvio
 Serve Node.js 20+ e npm.
 
@@ -64,6 +82,7 @@ Il workflow di deploy è manuale per evitare tentativi di pubblicazione prima di
 - **src/game/KingdomScene.ts**: rendering e input Phaser.
 - **src/game/challenge.ts**: sfide giornaliere.
 - **src/game/community.ts**: richieste dei cittadini, scelte, conseguenze e stagioni.
+- **src/game/livingWorld.ts**: cittadini persistenti, filiere produttive, leggi, ricerche, spedizioni, diplomazia, progetti ed eventi concatenati.
 - **src/game/save.ts**: salvataggi e progressione offline.
 - **src/ui.ts** e **src/style.css**: interfaccia e layout.
 - **public/assets/**: sprite SVG originali.
