@@ -14,6 +14,8 @@ const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
 const TUTORIAL_SEEN_KEY = 'microregno:tutorial-seen:v1';
 let renderedRequestId: string | null | undefined;
 let showAllBuildOptions = false;
+let kingdomSaveStatus = 'Salvataggio locale attivo';
+let challengeSaveStatus = 'Sfida pronta, salvataggio in attesa';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
@@ -1000,9 +1002,7 @@ export function setupUI(): void {
       ? 'Completata · ' + snapshot.bestScore + ' pt'
       : 'Record: ' + (snapshot.bestScore ? snapshot.bestScore + ' pt' : '—');
 
-    $('save-status').textContent = snapshot.mode === 'kingdom'
-      ? 'Salvataggio locale attivo'
-      : 'Progressi della sfida salvati oggi';
+    $('save-status').textContent = snapshot.mode === 'kingdom' ? kingdomSaveStatus : challengeSaveStatus;
     $('local-save-label').textContent = snapshot.mode === 'kingdom'
       ? 'Dati salvati su questo dispositivo'
       : 'Sfida del giorno · ' + snapshot.challenge.date;
@@ -1030,8 +1030,16 @@ export function setupUI(): void {
   }) as EventListener);
 
   window.addEventListener('microregno:notice', ((event: CustomEvent<string>) => showToast(event.detail)) as EventListener);
-  window.addEventListener('microregno:save-status', ((event: CustomEvent<string>) => {
-    $('save-status').textContent = event.detail;
+  window.addEventListener('microregno:save-status', ((event: CustomEvent<{ mode?: 'kingdom' | 'challenge'; message?: string } | string>) => {
+    const detail = event.detail;
+    if (typeof detail === 'string') {
+      kingdomSaveStatus = detail;
+      challengeSaveStatus = detail;
+    } else if (detail?.message) {
+      if (detail.mode === 'challenge') challengeSaveStatus = detail.message;
+      else kingdomSaveStatus = detail.message;
+    }
+    if (latestSnapshot) $('save-status').textContent = latestSnapshot.mode === 'challenge' ? challengeSaveStatus : kingdomSaveStatus;
   }) as EventListener);
 }
 

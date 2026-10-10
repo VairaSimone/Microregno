@@ -68,7 +68,7 @@ next.resources.coins+=next.population*.006*((next.community?.trust??50)>=75?1.2:
 next.gameMinutes++;
 if(processCommunity)next=advanceCommunityMinute(next);
 if(processRealm)next=advanceRealmMinute(next);
-if(next.gameMinutes%20===0&&next.resources.food>=18&&next.population<housingCapacity(next)&&(next.community?.morale??60)>=20)next.population++;
+if(next.gameMinutes%20===0&&next.resources.food>=18&&next.population<housingCapacity(next)&&(next.community?.morale??60)>=20)next=ensureWorldState({...next,population:next.population+1});
 (Object.keys(next.resources) as Resource[]).forEach(r=>next.resources[r]=Math.max(0,Math.round(next.resources[r]*100)/100));
 }
 return next;}

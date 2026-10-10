@@ -2,7 +2,7 @@ import { BUILDINGS } from './definitions';
 import { getSeason } from './community';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
-  GameState, GoodsBag, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition,
+  GameState, GoodsBag, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
   MarketState, RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, TradableGood, WorldState,
 } from './types';
 
@@ -73,6 +73,36 @@ const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', for
 function clamp(value: number, low = 0, high = 100): number {
   return Math.max(low, Math.min(high, Math.round(value * 100) / 100));
 }
+
+function validPartialResourceBag(value: unknown): value is Partial<ResourceBag> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const allowed = new Set<Resource>(['wood', 'stone', 'food', 'coins']);
+  return Object.entries(value).every(([key, amount]) => allowed.has(key as Resource) && typeof amount === 'number' && Number.isFinite(amount) && amount >= 0);
+}
+
+function validPartialGoodsBag(value: unknown): value is Partial<GoodsBag> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const allowed = new Set<keyof GoodsBag>(['grain', 'flour', 'bread', 'tools', 'medicine']);
+  return Object.entries(value).every(([key, amount]) => allowed.has(key as keyof GoodsBag) && typeof amount === 'number' && Number.isFinite(amount) && amount >= 0);
+}
+
+function validEventChoice(value: unknown): value is RealmEventChoice {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const choice = value as Partial<RealmEventChoice>;
+  const finiteOptional = (number: unknown) => number === undefined || (typeof number === 'number' && Number.isFinite(number));
+  return typeof choice.id === 'string' && choice.id.length > 0
+    && typeof choice.label === 'string' && typeof choice.detail === 'string'
+    && (choice.cost === undefined || validPartialResourceBag(choice.cost))
+    && (choice.reward === undefined || validPartialResourceBag(choice.reward))
+    && (choice.goodsCost === undefined || validPartialGoodsBag(choice.goodsCost))
+    && (choice.goodsReward === undefined || validPartialGoodsBag(choice.goodsReward))
+    && finiteOptional(choice.moodDelta) && finiteOptional(choice.trustDelta)
+    && finiteOptional(choice.researchDelta) && (choice.researchDelta === undefined || choice.researchDelta >= 0)
+    && finiteOptional(choice.populationDelta) && (choice.populationDelta === undefined || (Number.isInteger(choice.populationDelta) && Math.abs(choice.populationDelta) <= 100))
+    && (choice.chain === undefined || typeof choice.chain === 'string')
+    && (choice.profession === undefined || PROFESSIONS.includes(choice.profession));
+}
+
 function makeCitizen(seed: number, index: number, gameMinutes: number): Citizen {
   const allSkills: Record<Profession, number> = {
     farmer: 5, lumberjack: 5, miner: 5, merchant: 5, miller: 5, baker: 5,
@@ -132,8 +162,53 @@ export function ensureWorldState(state: GameState): GameState {
       !existing.projectStages || !Array.isArray(existing.factions)) {
     return { ...state, world: createWorldState(state.seed, state.population, state.gameMinutes) };
   }
-  let citizens = existing.citizens.map((citizen) => ({ ...citizen, skills: { ...citizen.skills }, traits: [...citizen.traits], relationships: { ...citizen.relationships }, workplaceId: typeof citizen.workplaceId === 'string' ? citizen.workplaceId : null, activity: citizen.status === 'exploring' ? 'exploring' as const : citizen.activity ?? 'socializing' as const }));
-  let nextCitizenId = Number.isFinite(existing.nextCitizenId) ? existing.nextCitizenId : citizens.length + 1;
+  const rawCitizens = (existing.citizens as unknown[]).slice(0, 1200);
+  let nextCitizenId = Number.isSafeInteger(existing.nextCitizenId) && existing.nextCitizenId > 0 ? existing.nextCitizenId : rawCitizens.length + 1;
+  for (const raw of rawCitizens) {
+    if (!raw || typeof raw !== 'object') continue;
+    const id = (raw as { id?: unknown }).id;
+    if (typeof id === 'string') {
+      const match = /^citizen-(\d+)$/.exec(id);
+      if (match) nextCitizenId = Math.max(nextCitizenId, Number(match[1]) + 1);
+    }
+  }
+  const usedCitizenIds = new Set<string>();
+  let citizens = rawCitizens.map((raw, index): Citizen => {
+    const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Partial<Citizen> : {};
+    const fallback = makeCitizen(state.seed, index, state.gameMinutes);
+    let id = typeof source.id === 'string' && source.id.trim() ? source.id.trim() : fallback.id;
+    if (usedCitizenIds.has(id)) { do { id = 'citizen-' + nextCitizenId++; } while (usedCitizenIds.has(id)); }
+    usedCitizenIds.add(id);
+    const profession = PROFESSIONS.includes(source.profession as Profession) ? source.profession as Profession : fallback.profession;
+    const status = source.status === 'exploring' ? 'exploring' : 'resident';
+    const sourceSkills = source.skills && typeof source.skills === 'object' && !Array.isArray(source.skills) ? source.skills as Partial<Record<Profession, unknown>> : {};
+    const skills = { ...fallback.skills } as Record<Profession, number>;
+    for (const job of PROFESSIONS) if (Number.isFinite(sourceSkills[job])) skills[job] = clamp(sourceSkills[job] as number);
+    const sourceRelationships = source.relationships && typeof source.relationships === 'object' && !Array.isArray(source.relationships) ? source.relationships as Record<string, unknown> : {};
+    const relationships = Object.fromEntries(Object.entries(sourceRelationships).filter(([, value]) => Number.isFinite(value)).map(([key, value]) => [key, clamp(value as number, -100, 100)]));
+    const traits = Array.isArray(source.traits) ? source.traits.filter((trait): trait is string => typeof trait === 'string').slice(0, 4) : fallback.traits;
+    const activityValues = ['working', 'resting', 'socializing', 'commuting', 'eating'];
+    const activity = status === 'exploring' ? 'exploring' : activityValues.includes(source.activity as string) ? source.activity as Citizen['activity'] : 'socializing';
+    return {
+      ...fallback, id,
+      name: typeof source.name === 'string' && source.name.trim() ? source.name.trim().slice(0, 80) : fallback.name,
+      age: Number.isFinite(source.age) ? Math.max(0, Math.min(120, Math.floor(source.age as number))) : fallback.age,
+      profession, traits: traits.length ? traits : fallback.traits, skills,
+      hunger: Number.isFinite(source.hunger) ? clamp(source.hunger as number) : fallback.hunger,
+      energy: Number.isFinite(source.energy) ? clamp(source.energy as number) : fallback.energy,
+      happiness: Number.isFinite(source.happiness) ? clamp(source.happiness as number) : fallback.happiness,
+      health: Number.isFinite(source.health) ? clamp(source.health as number) : fallback.health,
+      experience: Number.isFinite(source.experience) ? Math.max(0, source.experience as number) : 0,
+      status, activity,
+      workplaceId: typeof source.workplaceId === 'string' ? source.workplaceId : null,
+      expeditionId: status === 'exploring' && typeof source.expeditionId === 'string' ? source.expeditionId : null,
+      lastAction: typeof source.lastAction === 'string' ? source.lastAction.slice(0, 240) : fallback.lastAction,
+      relationships,
+      homeId: typeof source.homeId === 'string' ? source.homeId : null,
+      familyId: typeof source.familyId === 'string' && source.familyId ? source.familyId.slice(0, 80) : fallback.familyId,
+      bornAt: Number.isFinite(source.bornAt) ? Math.max(0, source.bornAt as number) : state.gameMinutes,
+    };
+  });
   while (citizens.length < state.population) {
     const citizen = makeCitizen(state.seed, nextCitizenId - 1, state.gameMinutes);
     citizen.id = 'citizen-' + nextCitizenId;
@@ -146,6 +221,46 @@ export function ensureWorldState(state: GameState): GameState {
     citizens = citizens.filter((citizen) => !removable.includes(citizen.id));
     while (citizens.length > state.population) citizens.pop();
   }
+  const knownCitizenIds = new Set(citizens.map((citizen) => citizen.id));
+  const seenExpeditionIds = new Set<string>();
+  const validExpeditions = existing.expeditions
+    .filter((trip) => {
+      if (!trip || typeof trip.id !== 'string' || seenExpeditionIds.has(trip.id) || !REGIONS.some((region) => region.id === trip.region)
+        || typeof trip.scoutId !== 'string' || !knownCitizenIds.has(trip.scoutId)
+        || !Number.isFinite(trip.startedAt) || trip.startedAt < 0 || trip.startedAt > state.gameMinutes
+        || !Number.isFinite(trip.eta) || trip.eta < trip.startedAt
+        || !['active', 'success', 'partial', 'failed'].includes(trip.status)) return false;
+      seenExpeditionIds.add(trip.id);
+      return true;
+    })
+    .map((trip) => {
+      const crewIds = [...new Set([trip.scoutId, ...(Array.isArray(trip.crewIds) ? trip.crewIds.filter((id): id is string => typeof id === 'string' && knownCitizenIds.has(id)) : [])])].slice(0, 3);
+      return { ...trip, crewIds, successChance: Number.isFinite(trip.successChance) ? clamp(trip.successChance) : 45 };
+    });
+  const assignedActiveCrew = new Set<string>();
+  const acceptedActiveTripIds = new Set<string>();
+  const activeTripsByCitizen = new Map<string, Expedition>();
+  for (const trip of validExpeditions.filter((entry) => entry.status === 'active')) {
+    const crewIds = trip.crewIds ?? [trip.scoutId];
+    if (crewIds.some((id) => assignedActiveCrew.has(id))) continue;
+    acceptedActiveTripIds.add(trip.id);
+    for (const id of crewIds) {
+      assignedActiveCrew.add(id);
+      activeTripsByCitizen.set(id, trip);
+    }
+  }
+  const sanitizedExpeditions = validExpeditions.filter((trip) => trip.status !== 'active' || acceptedActiveTripIds.has(trip.id));
+  citizens = citizens.map((citizen) => {
+    const activeTrip = activeTripsByCitizen.get(citizen.id);
+    if (activeTrip) return { ...citizen, status: 'exploring', activity: 'exploring', expeditionId: activeTrip.id, lastAction: 'Sta esplorando il territorio' };
+    if (citizen.status === 'exploring') return { ...citizen, status: 'resident', activity: 'socializing', expeditionId: null, lastAction: 'È tornato alla vita del borgo dopo aver corretto una spedizione incompleta' };
+    return { ...citizen, expeditionId: null, activity: citizen.activity === 'exploring' ? 'socializing' : citizen.activity };
+  });
+  const presentCitizenIds = new Set(citizens.map((citizen) => citizen.id));
+  citizens = citizens.map((citizen) => ({
+    ...citizen,
+    relationships: Object.fromEntries(Object.entries(citizen.relationships).filter(([id]) => id !== citizen.id && presentCitizenIds.has(id))),
+  }));
   const homes = state.buildings.filter((building) => (BUILDINGS[building.type]?.housing ?? 0) > 0);
   const occupied = new Map<string, number>();
   citizens = citizens.map((citizen, index) => {
@@ -163,25 +278,48 @@ export function ensureWorldState(state: GameState): GameState {
     ...existing,
     nextCitizenId,
     citizens,
-    goods: { ...DEFAULT_GOODS, ...existing.goods },
-    policies: { ...DEFAULT_POLICIES, ...existing.policies },
-    researchPoints: Number.isFinite(existing.researchPoints) ? existing.researchPoints : 0,
-    researchProgress: Number.isFinite(existing.researchProgress) ? existing.researchProgress : 0,
-    activeResearch: existing.activeResearch ?? null,
-    expeditions: existing.expeditions.filter((expedition) => expedition && typeof expedition.id === 'string').slice(-8),
-    discoveredRegions: [...new Set(existing.discoveredRegions)],
-    chronicle: existing.chronicle.slice(0, 12),
-    activeEvent: existing.activeEvent ?? null,
+    goods: {
+      grain: Number.isFinite(existing.goods.grain) ? Math.max(0, Math.min(100000, existing.goods.grain)) : DEFAULT_GOODS.grain,
+      flour: Number.isFinite(existing.goods.flour) ? Math.max(0, Math.min(100000, existing.goods.flour)) : DEFAULT_GOODS.flour,
+      bread: Number.isFinite(existing.goods.bread) ? Math.max(0, Math.min(100000, existing.goods.bread)) : DEFAULT_GOODS.bread,
+      tools: Number.isFinite(existing.goods.tools) ? Math.max(0, Math.min(100000, existing.goods.tools)) : DEFAULT_GOODS.tools,
+      medicine: Number.isFinite(existing.goods.medicine) ? Math.max(0, Math.min(100000, existing.goods.medicine)) : DEFAULT_GOODS.medicine,
+    },
+    policies: {
+      tax: ['low', 'balanced', 'high'].includes(existing.policies.tax) ? existing.policies.tax : DEFAULT_POLICIES.tax,
+      food: ['reserve', 'balanced', 'generous'].includes(existing.policies.food) ? existing.policies.food : DEFAULT_POLICIES.food,
+      forest: ['protected', 'managed', 'intensive'].includes(existing.policies.forest) ? existing.policies.forest : DEFAULT_POLICIES.forest,
+      guard: ['none', 'patrol'].includes(existing.policies.guard) ? existing.policies.guard : DEFAULT_POLICIES.guard,
+    },
+    researchPoints: Number.isFinite(existing.researchPoints) ? Math.max(0, Math.min(100000, existing.researchPoints)) : 0,
+    researchProgress: Number.isFinite(existing.researchProgress) ? Math.max(0, existing.researchProgress) : 0,
+    researched: [...new Set(existing.researched.filter((id): id is ResearchId => RESEARCH.some((entry) => entry.id === id)))],
+    activeResearch: RESEARCH.some((entry) => entry.id === existing.activeResearch) ? existing.activeResearch : null,
+    expeditions: sanitizedExpeditions.slice(-8),
+    discoveredRegions: [...new Set(existing.discoveredRegions.filter((id): id is RegionId => REGIONS.some((region) => region.id === id)))],
+    chronicle: existing.chronicle.filter((entry): entry is string => typeof entry === 'string').slice(0, 12),
+    activeEvent: existing.activeEvent && typeof existing.activeEvent.id === 'string' && typeof existing.activeEvent.title === 'string' && typeof existing.activeEvent.description === 'string' && Number.isFinite(existing.activeEvent.startedAt) && existing.activeEvent.startedAt >= 0 && Array.isArray(existing.activeEvent.choices) && existing.activeEvent.choices.length > 0 && existing.activeEvent.choices.length <= 8 && existing.activeEvent.choices.every(validEventChoice) ? existing.activeEvent : null,
     nextEventAt: Number.isFinite(existing.nextEventAt) ? existing.nextEventAt : state.gameMinutes + 240,
     queuedEvent: existing.queuedEvent ?? null,
-    projectStages: Object.assign({ aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 }, existing.projectStages),
-    market: { ...createMarketState(state.gameMinutes), ...(existing.market ?? {}), prices: { ...MARKET_BASE_PRICES, ...(existing.market?.prices ?? {}) }, demand: Object.assign({ grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1 }, existing.market?.demand), cycle: Number.isFinite(existing.market?.cycle) ? existing.market!.cycle : 0, nextShiftAt: Number.isFinite(existing.market?.nextShiftAt) ? existing.market!.nextShiftAt : state.gameMinutes + 120 },
+    projectStages: {
+      aqueduct: Number.isFinite(existing.projectStages.aqueduct) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages.aqueduct))) : 0,
+      'stone-bridge': Number.isFinite(existing.projectStages['stone-bridge']) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages['stone-bridge']))) : 0,
+      'artisan-quarter': Number.isFinite(existing.projectStages['artisan-quarter']) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages['artisan-quarter']))) : 0,
+      'grand-archive': Number.isFinite(existing.projectStages['grand-archive']) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages['grand-archive']))) : 0,
+    },
+    market: {
+      ...createMarketState(state.gameMinutes), ...(existing.market ?? {}),
+      prices: Object.fromEntries((Object.keys(MARKET_BASE_PRICES) as TradableGood[]).map((good) => [good, Number.isFinite(existing.market?.prices?.[good]) ? Math.max(1, Math.min(10000, existing.market!.prices[good])) : MARKET_BASE_PRICES[good]])) as Record<TradableGood, number>,
+      demand: Object.fromEntries((Object.keys(MARKET_BASE_PRICES) as TradableGood[]).map((good) => [good, Number.isFinite(existing.market?.demand?.[good]) ? Math.max(0.1, Math.min(10, existing.market!.demand[good])) : 1])) as Record<TradableGood, number>,
+      cycle: Number.isSafeInteger(existing.market?.cycle) ? Math.max(0, existing.market!.cycle) : 0,
+      nextShiftAt: Number.isFinite(existing.market?.nextShiftAt) ? Math.max(state.gameMinutes, existing.market!.nextShiftAt) : state.gameMinutes + 120,
+    },
     forestHealth: Number.isFinite(existing.forestHealth) ? clamp(existing.forestHealth!) : 100,
     weather: existing.weather && ['clear', 'drought'].includes(existing.weather.id) && Number.isFinite(existing.weather.endsAt)
       ? { ...existing.weather } : { id: 'clear', endsAt: 0 },
-    completedProjects: [...new Set(existing.completedProjects)],
-    factions: existing.factions,
-    tradeRoutes: [...new Set(existing.tradeRoutes)],
+    completedProjects: [...new Set(existing.completedProjects.filter((id): id is ProjectId => PROJECTS.some((project) => project.id === id)))],
+    factions: existing.factions.filter((faction) => faction && typeof faction.id === 'string' && typeof faction.name === 'string' && typeof faction.specialty === 'string' && Number.isFinite(faction.relation)).map((faction) => ({ ...faction, relation: clamp(faction.relation), lastContact: Number.isFinite(faction.lastContact) ? Math.max(0, faction.lastContact) : 0, treaty: faction.treaty === true })),
+    tradeRoutes: [...new Set(existing.tradeRoutes.filter((id) => typeof id === 'string' && existing.factions.some((faction) => faction?.id === id)))],
   };
   return { ...state, world };
 }
@@ -225,7 +363,8 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   if (job) {
     const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident' && getCitizenWorkplace(state, citizen)?.id === building.id);
     const workers = assigned.length;
-    const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / Math.max(1, assigned.length);
+    if (workers === 0) return 0;
+    const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / assigned.length;
     const readiness = assigned.reduce((total, citizen) => total + (citizen.energy + citizen.health + citizen.happiness) / 3, 0) / Math.max(1, assigned.length) / 100;
     multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
   }
@@ -467,24 +606,36 @@ export function advanceRealmMinute(input: GameState): GameState {
     return { ...citizen, activity, hunger, energy, happiness: clamp(happiness), health: clamp(health), skills, experience: citizen.experience + (atWork ? 0.002 : 0) };
   });
 
+  const labourState: GameState = { ...state, world: { ...world, citizens } };
   const farms = state.buildings.filter((building) => building.type === 'farm');
-  const farmers = citizens.filter((citizen) => citizen.profession === 'farmer' && citizen.status === 'resident');
   const farmSeason = getSeason(state.gameMinutes);
-  goods.grain += Math.min(farms.reduce((sum, farm) => sum + 0.085 * farm.level * worldBuildingMultiplier(state, farm), 0), farmers.length * 0.06) * farmSeason.farmMultiplier;
-  const mills = state.buildings.filter((building) => building.type === 'mill').length;
-  const millers = citizens.filter((citizen) => citizen.profession === 'miller' && citizen.status === 'resident').length;
-  const flourProduced = Math.min(goods.grain, Math.min(mills * 0.14, millers * 0.11));
-  goods.grain -= flourProduced; goods.flour += flourProduced;
-  const bakeries = state.buildings.filter((building) => building.type === 'bakery').length;
-  const bakers = citizens.filter((citizen) => citizen.profession === 'baker' && citizen.status === 'resident').length;
-  const breadProduced = Math.min(goods.flour, Math.min(bakeries * 0.14, bakers * 0.11));
-  goods.flour -= breadProduced; goods.bread += breadProduced;
+  for (const farm of farms) {
+    const workers = citizens.filter((citizen) => citizen.profession === 'farmer' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === farm.id).length;
+    if (!workers) continue;
+    const produced = Math.min(0.085 * farm.level * worldBuildingMultiplier(labourState, farm), workers * 0.06) * farmSeason.farmMultiplier;
+    goods.grain += Math.max(0, produced);
+  }
+  const mills = state.buildings.filter((building) => building.type === 'mill');
+  for (const mill of mills) {
+    const workers = citizens.filter((citizen) => citizen.profession === 'miller' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === mill.id).length;
+    if (!workers || goods.grain <= 0) continue;
+    const produced = Math.min(goods.grain, Math.min(0.14 * mill.level * worldBuildingMultiplier(labourState, mill), workers * 0.11));
+    goods.grain -= produced; goods.flour += produced;
+  }
+  const bakeries = state.buildings.filter((building) => building.type === 'bakery');
+  for (const bakery of bakeries) {
+    const workers = citizens.filter((citizen) => citizen.profession === 'baker' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === bakery.id).length;
+    if (!workers || goods.flour <= 0) continue;
+    const produced = Math.min(goods.flour, Math.min(0.14 * bakery.level * worldBuildingMultiplier(labourState, bakery), workers * 0.11));
+    goods.flour -= produced; goods.bread += produced;
+  }
   if (goods.bread > 0 && state.gameMinutes > 0 && state.gameMinutes % 18 === 0 && resources.food > 0.1) goods.bread = Math.max(0, goods.bread - state.population * 0.015);
-  const workshops = state.buildings.filter((building) => building.type === 'workshop').length;
-  const artisans = citizens.filter((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident').length;
-  if (workshops > 0 && artisans > 0 && state.gameMinutes % 45 === 0 && resources.wood >= 2 && resources.stone >= 1) {
-    resources.wood -= 2; resources.stone -= 1; goods.tools += 1;
-    notes.push('L’officina ha completato un nuovo attrezzo.');
+  const workshops = state.buildings.filter((building) => building.type === 'workshop');
+  const staffedWorkshops = workshops.filter((workshop) => citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === workshop.id)).length;
+  const toolBatch = Math.min(staffedWorkshops, Math.floor(resources.wood / 2), Math.floor(resources.stone));
+  if (toolBatch > 0 && state.gameMinutes % 45 === 0) {
+    resources.wood -= 2 * toolBatch; resources.stone -= toolBatch; goods.tools += toolBatch;
+    notes.push(toolBatch === 1 ? 'L’officina ha completato un nuovo attrezzo.' : 'Le officine hanno completato ' + toolBatch + ' nuovi attrezzi.');
   }
   const cap = goodsCapacity(state);
   (Object.keys(goods) as Array<keyof GoodsBag>).forEach((key) => { goods[key] = clamp(goods[key], 0, cap); });
@@ -616,11 +767,12 @@ export function advanceRealmMinute(input: GameState): GameState {
     const forestChange = world.policies.forest === 'protected' ? 0.6 - sawmillLevels * 0.08 : world.policies.forest === 'managed' ? 0.12 - sawmillLevels * 0.42 : -0.35 - sawmillLevels * 1.25;
     const forestHealth = clamp(world.forestHealth + forestChange);
     nextWorld = { ...nextWorld, forestHealth };
-    const workshopsForMedicine = state.buildings.filter((building) => building.type === 'workshop').length;
-    const schoolsForMedicine = state.buildings.filter((building) => building.type === 'school').length;
-    const artisansForMedicine = citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident');
-    const scholarsForMedicine = citizens.some((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident');
-    if (workshopsForMedicine > 0 && schoolsForMedicine > 0 && artisansForMedicine && scholarsForMedicine && goods.grain >= 1 && goods.medicine < 20) {
+    const workshopsForMedicine = state.buildings.filter((building) => building.type === 'workshop');
+    const schoolsForMedicine = state.buildings.filter((building) => building.type === 'school');
+    const medicineLabState: GameState = { ...state, world: { ...world, citizens } };
+    const artisansForMedicine = workshopsForMedicine.some((workshop) => citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident' && getCitizenWorkplace(medicineLabState, citizen)?.id === workshop.id));
+    const scholarsForMedicine = schoolsForMedicine.some((school) => citizens.some((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident' && getCitizenWorkplace(medicineLabState, citizen)?.id === school.id));
+    if (workshopsForMedicine.length > 0 && schoolsForMedicine.length > 0 && artisansForMedicine && scholarsForMedicine && goods.grain >= 1 && goods.medicine < 20) {
       goods.grain -= 1; goods.medicine += 1;
       notes.push('Artigiani e studiosi hanno preparato un rimedio usando le scorte botaniche.');
     }
@@ -641,6 +793,9 @@ export function advanceRealmMinute(input: GameState): GameState {
       else if (community) { community.trust = clamp(community.trust - 2); community.morale = clamp(community.morale - 1); notes.push('Le guardie non sono state pagate: il Consiglio deve rifinanziare le pattuglie.'); }
     }
   }
+  const goodsLimit = goodsCapacity(state);
+  (Object.keys(goods) as Array<keyof GoodsBag>).forEach((good) => { goods[good] = Math.max(0, Math.min(goodsLimit, Number.isFinite(goods[good]) ? goods[good] : 0)); });
+  nextWorld = { ...nextWorld, goods: { ...goods } };
   const now = state.gameMinutes;
   if (nextWorld.weather.id === 'drought' && now >= nextWorld.weather.endsAt) {
     nextWorld = { ...nextWorld, weather: { id: 'clear', endsAt: 0 } };
@@ -740,11 +895,15 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     if (crew.some((citizen) => !citizen || citizen.status !== 'resident')) return fail('Tutti i membri dell’equipaggio devono essere cittadini disponibili.');
     const crewMembers = crew.filter((citizen): citizen is Citizen => !!citizen);
     const minimumFood = 8 + Math.max(0, crewMembers.length - 1) * 3;
-    const foodSupply = Math.floor(action.foodSupply ?? minimumFood);
+    const requestedFood = action.foodSupply ?? minimumFood;
+    if (!Number.isFinite(requestedFood)) return fail('La quantità di provviste deve essere un numero valido.');
+    const foodSupply = Math.floor(requestedFood);
     if (foodSupply < minimumFood || foodSupply > 50) return fail('Servono almeno ' + minimumFood + ' unità di cibo per questo equipaggio (massimo 50).');
     if (resources.food < foodSupply) return fail('La dispensa non contiene ' + foodSupply + ' unità di cibo per la spedizione.');
     const carriesTools = action.useTools === false ? false : world.goods.tools > 0;
-    const durationFactor = Math.max(0.75, Math.min(1.5, action.durationFactor ?? 1));
+    const requestedDuration = action.durationFactor ?? 1;
+    if (!Number.isFinite(requestedDuration)) return fail('Il ritmo di viaggio non è valido.');
+    const durationFactor = Math.max(0.75, Math.min(1.5, requestedDuration));
     resources.food -= foodSupply;
     const goods = { ...world.goods, tools: Math.max(0, world.goods.tools - (carriesTools ? 1 : 0)) };
     const averageSkill = crewMembers.reduce((sum, citizen) => sum + citizen.skills.scout, 0) / crewMembers.length;
