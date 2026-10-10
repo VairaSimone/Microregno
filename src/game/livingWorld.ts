@@ -1,4 +1,5 @@
 import { BUILDINGS } from './definitions';
+import { getSeason } from './community';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
   GameState, GoodsBag, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition,
@@ -13,12 +14,12 @@ export const PROFESSION_LABELS: Record<Profession, string> = {
 export const PROFESSIONS = Object.keys(PROFESSION_LABELS) as Profession[];
 
 export const RESEARCH: ResearchDefinition[] = [
-  { id: 'irrigation', name: 'Irrigazione', path: 'Agricoltura', description: 'Le fattorie producono di più e resistono meglio alle stagioni difficili.', cost: 18, duration: 180 },
-  { id: 'tools', name: 'Utensili efficienti', path: 'Artigianato', description: 'Gli edifici produttivi rendono il 12% in più.', cost: 22, duration: 210 },
-  { id: 'trade', name: 'Reti commerciali', path: 'Commercio', description: 'Il mercato rende di più e gli accordi esteri generano più monete.', cost: 24, duration: 220 },
-  { id: 'education', name: 'Scuola dei maestri', path: 'Conoscenza', description: 'Gli studiosi accelerano le ricerche e le competenze crescono più velocemente.', cost: 20, duration: 190 },
-  { id: 'cartography', name: 'Cartografia', path: 'Esplorazione', description: 'Sblocca spedizioni più lontane e permette due spedizioni contemporanee.', cost: 26, duration: 250 },
-  { id: 'forestry', name: 'Silvicoltura', path: 'Natura', description: 'La gestione protetta dei boschi sacrifica meno produzione.', cost: 21, duration: 190 },
+  { id: 'irrigation', name: 'Irrigazione', path: 'Agricoltura', description: 'Le fattorie producono di più e resistono meglio alle stagioni difficili.', cost: 18, duration: 180, requiredBuildings: ['farm'], resourceCost: { wood: 2, stone: 2 } },
+  { id: 'tools', name: 'Utensili efficienti', path: 'Artigianato', description: 'Gli edifici produttivi rendono il 12% in più.', cost: 22, duration: 210, requiredBuildings: ['workshop'], resourceCost: { wood: 4 } },
+  { id: 'trade', name: 'Reti commerciali', path: 'Commercio', description: 'Il mercato rende di più e gli accordi esteri generano più monete.', cost: 24, duration: 220, requiredBuildings: ['market'], requiresResearch: ['tools'], resourceCost: { wood: 3, coins: 3 } },
+  { id: 'education', name: 'Scuola dei maestri', path: 'Conoscenza', description: 'Gli studiosi accelerano le ricerche e le competenze crescono più velocemente.', cost: 20, duration: 190, requiredBuildings: ['school'], requiresResearch: ['tools'], requiredProfession: 'scholar', minSkill: 8, resourceCost: { wood: 3, coins: 2 } },
+  { id: 'cartography', name: 'Cartografia', path: 'Esplorazione', description: 'Sblocca spedizioni più lontane e permette due spedizioni contemporanee.', cost: 26, duration: 250, requiredBuildings: ['school'], requiresResearch: ['education'], requiredProfession: 'scout', minSkill: 12, resourceCost: { wood: 5, coins: 3 } },
+  { id: 'forestry', name: 'Silvicoltura', path: 'Natura', description: 'La gestione protetta dei boschi sacrifica meno produzione.', cost: 21, duration: 190, requiredBuildings: ['sawmill'], requiresResearch: ['irrigation'], resourceCost: { wood: 3 } },
 ];
 
 export const REGIONS: Array<{ id: RegionId; name: string; description: string; duration: number; requirement: string | null }> = [
@@ -45,7 +46,7 @@ const MARKET_GOOD_LABELS: Record<TradableGood, string> = { grain: 'grano', flour
 function createMarketState(gameMinutes = 0): MarketState {
   return { prices: { ...MARKET_BASE_PRICES }, demand: { grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1 }, cycle: 0, nextShiftAt: gameMinutes + 120 };
 }
-function refreshMarket(seed: number, gameMinutes: number, market: MarketState, goods: GoodsBag): MarketState {
+function refreshMarket(seed: number, gameMinutes: number, market: MarketState, goods: GoodsBag, drought: boolean, activeEventId: string | null): MarketState {
   const cycle = market.cycle + 1;
   const keys = Object.keys(MARKET_BASE_PRICES) as TradableGood[];
   const demand = { ...market.demand };
@@ -55,7 +56,13 @@ function refreshMarket(seed: number, gameMinutes: number, market: MarketState, g
     let factor = 0.62 + score / 150;
     if (goods[good] > 16) factor *= 0.82;
     if (goods[good] < 3) factor *= 1.12;
-    factor = Math.max(0.5, Math.min(1.55, factor));
+    const season = getSeason(gameMinutes).id;
+    if (season === 'winter' && ['grain', 'flour', 'bread', 'medicine'].includes(good)) factor *= 1.14;
+    if (season === 'autumn' && good === 'grain') factor *= 0.88;
+    if (drought && ['grain', 'flour', 'bread'].includes(good)) factor *= 1.2;
+    if (activeEventId === 'fair') factor *= good === 'tools' || good === 'bread' ? 1.18 : 1.05;
+    if (activeEventId === 'caravan') factor *= good === 'tools' || good === 'medicine' ? 1.12 : 1;
+    factor = Math.max(0.5, Math.min(1.7, factor));
     demand[good] = Math.round(factor * 100) / 100;
     prices[good] = Math.max(1, Math.round(MARKET_BASE_PRICES[good] * factor));
   });
@@ -87,6 +94,8 @@ function makeCitizen(seed: number, index: number, gameMinutes: number): Citizen 
     health: 88 + (a % 13),
     experience: 0,
     status: 'resident',
+    activity: 'socializing',
+    workplaceId: null,
     expeditionId: null,
     lastAction: 'Si gode una mattina tranquilla',
     relationships: {},
@@ -123,7 +132,7 @@ export function ensureWorldState(state: GameState): GameState {
       !existing.projectStages || !Array.isArray(existing.factions)) {
     return { ...state, world: createWorldState(state.seed, state.population, state.gameMinutes) };
   }
-  let citizens = existing.citizens.map((citizen) => ({ ...citizen, skills: { ...citizen.skills }, traits: [...citizen.traits], relationships: { ...citizen.relationships } }));
+  let citizens = existing.citizens.map((citizen) => ({ ...citizen, skills: { ...citizen.skills }, traits: [...citizen.traits], relationships: { ...citizen.relationships }, workplaceId: typeof citizen.workplaceId === 'string' ? citizen.workplaceId : null, activity: citizen.status === 'exploring' ? 'exploring' as const : citizen.activity ?? 'socializing' as const }));
   let nextCitizenId = Number.isFinite(existing.nextCitizenId) ? existing.nextCitizenId : citizens.length + 1;
   while (citizens.length < state.population) {
     const citizen = makeCitizen(state.seed, nextCitizenId - 1, state.gameMinutes);
@@ -147,7 +156,8 @@ export function ensureWorldState(state: GameState): GameState {
       ? oldHome
       : homes.find((building) => (occupied.get(building.id) ?? 0) < (BUILDINGS[building.type]?.housing ?? 0) * building.level);
     if (selected) occupied.set(selected.id, (occupied.get(selected.id) ?? 0) + 1);
-    return { ...citizen, homeId: selected?.id ?? null, familyId: citizen.familyId || 'family-' + (Math.floor(index / 2) + 1) };
+    const assignedWorkplace = state.buildings.some((building) => building.id === citizen.workplaceId && BUILDING_JOB[building.type] === citizen.profession) ? citizen.workplaceId : null;
+    return { ...citizen, homeId: selected?.id ?? null, workplaceId: assignedWorkplace, activity: citizen.status === 'exploring' ? 'exploring' : citizen.activity, familyId: citizen.familyId || 'family-' + (Math.floor(index / 2) + 1) };
   });
   const world: WorldState = {
     ...existing,
@@ -180,15 +190,41 @@ const BUILDING_JOB: Partial<Record<BuildingType, Profession>> = {
   farm: 'farmer', sawmill: 'lumberjack', quarry: 'miner', market: 'merchant', mill: 'miller',
   bakery: 'baker', school: 'scholar', watchtower: 'guard', workshop: 'artisan',
 };
+
+export const CITIZEN_ACTIVITY_LABELS: Record<import('./types').CitizenActivity, string> = {
+  working: 'Lavora alla propria postazione', resting: 'Si riposa a casa', socializing: 'Incontra i vicini in piazza',
+  commuting: 'Si sposta tra casa e lavoro', eating: 'Cerca un pasto', exploring: 'È in spedizione',
+};
+
+export function getCitizenWorkplace(state: GameState, citizen: Citizen): Building | null {
+  const compatible = state.buildings.filter((building) => BUILDING_JOB[building.type] === citizen.profession);
+  if (!compatible.length) return null;
+  const explicit = compatible.find((building) => building.id === citizen.workplaceId);
+  if (explicit) return explicit;
+  const numericId = Number(citizen.id.slice(citizen.id.lastIndexOf('-') + 1)) || 1;
+  return compatible[(Math.max(1, numericId) - 1) % compatible.length] ?? null;
+}
+
+export function getCitizenActivity(state: GameState, citizen: Citizen): import('./types').CitizenActivity {
+  if (citizen.status === 'exploring') return 'exploring';
+  if (citizen.hunger > 75 || (state.resources.food < 0.1 && (state.world?.goods.bread ?? 0) < 0.1)) return 'eating';
+  const minuteOfDay = state.gameMinutes % 1440;
+  const workplace = getCitizenWorkplace(state, citizen);
+  if (citizen.energy < 24 || minuteOfDay >= 21 * 60 || minuteOfDay < 6 * 60) return 'resting';
+  if (workplace && minuteOfDay >= 8 * 60 && minuteOfDay < 17 * 60) return 'working';
+  if (workplace && ((minuteOfDay >= 6 * 60 && minuteOfDay < 8 * 60) || (minuteOfDay >= 17 * 60 && minuteOfDay < 18 * 60))) return 'commuting';
+  if (minuteOfDay >= 17 * 60 && minuteOfDay < 21 * 60) return 'socializing';
+  return workplace ? 'commuting' : 'socializing';
+}
+
 export function worldBuildingMultiplier(state: GameState, building: Building): number {
   const world = state.world;
   if (!world) return 1;
   const job = BUILDING_JOB[building.type];
   let multiplier = 1;
   if (job) {
-    const sameBuildings = Math.max(1, state.buildings.filter((entry) => entry.type === building.type).length);
-    const workers = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident').length / sameBuildings;
-    const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident');
+    const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident' && getCitizenWorkplace(state, citizen)?.id === building.id);
+    const workers = assigned.length;
     const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / Math.max(1, assigned.length);
     const readiness = assigned.reduce((total, citizen) => total + (citizen.energy + citizen.health + citizen.happiness) / 3, 0) / Math.max(1, assigned.length) / 100;
     multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
@@ -206,6 +242,53 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
     if (world.forestHealth < 35) multiplier *= 0.55 + world.forestHealth / 100 * 0.45;
   }
   return multiplier;
+}
+
+export function researchRequirement(state: GameState, research: ResearchDefinition): string | null {
+  const world = state.world;
+  if (!world) return 'La Sala del Regno non è pronta.';
+  const missingBuilding = (research.requiredBuildings ?? []).find((type) => !state.buildings.some((building) => building.type === type));
+  if (missingBuilding) return 'Costruisci prima: ' + BUILDINGS[missingBuilding].name + '.';
+  const missingResearch = (research.requiresResearch ?? []).find((id) => !world.researched.includes(id));
+  if (missingResearch) return 'Richiede la ricerca: ' + (RESEARCH.find((entry) => entry.id === missingResearch)?.name ?? missingResearch) + '.';
+  if (research.requiredProfession) {
+    const qualified = world.citizens.some((citizen) => citizen.status === 'resident' && citizen.profession === research.requiredProfession && citizen.skills[research.requiredProfession] >= (research.minSkill ?? 0));
+    if (!qualified) return 'Serve un cittadino disponibile come ' + PROFESSION_LABELS[research.requiredProfession] + (research.minSkill ? ' con abilità almeno ' + research.minSkill : '') + '.';
+  }
+  if (research.resourceCost && !hasCost(state.resources, research.resourceCost)) return 'Materiali richiesti: ' + Object.entries(research.resourceCost).map(([key, value]) => `${value} ${key === 'wood' ? 'legname' : key === 'stone' ? 'pietra' : key === 'food' ? 'cibo' : 'monete'}`).join(', ') + '.';
+  return null;
+}
+
+export function getInterestGroups(state: GameState): Array<{ id: string; name: string; members: number; support: number; influence: number; concern: string }> {
+  const world = state.world; const citizens = world?.citizens ?? [];
+  const farmers = citizens.filter((citizen) => citizen.profession === 'farmer').length;
+  const artisans = citizens.filter((citizen) => ['artisan', 'builder', 'miller', 'baker'].includes(citizen.profession)).length;
+  const merchants = citizens.filter((citizen) => citizen.profession === 'merchant').length;
+  const newcomers = citizens.filter((citizen) => citizen.age < 18 || (citizen.bornAt > 0 && state.gameMinutes - citizen.bornAt < 1440 * 7)).length;
+  const has = (type: BuildingType) => state.buildings.some((building) => building.type === type);
+  const influence = (members: number) => clamp(members / Math.max(1, state.population) * 100);
+  const farmerSupport = 55 + (world?.policies.food === 'generous' ? 9 : world?.policies.food === 'reserve' ? -5 : 0) + (state.resources.food < 18 ? -28 : 8) + (world?.weather.id === 'drought' ? -12 : 0) + (world?.researched.includes('irrigation') ? 7 : 0);
+  const artisanSupport = 48 + (world?.researched.includes('tools') ? 12 : 0) + (world?.completedProjects.includes('artisan-quarter') ? 15 : 0) + (state.resources.wood < 6 || state.resources.stone < 4 ? -10 : 4);
+  const merchantSupport = 42 + (world?.tradeRoutes.length ?? 0) * 7 + (world?.researched.includes('trade') ? 15 : 0) + (has('market') ? 10 : -8) + (state.resources.coins < 8 ? -10 : 4);
+  const newcomerSupport = 45 + (housing(state) > state.population ? 12 : -18) + (state.resources.food >= 18 ? 10 : -20) + (world?.policies.tax === 'low' ? 8 : world?.policies.tax === 'high' ? -12 : 0) + ((state.community?.morale ?? 60) < 40 ? -10 : 0);
+  return [
+    { id: 'farmers', name: 'Contadini', members: farmers, support: clamp(farmerSupport), influence: influence(farmers), concern: 'Raccolti, riserve alimentari e accesso alla terra' },
+    { id: 'artisans', name: 'Artigiani e costruttori', members: artisans, support: clamp(artisanSupport), influence: influence(artisans), concern: 'Materiali, strumenti, botteghe e grandi opere' },
+    { id: 'merchants', name: 'Mercanti', members: merchants, support: clamp(merchantSupport), influence: influence(merchants), concern: 'Commercio, monete e rotte sicure' },
+    { id: 'newcomers', name: 'Nuovi arrivati e giovani', members: newcomers, support: clamp(newcomerSupport), influence: influence(newcomers), concern: 'Alloggi, provviste e opportunità' },
+  ];
+}
+
+export function projectRequirement(state: GameState, projectId: ProjectId): string | null {
+  const needs: Record<ProjectId, { building: BuildingType; profession?: Profession }> = {
+    aqueduct: { building: 'farm' }, 'stone-bridge': { building: 'sawmill' },
+    'artisan-quarter': { building: 'workshop', profession: 'artisan' }, 'grand-archive': { building: 'school', profession: 'scholar' },
+  };
+  const requirement = needs[projectId];
+  if (!state.world?.citizens.some((citizen) => citizen.status === 'resident' && citizen.profession === 'builder')) return 'Serve almeno un Costruttore disponibile per coordinare il cantiere.';
+  if (!state.buildings.some((building) => building.type === requirement.building)) return 'Costruisci prima: ' + BUILDINGS[requirement.building].name + '.';
+  if (requirement.profession && !state.world.citizens.some((citizen) => citizen.status === 'resident' && citizen.profession === requirement.profession)) return 'Serve un cittadino disponibile come ' + PROFESSION_LABELS[requirement.profession] + '.';
+  return null;
 }
 
 export function realmModifiers(state: GameState): { taxMultiplier: number; foodConsumptionMultiplier: number; guardProtection: number; tradeIncome: number } {
@@ -274,9 +357,24 @@ function eventTemplate(id: string, gameMinutes: number, seed = 2310): RealmEvent
     ]),
   ];
   const mixed = Math.imul(seed ^ Math.imul(gameMinutes + 1, 2654435761), 2246822519) >>> 0;
-  const index = mixed % choiceSets.length;
-  const chosen = choiceSets[index]!;
-  return { ...chosen, id: id === 'random' ? chosen.id : id };
+  const chosen = choiceSets.find((entry) => entry.id === id) ?? choiceSets[mixed % choiceSets.length]!;
+  return chosen;
+}
+
+function chooseDynamicEvent(state: GameState): string {
+  const world = state.world;
+  const weights = ([
+    ['drought', state.resources.food < 18 ? 5 : world?.weather.id === 'drought' ? 0 : 1],
+    ['caravan', state.buildings.some((building) => building.type === 'market') || (world?.tradeRoutes.length ?? 0) > 0 ? 4 : 2],
+    ['wanderer', housing(state) > state.population ? 4 : 1],
+    ['wolves', world?.policies.guard === 'none' ? 3 : 1 + ((world?.forestHealth ?? 100) < 35 ? 2 : 0)],
+    ['fair', state.buildings.some((building) => building.type === 'market') ? 4 : 1],
+  ] as Array<[string, number]>).filter((entry) => entry[1] > 0);
+  const total = weights.reduce((sum, item) => sum + item[1], 0);
+  const mixed = Math.imul(state.seed ^ Math.imul(state.gameMinutes + 1, 2654435761), 2246822519) >>> 0;
+  let roll = mixed % Math.max(1, total);
+  for (const [id, weight] of weights) { if (roll < weight) return id; roll -= weight; }
+  return 'wanderer';
 }
 
 function regionUnlocked(world: WorldState, regionId: RegionId): boolean {
@@ -343,26 +441,36 @@ export function advanceRealmMinute(input: GameState): GameState {
   const notes: string[] = [];
   let community = state.community ? { ...state.community } : undefined;
   const activeExpeditions = world.expeditions.filter((expedition) => expedition.status === 'active');
+  const hasFoodRation = resources.food > 0.1;
+  const rationDemand = Math.max(0.01, state.population * 0.008);
+  const breadRation = !hasFoodRation ? Math.min(goods.bread, rationDemand) : 0;
+  goods.bread = Math.max(0, Math.round((goods.bread - breadRation) * 1000) / 1000);
+  const rationCoverage = hasFoodRation ? 1 : Math.min(1, breadRation / rationDemand);
   citizens = citizens.map((citizen) => {
-    if (citizen.status === 'exploring') return { ...citizen, energy: clamp(citizen.energy - 0.055), hunger: clamp(citizen.hunger + 0.05) };
-    const jobHasBuilding = state.buildings.some((building) => BUILDING_JOB[building.type] === citizen.profession);
-    const hunger = clamp(citizen.hunger + (resources.food < 18 ? 0.075 : 0.045));
-    const energy = clamp(citizen.energy + (jobHasBuilding && citizen.energy > 32 ? -0.04 : 0.075));
+    if (citizen.status === 'exploring') return { ...citizen, activity: 'exploring', energy: clamp(citizen.energy - 0.055), hunger: clamp(citizen.hunger + 0.05) };
+    const workplace = getCitizenWorkplace(state, citizen);
+    const hungerDelta = rationCoverage >= 1 ? -0.18 : 0.16 - 0.34 * rationCoverage;
+    const hunger = clamp(citizen.hunger + hungerDelta);
+    const activity = getCitizenActivity({ ...state, resources, world: { ...world, goods } }, { ...citizen, hunger });
+    const atWork = activity === 'working' && !!workplace;
+    const energy = clamp(citizen.energy + (activity === 'resting' ? 0.16 : atWork ? -0.06 : 0.025));
     let happiness = citizen.happiness;
-    if (resources.food < 18 || hunger > 80) happiness -= 0.12;
-    else if ((state.community?.morale ?? 60) >= 65) happiness += 0.025;
-    if (goods.bread > 0 && state.gameMinutes % 10 === 0) happiness += 0.15;
+    if ((rationCoverage === 0 && resources.food < 0.1) || hunger > 80) happiness -= 0.12;
+    else if (hunger < 45 && (state.community?.morale ?? 60) >= 60) happiness += 0.025;
+    if (goods.bread > 0 && state.gameMinutes % 10 === 0) happiness += 0.05;
     let health = citizen.health;
     if (hunger > 90) health -= 0.035;
     else if (hunger < 45) health += 0.008;
+    if (citizen.age >= 70 && state.gameMinutes % 1440 === 0) health -= 0.08;
     const skills = { ...citizen.skills };
-    if (jobHasBuilding) skills[citizen.profession] = clamp(skills[citizen.profession] + (world.researched.includes('education') ? 0.018 : 0.01), 0, 100);
-    return { ...citizen, hunger, energy, happiness: clamp(happiness), health: clamp(health), skills, experience: citizen.experience + (jobHasBuilding ? 0.002 : 0) };
+    if (atWork) skills[citizen.profession] = clamp(skills[citizen.profession] + (world.researched.includes('education') ? 0.018 : 0.01), 0, 100);
+    return { ...citizen, activity, hunger, energy, happiness: clamp(happiness), health: clamp(health), skills, experience: citizen.experience + (atWork ? 0.002 : 0) };
   });
 
-  const farms = state.buildings.filter((building) => building.type === 'farm').length;
-  const farmers = citizens.filter((citizen) => citizen.profession === 'farmer' && citizen.status === 'resident').length;
-  goods.grain += Math.min(farms * 0.085, farmers * 0.06);
+  const farms = state.buildings.filter((building) => building.type === 'farm');
+  const farmers = citizens.filter((citizen) => citizen.profession === 'farmer' && citizen.status === 'resident');
+  const farmSeason = getSeason(state.gameMinutes);
+  goods.grain += Math.min(farms.reduce((sum, farm) => sum + 0.085 * farm.level * worldBuildingMultiplier(state, farm), 0), farmers.length * 0.06) * farmSeason.farmMultiplier;
   const mills = state.buildings.filter((building) => building.type === 'mill').length;
   const millers = citizens.filter((citizen) => citizen.profession === 'miller' && citizen.status === 'resident').length;
   const flourProduced = Math.min(goods.grain, Math.min(mills * 0.14, millers * 0.11));
@@ -371,7 +479,7 @@ export function advanceRealmMinute(input: GameState): GameState {
   const bakers = citizens.filter((citizen) => citizen.profession === 'baker' && citizen.status === 'resident').length;
   const breadProduced = Math.min(goods.flour, Math.min(bakeries * 0.14, bakers * 0.11));
   goods.flour -= breadProduced; goods.bread += breadProduced;
-  if (goods.bread > 0 && state.gameMinutes > 0 && state.gameMinutes % 18 === 0) goods.bread = Math.max(0, goods.bread - state.population * 0.035);
+  if (goods.bread > 0 && state.gameMinutes > 0 && state.gameMinutes % 18 === 0 && resources.food > 0.1) goods.bread = Math.max(0, goods.bread - state.population * 0.015);
   const workshops = state.buildings.filter((building) => building.type === 'workshop').length;
   const artisans = citizens.filter((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident').length;
   if (workshops > 0 && artisans > 0 && state.gameMinutes % 45 === 0 && resources.wood >= 2 && resources.stone >= 1) {
@@ -387,10 +495,13 @@ export function advanceRealmMinute(input: GameState): GameState {
       for (let right = left + 1; right < nextCitizens.length; right++) {
         const a = nextCitizens[left]!;
         const b = nextCitizens[right]!;
+        const sameWorkplace = !!getCitizenWorkplace(state, a)?.id && getCitizenWorkplace(state, a)?.id === getCitizenWorkplace(state, b)?.id;
         let delta = a.profession === b.profession ? 1 : 0;
+        if (sameWorkplace) delta += 1;
         if (a.familyId === b.familyId) delta += 2;
         if (a.traits.includes('socievole') || b.traits.includes('socievole')) delta += 1;
-        if (a.traits.includes('ambizioso') && b.traits.includes('ambizioso')) delta -= 1;
+        if (a.traits.includes('ambizioso') && b.traits.includes('ambizioso')) delta -= sameWorkplace ? 3 : 1;
+        else if (sameWorkplace && ((a.traits.includes('ambizioso') && b.traits.includes('paziente')) || (b.traits.includes('ambizioso') && a.traits.includes('paziente')))) delta -= 1;
         const prior = ((a.relationships[b.id] ?? 0) + (b.relationships[a.id] ?? 0)) / 2;
         const value = Math.max(-100, Math.min(100, prior + delta));
         a.relationships[b.id] = value;
@@ -403,17 +514,36 @@ export function advanceRealmMinute(input: GameState): GameState {
       return { ...citizen, happiness: clamp(citizen.happiness + (average > 20 ? 0.18 : average < -15 ? -0.18 : 0)) };
     });
   }
-  const activeJobs = new Set<Profession>(state.buildings.map((building) => BUILDING_JOB[building.type]).filter((job): job is Profession => !!job));
+  const routineState: GameState = { ...state, resources, world: { ...world, citizens, goods } };
   citizens = citizens.map((citizen) => {
-    if (citizen.status === 'exploring') return citizen;
-    if (state.gameMinutes % 20 !== 0) return citizen;
-    const action = citizen.hunger > 75 ? 'Cerca cibo e controlla la dispensa'
-      : citizen.energy < 30 ? 'Si riposa prima di tornare al lavoro'
-      : activeJobs.has(citizen.profession) ? 'Lavora come ' + PROFESSION_LABELS[citizen.profession]
-      : 'Incontra vicini e cerca un nuovo impiego';
-    return { ...citizen, lastAction: action };
+    if (citizen.status === 'exploring') return { ...citizen, activity: 'exploring', lastAction: 'È in spedizione' };
+    const activity = getCitizenActivity(routineState, citizen);
+    return { ...citizen, activity, lastAction: state.gameMinutes % 20 === 0 ? CITIZEN_ACTIVITY_LABELS[activity] : citizen.lastAction };
   });
   let nextPopulation = state.population;
+  let nextCitizenId = world.nextCitizenId;
+  if (state.gameMinutes > 0 && state.gameMinutes % (1440 * 7) === 0) {
+    const availableJobs = [...new Set(state.buildings.map((building) => BUILDING_JOB[building.type]).filter((job): job is Profession => !!job))];
+    citizens = citizens.map((citizen) => {
+      if (citizen.status !== 'resident' || availableJobs.includes(citizen.profession) || !citizen.traits.some((trait) => ['pratico', 'ambizioso', 'curioso'].includes(trait))) return citizen;
+      const target = [...availableJobs].sort((a, b) => citizens.filter((person) => person.profession === a).length - citizens.filter((person) => person.profession === b).length)[0];
+      return target ? { ...citizen, profession: target, workplaceId: null, lastAction: 'Ha imparato un nuovo mestiere per trovare lavoro nel borgo' } : citizen;
+    });
+  }
+  if (state.gameMinutes > 0 && state.gameMinutes % (1440 * 30) === 0) {
+    citizens = citizens.map((citizen) => ({ ...citizen, age: citizen.age + 1 }));
+    const averageHappiness = citizens.reduce((sum, citizen) => sum + citizen.happiness, 0) / Math.max(1, citizens.length);
+    const families = new Map<string, Citizen[]>();
+    citizens.filter((citizen) => citizen.age >= 18 && citizen.age <= 45 && citizen.status === 'resident').forEach((citizen) => families.set(citizen.familyId, [...(families.get(citizen.familyId) ?? []), citizen]));
+    const family = [...families.values()].find((members) => members.length >= 2);
+    if (family && nextPopulation < housing(state) && resources.food >= 18 && averageHappiness >= 72) {
+      const child = makeCitizen(state.seed, nextCitizenId - 1, state.gameMinutes);
+      child.id = 'citizen-' + nextCitizenId; child.age = 0; child.profession = 'farmer'; child.skills.farmer = 3;
+      child.traits = [family[0]!.traits[0]!, family[1]!.traits[0]!]; child.familyId = family[0]!.familyId; child.homeId = family[0]!.homeId;
+      child.lastAction = 'È nato in una famiglia del borgo'; citizens.push(child); nextPopulation++; nextCitizenId++;
+      notes.push('È nato un bambino nella famiglia ' + child.familyId + '. La comunità cresce con una nuova generazione.');
+    }
+  }
   if (state.gameMinutes > 0 && state.gameMinutes % 120 === 0 && state.population > 5) {
     const averageHappiness = citizens.reduce((sum, citizen) => sum + citizen.happiness, 0) / Math.max(1, citizens.length);
     if (averageHappiness < 25) {
@@ -427,9 +557,9 @@ export function advanceRealmMinute(input: GameState): GameState {
     }
   }
 
-  let nextWorld: WorldState = { ...world, citizens, goods, researchPoints: world.researchPoints + 0.025 + (state.buildings.some((building) => building.type === 'school') ? citizens.filter((citizen) => citizen.profession === 'scholar').length * 0.09 : 0) };
+  let nextWorld: WorldState = { ...world, nextCitizenId, citizens, goods, researchPoints: world.researchPoints + 0.025 + (state.buildings.some((building) => building.type === 'school') ? citizens.filter((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident').length * 0.09 : 0) };
   if (state.gameMinutes >= nextWorld.market.nextShiftAt) {
-    nextWorld = { ...nextWorld, market: refreshMarket(state.seed, state.gameMinutes, nextWorld.market, goods) };
+    nextWorld = { ...nextWorld, market: refreshMarket(state.seed, state.gameMinutes, nextWorld.market, goods, nextWorld.weather.id === 'drought' && state.gameMinutes < nextWorld.weather.endsAt, nextWorld.activeEvent?.id ?? null) };
     notes.push('La domanda del mercato è cambiata: le quotazioni di grano, pane e beni lavorati sono aggiornate.');
   }
   const scholars = state.buildings.some((building) => building.type === 'school')
@@ -450,10 +580,11 @@ export function advanceRealmMinute(input: GameState): GameState {
     if (expedition.eta > state.gameMinutes) continue;
     const index = expeditions.findIndex((entry) => entry.id === expedition.id);
     if (index < 0) continue;
-    const scout = citizens.find((citizen) => citizen.id === expedition.scoutId);
-    const roll = Math.abs(state.seed * 11 + (scout?.skills.scout ?? 0) * 7 + expedition.startedAt * 13 + expedition.region.length * 3) % 100;
+    const crewIds = expedition.crewIds?.length ? expedition.crewIds : [expedition.scoutId];
+    const crewSkill = citizens.filter((citizen) => crewIds.includes(citizen.id)).reduce((sum, citizen) => sum + citizen.skills.scout, 0) / Math.max(1, crewIds.length);
+    const roll = Math.abs(state.seed * 11 + crewSkill * 7 + expedition.startedAt * 13 + expedition.region.length * 3) % 100;
     const success = roll < expedition.successChance;
-    if (scout) citizens = citizens.map((citizen) => citizen.id === scout.id ? { ...citizen, status: 'resident', expeditionId: null, energy: clamp(citizen.energy + 18), lastAction: success ? 'È tornato da una spedizione' : 'È tornato stanco da una spedizione difficile' } : citizen);
+    citizens = citizens.map((citizen) => crewIds.includes(citizen.id) ? { ...citizen, status: 'resident', activity: 'resting', expeditionId: null, energy: clamp(citizen.energy + 18), lastAction: success ? 'È tornato da una spedizione' : 'È tornato stanco da una spedizione difficile' } : citizen);
     if (success) {
       const reward = expeditionReward(expedition.region);
       Object.assign(resources, applyReward(resources, reward.resources));
@@ -485,6 +616,14 @@ export function advanceRealmMinute(input: GameState): GameState {
     const forestChange = world.policies.forest === 'protected' ? 0.6 - sawmillLevels * 0.08 : world.policies.forest === 'managed' ? 0.12 - sawmillLevels * 0.42 : -0.35 - sawmillLevels * 1.25;
     const forestHealth = clamp(world.forestHealth + forestChange);
     nextWorld = { ...nextWorld, forestHealth };
+    const workshopsForMedicine = state.buildings.filter((building) => building.type === 'workshop').length;
+    const schoolsForMedicine = state.buildings.filter((building) => building.type === 'school').length;
+    const artisansForMedicine = citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident');
+    const scholarsForMedicine = citizens.some((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident');
+    if (workshopsForMedicine > 0 && schoolsForMedicine > 0 && artisansForMedicine && scholarsForMedicine && goods.grain >= 1 && goods.medicine < 20) {
+      goods.grain -= 1; goods.medicine += 1;
+      notes.push('Artigiani e studiosi hanno preparato un rimedio usando le scorte botaniche.');
+    }
     const warehouseLevels = state.buildings.filter((building) => building.type === 'warehouse').reduce((sum, building) => sum + building.level, 0);
     const spoilageMultiplier = warehouseLevels > 0 ? Math.max(0.18, 0.35 - (warehouseLevels - 1) * 0.06) : 1;
     const spoilage: Record<keyof GoodsBag, number> = { grain: 0.025, flour: 0.035, bread: 0.06, tools: 0.004, medicine: 0.015 };
@@ -508,7 +647,7 @@ export function advanceRealmMinute(input: GameState): GameState {
     notes.push('La siccità è terminata: i raccolti possono riprendersi.');
   }
   if (!nextWorld.activeEvent && now >= nextWorld.nextEventAt) {
-    const id = nextWorld.queuedEvent ?? 'random';
+    const id = nextWorld.queuedEvent ?? chooseDynamicEvent({ ...state, resources, world: nextWorld });
     const created = eventTemplate(id, now, state.seed);
     nextWorld = { ...nextWorld, activeEvent: created, queuedEvent: null, nextEventAt: now + 360 };
     if (created.id === 'drought') nextWorld = { ...nextWorld, weather: { id: 'drought', endsAt: now + 180 } };
@@ -546,8 +685,21 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     if (!citizen) return fail('Questo cittadino non esiste più.');
     if (citizen.status === 'exploring') return fail('Il cittadino è in spedizione e non può cambiare mestiere.');
     if (!PROFESSIONS.includes(action.value)) return fail('Mestiere non valido.');
-    world = { ...world, citizens: world.citizens.map((entry) => entry.id === citizen.id ? { ...entry, profession: action.value, lastAction: 'Ha assunto il mestiere: ' + PROFESSION_LABELS[action.value] } : entry) };
+    world = { ...world, citizens: world.citizens.map((entry) => entry.id === citizen.id ? { ...entry, profession: action.value, workplaceId: null, lastAction: 'Ha assunto il mestiere: ' + PROFESSION_LABELS[action.value] } : entry) };
     return finish(citizen.name + ' ora lavora come ' + PROFESSION_LABELS[action.value] + '.');
+  }
+  if (action.type === 'workplace') {
+    const citizen = world.citizens.find((entry) => entry.id === action.citizenId);
+    if (!citizen) return fail('Questo cittadino non esiste più.');
+    if (citizen.status === 'exploring') return fail('Il cittadino è in spedizione e non può cambiare postazione.');
+    if (action.buildingId === null) {
+      world = { ...world, citizens: world.citizens.map((entry) => entry.id === citizen.id ? { ...entry, workplaceId: null } : entry) };
+      return finish(citizen.name + ' seguirà di nuovo l’assegnazione automatica della postazione.');
+    }
+    const building = state.buildings.find((entry) => entry.id === action.buildingId);
+    if (!building || BUILDING_JOB[building.type] !== citizen.profession) return fail('La postazione deve essere un edificio compatibile con il mestiere del cittadino.');
+    world = { ...world, citizens: world.citizens.map((entry) => entry.id === citizen.id ? { ...entry, workplaceId: building.id } : entry) };
+    return finish(citizen.name + ' è stato assegnato a ' + BUILDINGS[building.type].shortName + '.');
   }
   if (action.type === 'law') {
     const policies = { ...world.policies };
@@ -557,14 +709,19 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     else if (action.id === 'guard' && ['none', 'patrol'].includes(action.value)) policies.guard = action.value as GuardPolicy;
     else return fail('Questa politica non è disponibile.');
     world = { ...world, policies };
-    return finish('Il Consiglio ha adottato una nuova politica: ' + action.id + ' → ' + action.value + '.');
+    const opposition = getInterestGroups({ ...state, world }).filter((group) => group.support < 32 && group.influence >= 15).length;
+    community = applyCommunityEffects(community, -Math.min(3, opposition), -Math.min(4, opposition));
+    return finish('Il Consiglio ha adottato una nuova politica: ' + action.id + ' → ' + action.value + '. I gruppi d’interesse reagiscono in base alle proprie condizioni.');
   }
   if (action.type === 'research') {
     const research = RESEARCH.find((entry) => entry.id === action.id);
     if (!research) return fail('Ricerca sconosciuta.');
     if (world.researched.includes(research.id)) return fail('Questa conoscenza è già stata acquisita.');
     if (world.activeResearch) return fail('C’è già una ricerca in corso. Completa quella prima di iniziarne un’altra.');
+    const unmetRequirement = researchRequirement(state, research);
+    if (unmetRequirement) return fail(unmetRequirement);
     if (world.researchPoints < research.cost) return fail('Servono ' + research.cost + ' punti conoscenza. Ne hai ' + Math.floor(world.researchPoints) + '. Costruisci una scuola, assegna uno studioso o esplora il territorio.');
+    resources = pay(resources, research.resourceCost ?? {});
     world = { ...world, researchPoints: world.researchPoints - research.cost, activeResearch: research.id, researchProgress: 0 };
     return finish('Il Consiglio ha avviato la ricerca: ' + research.name + '.');
   }
@@ -574,23 +731,38 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     if (!regionUnlocked(world, region.id)) return fail('La regione è ancora sconosciuta. Esplora le aree vicine o sviluppa la cartografia.');
     const maxExpeditions = world.researched.includes('cartography') ? 2 : 1;
     if (world.expeditions.filter((entry) => entry.status === 'active').length >= maxExpeditions) return fail('Tutte le spedizioni disponibili sono già in viaggio.');
-    const scout = world.citizens.find((citizen) => citizen.profession === 'scout' && citizen.status === 'resident');
-    if (!scout) return fail('Assegna il mestiere Esploratore a un cittadino disponibile prima di inviare una spedizione.');
-    if (resources.food < 8) return fail('Servono almeno 8 unità di cibo per partire.');
-    const carriesTools = world.goods.tools > 0;
-    resources.food -= 8;
+    const scout = world.citizens.find((citizen) => citizen.id === action.scoutId && citizen.profession === 'scout' && citizen.status === 'resident')
+      ?? (action.scoutId ? undefined : world.citizens.find((citizen) => citizen.profession === 'scout' && citizen.status === 'resident'));
+    if (!scout) return fail('Scegli un Esploratore disponibile come guida della spedizione.');
+    const requestedCrew = [...new Set([scout.id, ...(action.crewIds ?? [])])];
+    if (requestedCrew.length > 3) return fail('Una spedizione può partire con una guida e al massimo due compagni.');
+    const crew = requestedCrew.map((id) => world.citizens.find((citizen) => citizen.id === id));
+    if (crew.some((citizen) => !citizen || citizen.status !== 'resident')) return fail('Tutti i membri dell’equipaggio devono essere cittadini disponibili.');
+    const crewMembers = crew.filter((citizen): citizen is Citizen => !!citizen);
+    const minimumFood = 8 + Math.max(0, crewMembers.length - 1) * 3;
+    const foodSupply = Math.floor(action.foodSupply ?? minimumFood);
+    if (foodSupply < minimumFood || foodSupply > 50) return fail('Servono almeno ' + minimumFood + ' unità di cibo per questo equipaggio (massimo 50).');
+    if (resources.food < foodSupply) return fail('La dispensa non contiene ' + foodSupply + ' unità di cibo per la spedizione.');
+    const carriesTools = action.useTools === false ? false : world.goods.tools > 0;
+    const durationFactor = Math.max(0.75, Math.min(1.5, action.durationFactor ?? 1));
+    resources.food -= foodSupply;
     const goods = { ...world.goods, tools: Math.max(0, world.goods.tools - (carriesTools ? 1 : 0)) };
-    const chance = Math.min(98, 45 + scout.skills.scout * 0.45 + (carriesTools ? 16 : 0) + (world.researched.includes('cartography') ? 10 : 0) + realmModifiers(state).guardProtection * 12);
+    const averageSkill = crewMembers.reduce((sum, citizen) => sum + citizen.skills.scout, 0) / crewMembers.length;
+    const durationBonus = durationFactor >= 1.25 ? 8 : durationFactor <= 0.75 ? -8 : 0;
+    const chance = Math.min(98, Math.max(12, 45 + averageSkill * 0.45 + (crewMembers.length - 1) * 5 + (carriesTools ? 16 : 0) + (world.researched.includes('cartography') ? 10 : 0) + realmModifiers(state).guardProtection * 12 + durationBonus));
     const id = 'expedition-' + state.gameMinutes + '-' + scout.id + '-' + region.id;
-    const expedition: Expedition = { id, region: region.id, scoutId: scout.id, startedAt: state.gameMinutes, eta: state.gameMinutes + region.duration, status: 'active', successChance: chance, outcome: 'La squadra è in viaggio.' };
-    world = { ...world, goods, citizens: world.citizens.map((citizen) => citizen.id === scout.id ? { ...citizen, status: 'exploring', expeditionId: id, lastAction: 'Sta esplorando: ' + region.name } : citizen), expeditions: [...world.expeditions, expedition].slice(-8) };
-    return finish('Spedizione partita: ' + region.name + '. Il ritorno è previsto tra circa ' + Math.ceil(region.duration / 60) + ' minuti di gioco.');
+    const tripDuration = Math.max(1, Math.ceil(region.duration * durationFactor));
+    const expedition: Expedition = { id, region: region.id, scoutId: scout.id, crewIds: requestedCrew, foodSupply, usedTools: carriesTools, durationFactor, startedAt: state.gameMinutes, eta: state.gameMinutes + tripDuration, status: 'active', successChance: chance, outcome: 'La squadra è in viaggio.' };
+    world = { ...world, goods, citizens: world.citizens.map((citizen) => requestedCrew.includes(citizen.id) ? { ...citizen, status: 'exploring', activity: 'exploring', expeditionId: id, lastAction: 'Esplora: ' + region.name } : citizen), expeditions: [...world.expeditions, expedition].slice(-8) };
+    return finish('Spedizione partita: ' + region.name + ' con ' + crewMembers.length + ' persone. Rientro previsto tra circa ' + Math.ceil(tripDuration / 60) + ' minuti di gioco.');
   }
   if (action.type === 'project') {
     const project = PROJECTS.find((entry) => entry.id === action.id);
     if (!project) return fail('Progetto sconosciuto.');
     const stage = world.projectStages[project.id] ?? 0;
     if (stage >= 3) return fail('Il progetto è già completato.');
+    const requirement = projectRequirement(state, project.id);
+    if (requirement) return fail(requirement);
     const cost = project.stages[stage]!;
     if (!hasCost(resources, cost)) return fail('Risorse insufficienti per la fase ' + (stage + 1) + ' di ' + project.name + '.');
     resources = pay(resources, cost);
