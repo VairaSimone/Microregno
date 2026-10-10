@@ -2,7 +2,7 @@ import { BUILDINGS } from './definitions';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
   GameState, GoodsBag, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition,
-  ResearchId, RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, WorldState,
+  RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, WorldState,
 } from './types';
 
 export const PROFESSION_LABELS: Record<Profession, string> = {
@@ -44,9 +44,6 @@ const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', for
 
 function clamp(value: number, low = 0, high = 100): number {
   return Math.max(low, Math.min(high, Math.round(value * 100) / 100));
-}
-function record(world: WorldState, entry: string): WorldState {
-  return { ...world, chronicle: [entry, ...world.chronicle].slice(0, 12) };
 }
 function makeCitizen(seed: number, index: number, gameMinutes: number): Citizen {
   const allSkills: Record<Profession, number> = {
@@ -145,7 +142,7 @@ export function ensureWorldState(state: GameState): GameState {
     activeEvent: existing.activeEvent ?? null,
     nextEventAt: Number.isFinite(existing.nextEventAt) ? existing.nextEventAt : state.gameMinutes + 240,
     queuedEvent: existing.queuedEvent ?? null,
-    projectStages: { aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0, ...existing.projectStages },
+    projectStages: Object.assign({ aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 }, existing.projectStages),
     completedProjects: [...new Set(existing.completedProjects)],
     factions: existing.factions,
     tradeRoutes: [...new Set(existing.tradeRoutes)],
