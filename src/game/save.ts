@@ -31,8 +31,9 @@ return createInitialState();}
 export function saveKingdom(s:GameState):boolean{s.lastSavedAt=Date.now();return write(KEY,s);}
 export function applyOfflineProgress(s:GameState,now=Date.now()):{state:GameState;minutes:number}{
 /* Live play advances one in-game minute per real second. Keep offline play identical. */
-const minutes=Math.min(OFFLINE_CAP_MINUTES*60,Math.floor(Math.max(0,now-(s.lastSavedAt||now))/1000));
-let copy:GameState={...s,resources:{...s.resources},buildings:s.buildings.map(b=>({...b}))};
+const normalized=ensureCommunity(s);
+const minutes=Math.min(OFFLINE_CAP_MINUTES*60,Math.floor(Math.max(0,now-(normalized.lastSavedAt||now))/1000));
+let copy:GameState={...normalized,resources:{...normalized.resources},buildings:normalized.buildings.map(b=>({...b}))};
 let remaining=minutes;
 while(remaining>0){const chunk=Math.min(360,remaining);copy=advanceTime(copy,chunk,false);remaining-=chunk;}
 copy.lastSavedAt=now;
