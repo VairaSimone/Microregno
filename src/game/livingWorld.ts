@@ -446,8 +446,9 @@ export function advanceRealmMinute(input: GameState): GameState {
     if (expedition.eta > state.gameMinutes) continue;
     const index = expeditions.findIndex((entry) => entry.id === expedition.id);
     if (index < 0) continue;
-    const success = expedition.successChance >= 60;
     const scout = citizens.find((citizen) => citizen.id === expedition.scoutId);
+    const roll = Math.abs(state.seed * 11 + (scout?.skills.scout ?? 0) * 7 + expedition.startedAt * 13 + expedition.region.length * 3) % 100;
+    const success = roll < expedition.successChance;
     if (scout) citizens = citizens.map((citizen) => citizen.id === scout.id ? { ...citizen, status: 'resident', expeditionId: null, energy: clamp(citizen.energy + 18), lastAction: success ? 'È tornato da una spedizione' : 'È tornato stanco da una spedizione difficile' } : citizen);
     if (success) {
       const reward = expeditionReward(expedition.region);
