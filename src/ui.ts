@@ -1,6 +1,8 @@
 import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
 import { getSeason } from './game/community';
+import { canExploreRegion, PROFESSION_LABELS, PROFESSIONS, PROJECTS, RESEARCH, REGIONS } from './game/livingWorld';
+import type { Profession } from './game/types';
 import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, GameSnapshot, Resource } from './game/types';
 
@@ -504,7 +506,214 @@ function addStat(host: HTMLElement, labelText: string, valueText: string): void 
   host.append(row);
 }
 
+
+type RealmTab = 'citizens' | 'laws' | 'exploration' | 'research' | 'projects';
+let realmTab: RealmTab = 'citizens';
+
+function escapeRealmHtml(value: unknown): string {
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function realmMeter(label: string, value: number): string {
+  const safe = Math.max(0, Math.min(100, value));
+  return '<div class="realm-meter"><div><span>' + escapeRealmHtml(label) + '</span><b>' + Math.round(value) + '</b></div><span class="realm-meter-track"><i style="width:' + safe + '%"></i></span></div>';
+}
+function realmActionButton(label: string, action: string, id: string, value = '', disabled = false, extra = ''): string {
+  return '<button type="button" class="realm-action-button ' + extra + '" data-action="' + escapeRealmHtml(action) + '" data-id="' + escapeRealmHtml(id) + '"' +
+    (value ? ' data-value="' + escapeRealmHtml(value) + '"' : '') + (disabled ? ' disabled' : '') + '>' + escapeRealmHtml(label) + '</button>';
+}
+function hasResourceCost(resources: GameSnapshot['state']['resources'], cost: Partial<Record<Resource, number>>): boolean {
+  return Object.entries(cost).every(([key, amount]) => resources[key as Resource] >= (amount ?? 0));
+}
+function hasGoodsCost(goods: NonNullable<GameSnapshot['state']['world']>['goods'], cost: Partial<Record<keyof NonNullable<GameSnapshot['state']['world']>['goods'], number>>): boolean {
+  return Object.entries(cost).every(([key, amount]) => goods[key as keyof typeof goods] >= (amount ?? 0));
+}
+function renderRealmDashboard(snapshot: GameSnapshot): void {
+  const root = $('realm-content');
+  const tabs = $('realm-tabs');
+  tabs.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.tab === realmTab);
+    button.setAttribute('aria-selected', String(button.dataset.tab === realmTab));
+  });
+  if (snapshot.mode !== 'kingdom') {
+    root.innerHTML = '<div class="realm-empty"><strong>Sala del Regno in pausa</strong><p>Queste meccaniche appartengono alla partita principale. Torna a “Il mio regno” per gestire cittadini, spedizioni e leggi.</p></div>';
+    return;
+  }
+  const state = snapshot.state;
+  const world = state.world;
+  if (!world) {
+    root.innerHTML = '<p>Il sistema della comunità non è ancora pronto. Ricarica la partita per migrare il salvataggio.</p>';
+    return;
+  }
+  const activeScouts = world.citizens.filter((citizen) => citizen.profession === 'scout' && citizen.status === 'resident').length;
+  const goods = world.goods;
+  const goodsStrip = '<div class="realm-goods-grid">' +
+    [['Grano', goods.grain], ['Farina', goods.flour], ['Pane', goods.bread], ['Attrezzi', goods.tools], ['Rimedi', goods.medicine]]
+      .map((entry) => '<div class="realm-good"><small>' + entry[0] + '</small><b>' + formatNumber(entry[1] as number) + '</b></div>').join('') +
+    '</div>';
+
+  if (realmTab === 'citizens') {
+    const citizens = world.citizens.map((citizen) => {
+      const options = PROFESSIONS.map((profession) =>
+        '<option value="' + profession + '"' + (citizen.profession === profession ? ' selected' : '') + '>' + escapeRealmHtml(PROFESSION_LABELS[profession]) + '</option>',
+      ).join('');
+      return '<article class="realm-citizen-card"><div class="realm-citizen-head"><div><strong>' + escapeRealmHtml(citizen.name) + '</strong><small>' + citizen.age + ' anni · ' + escapeRealmHtml(citizen.traits.join(' · ')) + (citizen.status === 'exploring' ? ' · IN SPEDIZIONE' : '') + '</small></div>' +
+        '<label>Mestiere<select data-citizen="' + escapeRealmHtml(citizen.id) + '"' + (citizen.status === 'exploring' ? ' disabled' : '') + '>' + options + '</select></label></div>' +
+        '<div class="realm-needs">' + realmMeter('Fame', citizen.hunger) + realmMeter('Energia', citizen.energy) + realmMeter('Felicità', citizen.happiness) + realmMeter('Salute', citizen.health) + '</div>' +
+        '<div class="realm-citizen-footer"><span>' + escapeRealmHtml(citizen.lastAction) + '</span><b>Abilità: ' + Math.round(citizen.skills[citizen.profession]) + '/100</b></div></article>';
+    }).join('');
+    const employment = '<div class="realm-card"><div class="realm-card-title"><h3>Filiere produttive</h3><span>BENI LAVORATI</span></div>' + goodsStrip +
+      '<p>Le fattorie generano grano; mugnai e fornai lo trasformano in farina e pane. L’officina consuma legname e pietra per produrre attrezzi. Magazzini aggiuntivi aumentano la capienza dei beni a ' +
+      (100 + state.buildings.filter((building) => building.type === 'warehouse').reduce((sum, building) => sum + 80 * building.level, 0)) + ' unità.</p>' +
+      '<div class="realm-chain">' + ['farm', 'mill', 'bakery', 'workshop'].map((type) => {
+        const count = state.buildings.filter((building) => building.type === type).length;
+        const labels: Record<string, string> = { farm: 'Fattorie', mill: 'Mulini', bakery: 'Panifici', workshop: 'Officine' };
+        return '<span><b>' + (labels[type] ?? type) + '</b>' + count + '</span>';
+      }).join('') + '</div></div>';
+    root.innerHTML = '<div class="realm-summary-grid"><div><small>ABITANTI</small><strong>' + world.citizens.length + '</strong></div><div><small>IN SPEDIZIONE</small><strong>' + world.citizens.filter((citizen) => citizen.status === 'exploring').length + '</strong></div><div><small>PUNTI CONOSCENZA</small><strong>' + formatNumber(world.researchPoints) + '</strong></div></div>' +
+      '<p class="realm-intro">Ogni cittadino ha un mestiere, competenze e bisogni persistenti. Assegna persone agli edifici giusti: gli edifici senza personale funzionano solo in parte.</p>' +
+      '<div class="realm-citizen-list">' + citizens + '</div>' + employment;
+    return;
+  }
+
+  if (realmTab === 'laws') {
+    const policyCard = (title: string, description: string, id: string, current: string, choices: Array<{ value: string; label: string; note: string }>) =>
+      '<article class="realm-card"><div class="realm-card-title"><h3>' + escapeRealmHtml(title) + '</h3><span>LEGGE ATTUALE</span></div><p>' + escapeRealmHtml(description) + '</p><div class="realm-policy-options">' +
+      choices.map((choice) => '<button type="button" class="realm-policy-choice' + (current === choice.value ? ' active' : '') + '" data-action="law" data-id="' + id + '" data-value="' + choice.value + '">' +
+        '<strong>' + escapeRealmHtml(choice.label) + '</strong><small>' + escapeRealmHtml(choice.note) + '</small>' + (current === choice.value ? '<em>In vigore</em>' : '') + '</button>').join('') +
+      '</div></article>';
+    root.innerHTML = '<div class="realm-summary-grid"><div><small>FIDUCIA</small><strong>' + (state.community?.trust ?? 50) + '/100</strong></div><div><small>UMORE</small><strong>' + (state.community?.morale ?? 60) + '/100</strong></div><div><small>ROTTE ATTIVE</small><strong>' + world.tradeRoutes.length + '</strong></div></div>' +
+      '<p class="realm-intro">Le leggi modificano davvero entrate, consumi, produzione forestale e sicurezza. Nessuna scelta è gratuita: ogni vantaggio ha un costo.</p>' +
+      policyCard('Tasse e contributi', 'Le tasse alte aumentano le monete ma mettono pressione sulla comunità.', 'tax', world.policies.tax, [
+        { value: 'low', label: 'Tasse leggere', note: 'Entrate −22%, clima sociale migliore' },
+        { value: 'balanced', label: 'Equilibrate', note: 'Entrate e umore senza modificatori' },
+        { value: 'high', label: 'Tasse alte', note: 'Entrate +32%, rischio di malcontento' },
+      ]) +
+      policyCard('Gestione delle dispense', 'Il Consiglio può ridurre i consumi o investire nella generosità verso i cittadini.', 'food', world.policies.food, [
+        { value: 'reserve', label: 'Razionamento prudente', note: 'Consumo di cibo −18%' },
+        { value: 'balanced', label: 'Dispense equilibrate', note: 'Consumo regolare' },
+        { value: 'generous', label: 'Distribuzione generosa', note: 'Consumo di cibo +14%, benessere favorito' },
+      ]) +
+      policyCard('Gestione dei boschi', 'Lo sfruttamento intensivo produce di più; la protezione conserva il territorio.', 'forest', world.policies.forest, [
+        { value: 'protected', label: 'Protezione', note: 'Meno legname, foreste conservate' },
+        { value: 'managed', label: 'Taglio controllato', note: 'Produzione standard' },
+        { value: 'intensive', label: 'Taglio intensivo', note: 'Legname +25%, maggiore pressione ambientale' },
+      ]) +
+      policyCard('Guardie e pattuglie', 'Le pattuglie riducono alcuni rischi degli eventi. La torre di guardia offre protezione aggiuntiva.', 'guard', world.policies.guard, [
+        { value: 'none', label: 'Nessuna pattuglia', note: 'Nessun costo ricorrente' },
+        { value: 'patrol', label: 'Pattuglie attive', note: 'Più sicurezza e fiducia' },
+      ]);
+    return;
+  }
+
+  if (realmTab === 'exploration') {
+    const activeTrips = world.expeditions.filter((trip) => trip.status === 'active');
+    const regions = REGIONS.map((region) => {
+      const unlocked = canExploreRegion(world, region.id);
+      const discovered = world.discoveredRegions.includes(region.id);
+      const trip = activeTrips.find((entry) => entry.region === region.id);
+      const completed = world.expeditions.find((entry) => entry.region === region.id && entry.status !== 'active');
+      const status = trip ? 'IN VIAGGIO' : discovered ? 'ESPLORATA' : unlocked ? 'SCOPERTA POSSIBILE' : 'BLOCCATA';
+      const tripText = trip ? 'Rientro previsto tra ' + Math.max(0, Math.ceil((trip.eta - state.gameMinutes) / 60)) + ' minuti di gioco.' :
+        completed?.outcome ?? region.description;
+      return '<article class="realm-region-card"><div><div class="realm-card-title"><h3>' + escapeRealmHtml(region.name) + '</h3><span>' + status + '</span></div><p>' + escapeRealmHtml(tripText) + '</p><small>Durata stimata: ' + Math.ceil(region.duration / 60) + ' minuti · Partenza: 8 cibo' + (goods.tools > 0 ? ' · 1 attrezzo migliora il successo' : '') + '</small></div>' +
+        realmActionButton(trip ? 'Spedizione in corso' : discovered ? 'Esplora di nuovo' : 'Invia esploratore', 'expedition', region.id, '', !unlocked || !activeScouts || state.resources.food < 8 || activeTrips.length >= (world.researched.includes('cartography') ? 2 : 1) || !!trip) + '</article>';
+    }).join('');
+    const trips = world.expeditions.slice(-5).reverse().map((trip) => {
+      const regionName = REGIONS.find((region) => region.id === trip.region)?.name ?? trip.region;
+      return '<div class="realm-history-row"><span class="realm-status-dot ' + trip.status + '"></span><div><b>' + escapeRealmHtml(regionName) + '</b><small>' + escapeRealmHtml(trip.outcome) + '</small></div><strong>' + (trip.status === 'active' ? Math.ceil((trip.eta - state.gameMinutes) / 60) + ' min' : trip.status === 'success' ? 'Riuscita' : 'Parziale') + '</strong></div>';
+    }).join('');
+    const diplomacy = world.factions.map((faction) => '<article class="realm-faction-card"><div><h3>' + escapeRealmHtml(faction.name) + '</h3><p>' + escapeRealmHtml(faction.specialty) + '</p><div class="realm-meter"><div><span>Relazioni</span><b>' + faction.relation + '/100</b></div><span class="realm-meter-track"><i style="width:' + faction.relation + '%"></i></span></div>' +
+      '<small>' + (faction.treaty ? 'Trattato attivo · rotta commerciale' : faction.relation >= 55 ? 'Pronta per un accordo commerciale' : 'Servono rapporti a 55 per un trattato') + '</small></div><div class="realm-button-row">' +
+      realmActionButton('Dono · 8 monete', 'diplomacy', faction.id, 'gift', state.resources.coins < 8) +
+      realmActionButton('Scambio · 6 legna', 'diplomacy', faction.id, 'trade', state.resources.wood < 6) +
+      realmActionButton(faction.treaty ? 'Trattato firmato' : 'Firma trattato · 10 monete', 'diplomacy', faction.id, 'treaty', faction.treaty || faction.relation < 55 || state.resources.coins < 10) +
+      '</div></article>').join('');
+    root.innerHTML = '<div class="realm-summary-grid"><div><small>REGIONI NOTE</small><strong>' + world.discoveredRegions.length + '/' + REGIONS.length + '</strong></div><div><small>SPEDIZIONI ATTIVE</small><strong>' + activeTrips.length + '/' + (world.researched.includes('cartography') ? 2 : 1) + '</strong></div><div><small>ESPLORATORI DISPONIBILI</small><strong>' + activeScouts + '</strong></div></div>' +
+      '<p class="realm-intro">Le spedizioni consumano cibo, richiedono un cittadino assegnato a Esploratore e possono riportare risorse, attrezzi, conoscenze e incontri diplomatici. Alcune regioni richiedono la cartografia.</p>' +
+      '<h3 class="realm-section-title">Frontiera e spedizioni</h3><div class="realm-region-list">' + regions + '</div>' +
+      '<div class="realm-card"><div class="realm-card-title"><h3>Diario delle spedizioni</h3><span>ULTIME CINQUE</span></div>' + (trips || '<p>Non è ancora partita nessuna squadra.</p>') + '</div>' +
+      '<h3 class="realm-section-title">Diplomazia e rotte commerciali</h3><p class="realm-intro">Invia doni e commercia per migliorare i rapporti. Con relazione almeno 55 puoi firmare un trattato: la rotta aumenta le entrate ogni minuto di gioco.</p>' +
+      '<div class="realm-faction-list">' + diplomacy + '</div>';
+    return;
+  }
+
+  if (realmTab === 'research') {
+    const active = world.activeResearch;
+    const researches = RESEARCH.map((research) => {
+      const done = world.researched.includes(research.id);
+      const isActive = active === research.id;
+      const disabled = done || !!active || world.researchPoints < research.cost;
+      const progress = isActive ? Math.min(100, world.researchProgress / research.duration * 100) : 0;
+      return '<article class="realm-research-card ' + (done ? 'completed' : isActive ? 'in-progress' : '') + '"><div class="realm-card-title"><h3>' + escapeRealmHtml(research.name) + '</h3><span>' + escapeRealmHtml(research.path) + '</span></div><p>' + escapeRealmHtml(research.description) + '</p>' +
+        (isActive ? '<div class="realm-progress-track"><i style="width:' + progress + '%"></i></div><small>Ricerca in corso · ' + Math.floor(progress) + '%</small>' :
+          done ? '<small class="realm-complete-label">Conoscenza acquisita</small>' : '<small>Costo ' + research.cost + ' punti · durata base ' + Math.ceil(research.duration / 60) + ' min di gioco</small>') +
+        realmActionButton(done ? 'Completata' : isActive ? 'In corso' : 'Avvia ricerca', 'research', research.id, '', disabled) + '</article>';
+    }).join('');
+    root.innerHTML = '<div class="realm-summary-grid"><div><small>PUNTI CONOSCENZA</small><strong>' + formatNumber(world.researchPoints) + '</strong></div><div><small>RICERCHE ACQUISITE</small><strong>' + world.researched.length + '/' + RESEARCH.length + '</strong></div><div><small>STUDIOSI</small><strong>' + world.citizens.filter((citizen) => citizen.profession === 'scholar').length + '</strong></div></div>' +
+      '<p class="realm-intro">La conoscenza cresce nel tempo e con gli studiosi. Costruisci una scuola e assegna il mestiere Studioso per accelerare il progresso. Avvia una ricerca alla volta: una volta completata, il bonus resta attivo.</p>' +
+      '<div class="realm-research-list">' + researches + '</div>';
+    return;
+  }
+
+  const projects = PROJECTS.map((project) => {
+    const stage = world.projectStages[project.id] ?? 0;
+    const completed = world.completedProjects.includes(project.id);
+    const cost = project.stages[Math.min(stage, project.stages.length - 1)] ?? {};
+    return '<article class="realm-project-card ' + (completed ? 'completed' : '') + '"><div class="realm-card-title"><h3>' + escapeRealmHtml(project.name) + '</h3><span>' + (completed ? 'COMPLETATO' : 'FASE ' + (stage + 1) + '/3') + '</span></div><p>' + escapeRealmHtml(project.description) + '</p>' +
+      '<div class="realm-project-stages">' + [0, 1, 2].map((step) => '<i class="' + (step < stage ? 'done' : '') + '"></i>').join('') + '</div>' +
+      (completed ? '<small class="realm-complete-label">Beneficio permanente attivo</small>' : '<small>Prossima fase: ' + escapeRealmHtml(formatCost(cost)) + '</small>') +
+      realmActionButton(completed ? 'Completato' : 'Finanzia la fase', 'project', project.id, '', completed || !hasResourceCost(state.resources, cost)) + '</article>';
+  }).join('');
+  const event = world.activeEvent;
+  const eventPanel = event ? '<article class="realm-event-card"><div class="realm-card-title"><h3>' + escapeRealmHtml(event.title) + '</h3><span>DECISIONE DEL CONSIGLIO</span></div><p>' + escapeRealmHtml(event.description) + '</p><div class="realm-event-choices">' +
+    event.choices.map((choice) => '<div class="realm-event-choice"><div><strong>' + escapeRealmHtml(choice.label) + '</strong><small>' + escapeRealmHtml(choice.detail) + '</small><em>' +
+      (choice.cost && Object.keys(choice.cost).length ? 'Costo: ' + escapeRealmHtml(formatCost(choice.cost)) : 'Nessun costo materiale') +
+      (choice.reward && Object.keys(choice.reward).length ? ' · Ricompensa: ' + escapeRealmHtml(formatCost(choice.reward)) : '') + '</em></div>' +
+      realmActionButton('Scegli', 'event', choice.id, '', !hasResourceCost(state.resources, choice.cost ?? {}) || !hasGoodsCost(goods, choice.goodsCost ?? {})) + '</div>').join('') + '</div></article>'
+    : '<div class="realm-empty"><strong>Il Consiglio attende</strong><p>Nessun evento urgente. Gli imprevisti emergono in base al tempo e alle scoperte, e possono aprire storie concatenate.</p></div>';
+  root.innerHTML = '<div class="realm-summary-grid"><div><small>PROGETTI COMPLETATI</small><strong>' + world.completedProjects.length + '/4</strong></div><div><small>EVENTI IN CORSO</small><strong>' + (event ? '1' : '0') + '</strong></div><div><small>CRONACA</small><strong>' + world.chronicle.length + ' voci</strong></div></div>' +
+    '<h3 class="realm-section-title">Avvenimenti e storie concatenate</h3>' + eventPanel +
+    '<h3 class="realm-section-title">Grandi opere collettive</h3><p class="realm-intro">Ogni opera ha tre fasi finanziabili. I benefici diventano permanenti quando il progetto è completato.</p><div class="realm-project-list">' + projects + '</div>' +
+    '<div class="realm-card"><div class="realm-card-title"><h3>Cronaca del regno</h3><span>MEMORIA PERSISTENTE</span></div><div class="realm-world-chronicle">' +
+    (world.chronicle.length ? world.chronicle.map((entry) => '<p>' + escapeRealmHtml(entry) + '</p>').join('') : '<p>Le prime storie del regno devono ancora essere scritte.</p>') + '</div></div>';
+}
+
+
 export function setupUI(): void {
+  const realmDialog = $('realm-dialog') as HTMLDialogElement;
+  const realmContent = $('realm-content');
+  $('realm-dashboard-button').addEventListener('click', () => {
+    if (latestSnapshot) renderRealmDashboard(latestSnapshot);
+    if (!realmDialog.open) realmDialog.showModal();
+  });
+  $('close-realm-dialog').addEventListener('click', () => realmDialog.close());
+  $('realm-tabs').addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-tab]');
+    if (!button) return;
+    realmTab = button.dataset.tab as RealmTab;
+    if (latestSnapshot) renderRealmDashboard(latestSnapshot);
+  });
+  realmContent.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]');
+    if (!button || button.disabled) return;
+    const action = button.dataset.action ?? '';
+    const id = button.dataset.id ?? '';
+    const value = button.dataset.value ?? '';
+    if (action === 'law') dispatch('microregno:realm-action', { type: 'law', id, value });
+    else if (action === 'research') dispatch('microregno:realm-action', { type: 'research', id });
+    else if (action === 'expedition') dispatch('microregno:realm-action', { type: 'expedition', id });
+    else if (action === 'project') dispatch('microregno:realm-action', { type: 'project', id });
+    else if (action === 'event') dispatch('microregno:realm-action', { type: 'event', id });
+    else if (action === 'diplomacy') dispatch('microregno:realm-action', { type: 'diplomacy', id, value });
+  });
+  realmContent.addEventListener('change', (event) => {
+    const select = (event.target as HTMLElement).closest<HTMLSelectElement>('select[data-citizen]');
+    if (!select) return;
+    dispatch('microregno:realm-action', { type: 'assign', citizenId: select.dataset.citizen, value: select.value as Profession });
+    select.blur();
+    if (latestSnapshot) renderRealmDashboard(latestSnapshot);
+  });
+
   const dialog = $('help-dialog') as HTMLDialogElement;
   const historyDialog = $('community-history-dialog') as HTMLDialogElement;
 
@@ -646,6 +855,9 @@ export function setupUI(): void {
     renderBuildList(snapshot);
     renderObjectives(snapshot);
     renderInspector(snapshot);
+    const realmDialog = $('realm-dialog') as HTMLDialogElement;
+    const realmContent = $('realm-content');
+    if (realmDialog.open && !(document.activeElement instanceof HTMLSelectElement && realmContent.contains(document.activeElement))) renderRealmDashboard(snapshot);
   }) as EventListener);
 
   window.addEventListener('microregno:clock', ((event: CustomEvent<string>) => {
