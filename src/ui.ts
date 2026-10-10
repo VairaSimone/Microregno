@@ -32,7 +32,7 @@ function publicAssetUrl(file: string): string {
   const page = new URL(window.location.href);
   const finalSegment = page.pathname.split('/').pop() ?? '';
   if (!page.pathname.endsWith('/') && !finalSegment.includes('.')) page.pathname += '/';
-  return new URL('assets/' + file.replace(/^\\/+/, ''), page).toString();
+  return new URL('assets/' + file.replace(/^\/+/, ''), page).toString();
 }
 
 let latestSnapshot: GameSnapshot | null = null;
