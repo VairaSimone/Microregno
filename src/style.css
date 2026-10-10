@@ -911,3 +911,74 @@ dialog p strong { color: #38583b; }
 .realm-weather-alert span{font-size:10px;line-height:1.45;color:#74826c}
 .realm-weather-alert.drought{border-color:#e0c58b;background:#fcf1d9;color:#835f20}
 .realm-weather-alert.drought span{color:#8e774f}
+
+
+/* Gameplay clarity and sprite visibility */
+.build-icon {
+  position: relative;
+  background: radial-gradient(ellipse at 50% 28%, #fffef2 0%, #edf3e2 70%);
+  border-color: #dbe4d0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 2px 5px rgba(48,69,42,.06);
+}
+.build-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 1;
+  mix-blend-mode: normal;
+  filter: drop-shadow(0 2px 1px rgba(40,60,35,.18));
+}
+.build-icon-fallback {
+  color: #416b48 !important;
+  font-size: 23px !important;
+  font-weight: 800;
+}
+.catalog-toggle {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 3px;
+  padding: 8px 10px;
+  border: 1px dashed #b9c9af;
+  border-radius: 9px;
+  background: #f5f7ee;
+  color: #54724d;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+.catalog-toggle:hover { background: #eaf1e2; border-color: #8eab7b; }
+.catalog-toggle:focus-visible { outline: 3px solid #cda25b; outline-offset: 2px; }
+
+@media (min-width: 901px) {
+  /* Side panels may scroll; never squeeze the tutorial until its explanations vanish. */
+  .left-column {
+    grid-template-rows: auto auto auto auto auto;
+    align-content: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #bccab2 transparent;
+  }
+  .right-column {
+    grid-template-rows: auto auto;
+    align-content: start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #bccab2 transparent;
+  }
+  .tutorial-panel > p { display: block !important; }
+  .tutorial-rule { display: grid !important; }
+  #build-list {
+    max-height: min(60vh, 680px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #c2cfb8 transparent;
+    padding-right: 3px;
+  }
+}
+@media (max-width: 900px) {
+  #build-list { max-height: none; overflow: visible; }
+}
