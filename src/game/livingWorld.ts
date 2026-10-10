@@ -185,10 +185,16 @@ export function ensureWorldState(state: GameState): GameState {
     citizens.push(citizen);
     nextCitizenId++;
   }
-  const activeTripIds = new Set((Array.isArray(existing.expeditions) ? existing.expeditions : []).filter((trip) => trip && typeof trip.id === 'string' && trip.status === 'active').map((trip) => trip.id));
-  citizens = citizens.map((citizen) => citizen.status === 'exploring' && (!citizen.expeditionId || !activeTripIds.has(citizen.expeditionId))
-    ? { ...citizen, status: 'resident', activity: 'socializing', expeditionId: null, lastAction: 'È tornato alla vita del borgo dopo aver corretto una spedizione incompleta' }
-    : citizen);
+  const activeTrips = (Array.isArray(existing.expeditions) ? existing.expeditions : []).filter((trip) =>
+    trip && typeof trip.id === 'string' && trip.status === 'active' && REGIONS.some((region) => region.id === trip.region)
+    && typeof trip.scoutId === 'string' && Number.isFinite(trip.startedAt) && Number.isFinite(trip.eta));
+  const activeTripsById = new Map(activeTrips.map((trip) => [trip.id, trip]));
+  citizens = citizens.map((citizen) => {
+    if (citizen.status !== 'exploring') return citizen;
+    const trip = citizen.expeditionId ? activeTripsById.get(citizen.expeditionId) : undefined;
+    const belongsToTrip = trip && (Array.isArray(trip.crewIds) ? trip.crewIds.includes(citizen.id) : trip.scoutId === citizen.id);
+    return belongsToTrip ? citizen : { ...citizen, status: 'resident', activity: 'socializing', expeditionId: null, lastAction: 'È tornato alla vita del borgo dopo aver corretto una spedizione incompleta' };
+  });
   if (citizens.length > state.population) {
     const remove = citizens.length - state.population;
     const removable = citizens.filter((citizen) => citizen.status !== 'exploring').slice(-remove).map((citizen) => citizen.id);
