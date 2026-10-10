@@ -314,6 +314,7 @@ export function advanceRealmMinute(input: GameState): GameState {
   const goods: GoodsBag = { ...world.goods };
   let citizens = world.citizens.map((citizen) => ({ ...citizen, skills: { ...citizen.skills }, traits: [...citizen.traits], relationships: { ...citizen.relationships } }));
   const notes: string[] = [];
+  let community = state.community ? { ...state.community } : undefined;
   const activeExpeditions = world.expeditions.filter((expedition) => expedition.status === 'active');
   citizens = citizens.map((citizen) => {
     if (citizen.status === 'exploring') return { ...citizen, energy: clamp(citizen.energy - 0.055), hunger: clamp(citizen.hunger + 0.05) };
@@ -442,7 +443,6 @@ export function advanceRealmMinute(input: GameState): GameState {
   }
   nextWorld = { ...nextWorld, citizens, expeditions: expeditions.slice(-8) };
 
-  const community = state.community ? { ...state.community } : undefined;
   if (community && state.gameMinutes > 0 && state.gameMinutes % 30 === 0 && citizens.length > 0) {
     const mood = citizens.reduce((sum, citizen) => sum + citizen.happiness, 0) / citizens.length;
     if (mood >= 72) community.morale = clamp(community.morale + 1);
