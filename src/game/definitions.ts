@@ -16,7 +16,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDefinition> = {
   watchtower: { type: 'watchtower', name: 'Torre di guardia', shortName: 'Torre', description: 'Le pattuglie tengono d’occhio le strade e riducono i rischi degli eventi.', icon: '♜', cost: { wood: 20, stone: 16, coins: 10 }, unlockedAt: 12, production: {} },
   workshop: { type: 'workshop', name: 'Officina', shortName: 'Officina', description: 'Gli artigiani riparano strumenti e producono attrezzi per le spedizioni.', icon: '⚒', cost: { wood: 16, stone: 12 }, unlockedAt: 10, production: {} },
 };
-export const BUILD_ORDER: BuildingType[] = ['house', 'farm', 'sawmill', 'quarry', 'market', 'road', 'mill', 'bakery', 'warehouse', 'school', 'workshop', 'watchtower'];
+export const BUILD_ORDER: BuildingType[] = ['farm', 'house', 'sawmill', 'quarry', 'market', 'road', 'mill', 'warehouse', 'bakery', 'school', 'workshop', 'watchtower'];
 export function formatCost(cost: Partial<Record<Resource, number>>): string {
   const order: Resource[] = ['wood', 'stone', 'food', 'coins'];
   const names: Record<Resource, string> = { wood: 'legname', stone: 'pietra', food: 'cibo', coins: 'monete' };
