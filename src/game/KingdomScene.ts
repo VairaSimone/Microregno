@@ -3,7 +3,7 @@ import {BUILDINGS,BOARD_SIZE,TILE_HEIGHT,TILE_WIDTH} from './definitions';
 import {advanceTime,buildAt,canBuild,createInitialState,demolish,formatGameClock,generateTerrain} from './engine';
 import {challengeProgress,challengeScore,createChallengeState,createDailyChallenge,isChallengeComplete} from './challenge';
 import {applyOfflineProgress,loadChallengeSave,loadKingdom,resetKingdom,saveChallenge,saveKingdom} from './save';
-import type {Building,BuildingType,ChallengeSave,DailyChallenge,GameMode,GameSnapshot,GameState,Terrain} from './types';
+import type {BuildingType,ChallengeSave,DailyChallenge,GameMode,GameSnapshot,GameState,Terrain} from './types';
 const SPRITES:Record<BuildingType,string>={townHall:'town-hall',house:'house',farm:'farm',sawmill:'sawmill',quarry:'quarry',market:'market'};
 export class KingdomScene extends Phaser.Scene{
 private state!:GameState;private kingdom!:GameState;private mode:GameMode='kingdom';private challenge!:DailyChallenge;private terrain!:Terrain[][];
