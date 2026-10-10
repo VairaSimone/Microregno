@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState, advanceTime, resourceRates } from './engine';
-import { advanceRealmMinute, canExploreRegion, createWorldState, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
+import { advanceRealmMinute, canExploreRegion, createWorldState, getInterestGroups, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
 import type { Building } from './types';
 
 describe('living world simulation', () => {
@@ -41,10 +41,59 @@ describe('living world simulation', () => {
     const denied = performRealmAction(state, { type: 'research', id: 'irrigation' });
     expect(denied.ok).toBe(false);
     state.world!.researchPoints = 40;
+    state.buildings.push({ id: 'research-farm', type: 'farm', x: 4, y: 4, level: 1 });
     const started = performRealmAction(state, { type: 'research', id: 'irrigation' });
     expect(started.ok).toBe(true);
     expect(started.state.world?.activeResearch).toBe('irrigation');
     expect(started.state.world?.researchPoints).toBe(22);
+  });
+
+  it('keeps research locked until its building prerequisite exists', () => {
+    const state = createInitialState(); state.world!.researchPoints = 40;
+    const denied = performRealmAction(state, { type: 'research', id: 'irrigation' });
+    expect(denied.ok).toBe(false); expect(denied.message).toContain('Fattoria');
+  });
+
+  it('lets citizens eat from food reserves instead of becoming hungry forever', () => {
+    const state = createInitialState(); state.resources.food = 300;
+    state.world!.citizens.forEach((citizen) => { citizen.hunger = 60; });
+    const next = advanceRealmMinute(state);
+    expect(next.world!.citizens.every((citizen) => citizen.hunger < 60)).toBe(true);
+  });
+
+  it('uses bread as a substitute when the main food reserve is empty', () => {
+    const state = createInitialState(); state.resources.food = 0; state.world!.goods.bread = 5;
+    state.world!.citizens.forEach((citizen) => { citizen.hunger = 60; });
+    const next = advanceRealmMinute(state);
+    expect(next.world!.goods.bread).toBeLessThan(5);
+    expect(next.world!.citizens.every((citizen) => citizen.hunger < 60)).toBe(true);
+  });
+
+  it('supports assigning a citizen to a specific workplace', () => {
+    const state = createInitialState();
+    const first: Building = { id: 'farm-one', type: 'farm', x: 4, y: 4, level: 1 };
+    const second: Building = { id: 'farm-two', type: 'farm', x: 6, y: 4, level: 1 };
+    state.buildings.push(first, second);
+    const citizen = state.world!.citizens.find((person) => person.profession === 'farmer')!;
+    const assigned = performRealmAction(state, { type: 'workplace', citizenId: citizen.id, buildingId: second.id });
+    expect(assigned.ok).toBe(true);
+    expect(assigned.state.world!.citizens.find((person) => person.id === citizen.id)!.workplaceId).toBe(second.id);
+    expect(worldBuildingMultiplier(assigned.state, second)).toBeGreaterThan(0);
+  });
+
+  it('configures expedition crew, provisions, equipment and duration', () => {
+    const state = createInitialState(1234); state.resources.food = 120; state.world!.goods.tools = 2;
+    const started = performRealmAction(state, { type: 'expedition', id: 'forest', scoutId: 'citizen-5', crewIds: ['citizen-5', 'citizen-1'], foodSupply: 14, durationFactor: 1.25, useTools: false });
+    expect(started.ok).toBe(true); expect(started.state.world!.expeditions[0]!.eta).toBe(125);
+    expect(started.state.resources.food).toBe(106); expect(started.state.world!.expeditions[0]!.crewIds).toEqual(['citizen-5', 'citizen-1']);
+    expect(started.state.world!.goods.tools).toBe(2);
+  });
+
+  it('computes support for internal interest groups from kingdom conditions', () => {
+    const state = createInitialState(); const before = getInterestGroups(state);
+    state.world!.policies.food = 'generous'; const after = getInterestGroups(state);
+    expect(before.find((group) => group.id === 'farmers')!.support).not.toBe(after.find((group) => group.id === 'farmers')!.support);
+    expect(after).toHaveLength(4);
   });
 
   it('sends a scout to an available region and resolves a real expedition', () => {
@@ -82,6 +131,7 @@ describe('living world simulation', () => {
 
   it('funds a multi-stage public project and activates a permanent benefit', () => {
     const state = createInitialState();
+    state.buildings.push({ id: 'project-farm', type: 'farm', x: 4, y: 4, level: 1 });
     const first = performRealmAction(state, { type: 'project', id: 'aqueduct' });
     expect(first.ok).toBe(true);
     expect(first.state.world?.projectStages.aqueduct).toBe(1);
