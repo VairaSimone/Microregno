@@ -17,6 +17,15 @@ describe('simulazione Microregno',()=>{
     expect(canBuild(s,map,7,2,'house').ok).toBe(false);
     expect(canBuild(s,map,5,6,'house').ok).toBe(false);
   });
+  it('blocca le produzioni fino a 6 abitanti e il mercato fino a 8',()=>{
+    const s=createInitialState(),map=generateTerrain(s.seed);
+    expect(canBuild(s,map,4,4,'sawmill').reason).toContain('6 abitanti');
+    expect(canBuild(s,map,6,5,'market').reason).toContain('8 abitanti');
+    s.population=6;
+    expect(canBuild(s,map,4,4,'sawmill').ok).toBe(true);
+    s.population=8;
+    expect(canBuild(s,map,6,5,'market').ok).toBe(true);
+  });
   it('scala i materiali dopo una costruzione valida',()=>{
     const s=createInitialState(),result=buildAt(s,generateTerrain(s.seed),6,6,'house');
     expect(result.check.ok).toBe(true);
