@@ -72,6 +72,8 @@ function makeCitizen(seed: number, index: number, gameMinutes: number): Citizen 
     expeditionId: null,
     lastAction: 'Si gode una mattina tranquilla',
     relationships: {},
+    homeId: 'town-hall-1',
+    familyId: 'family-' + (Math.floor(index / 2) + 1),
     bornAt: gameMinutes,
   };
 }
@@ -116,6 +118,18 @@ export function ensureWorldState(state: GameState): GameState {
     citizens = citizens.filter((citizen) => !removable.includes(citizen.id));
     while (citizens.length > state.population) citizens.pop();
   }
+  const homes = state.buildings.filter((building) => (BUILDINGS[building.type].housing ?? 0) > 0);
+  const occupied = new Map<string, number>();
+  citizens = citizens.map((citizen, index) => {
+    const oldHome = homes.find((building) => building.id === citizen.homeId);
+    const oldCapacity = oldHome ? (BUILDINGS[oldHome.type].housing ?? 0) * oldHome.level : 0;
+    const oldUsed = oldHome ? occupied.get(oldHome.id) ?? 0 : 0;
+    const selected = oldHome && oldUsed < oldCapacity
+      ? oldHome
+      : homes.find((building) => (occupied.get(building.id) ?? 0) < (BUILDINGS[building.type].housing ?? 0) * building.level);
+    if (selected) occupied.set(selected.id, (occupied.get(selected.id) ?? 0) + 1);
+    return { ...citizen, homeId: selected?.id ?? null, familyId: citizen.familyId || 'family-' + (Math.floor(index / 2) + 1) };
+  });
   const world: WorldState = {
     ...existing,
     nextCitizenId,
@@ -151,9 +165,10 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   if (job) {
     const sameBuildings = Math.max(1, state.buildings.filter((entry) => entry.type === building.type).length);
     const workers = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident').length / sameBuildings;
-    const averageSkill = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident')
-      .reduce((total, citizen) => total + citizen.skills[job], 0) / Math.max(1, workers * sameBuildings);
-    multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12);
+    const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident');
+    const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / Math.max(1, assigned.length);
+    const readiness = assigned.reduce((total, citizen) => total + (citizen.energy + citizen.health + citizen.happiness) / 3, 0) / Math.max(1, assigned.length) / 100;
+    multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
   }
   if (world.researched.includes('tools') && ['farm', 'sawmill', 'quarry', 'market'].includes(building.type)) multiplier *= 1.12;
   if (world.completedProjects.includes('artisan-quarter')) multiplier *= 1.08;
@@ -338,6 +353,52 @@ export function advanceRealmMinute(input: GameState): GameState {
   const cap = goodsCapacity(state);
   (Object.keys(goods) as Array<keyof GoodsBag>).forEach((key) => { goods[key] = clamp(goods[key], 0, cap); });
 
+  if (state.gameMinutes > 0 && state.gameMinutes % 30 === 0 && citizens.length > 1) {
+    const nextCitizens = citizens.map((citizen) => ({ ...citizen, relationships: { ...citizen.relationships } }));
+    for (let left = 0; left < nextCitizens.length; left++) {
+      for (let right = left + 1; right < nextCitizens.length; right++) {
+        const a = nextCitizens[left]!;
+        const b = nextCitizens[right]!;
+        let delta = a.profession === b.profession ? 1 : 0;
+        if (a.familyId === b.familyId) delta += 2;
+        if (a.traits.includes('socievole') || b.traits.includes('socievole')) delta += 1;
+        if (a.traits.includes('ambizioso') && b.traits.includes('ambizioso')) delta -= 1;
+        const prior = ((a.relationships[b.id] ?? 0) + (b.relationships[a.id] ?? 0)) / 2;
+        const value = Math.max(-100, Math.min(100, prior + delta));
+        a.relationships[b.id] = value;
+        b.relationships[a.id] = value;
+      }
+    }
+    citizens = nextCitizens.map((citizen) => {
+      const ties = Object.values(citizen.relationships);
+      const average = ties.reduce((sum, value) => sum + value, 0) / Math.max(1, ties.length);
+      return { ...citizen, happiness: clamp(citizen.happiness + (average > 20 ? 0.18 : average < -15 ? -0.18 : 0)) };
+    });
+  }
+  const activeJobs = new Set<Profession>(state.buildings.map((building) => BUILDING_JOB[building.type]).filter((job): job is Profession => !!job));
+  citizens = citizens.map((citizen) => {
+    if (citizen.status === 'exploring') return citizen;
+    if (state.gameMinutes % 20 !== 0) return citizen;
+    const action = citizen.hunger > 75 ? 'Cerca cibo e controlla la dispensa'
+      : citizen.energy < 30 ? 'Si riposa prima di tornare al lavoro'
+      : activeJobs.has(citizen.profession) ? 'Lavora come ' + PROFESSION_LABELS[citizen.profession]
+      : 'Incontra vicini e cerca un nuovo impiego';
+    return { ...citizen, lastAction: action };
+  });
+  let nextPopulation = state.population;
+  if (state.gameMinutes > 0 && state.gameMinutes % 120 === 0 && state.population > 5) {
+    const averageHappiness = citizens.reduce((sum, citizen) => sum + citizen.happiness, 0) / Math.max(1, citizens.length);
+    if (averageHappiness < 25) {
+      const leaving = [...citizens].filter((citizen) => citizen.status !== 'exploring').sort((a, b) => a.happiness - b.happiness)[0];
+      if (leaving) {
+        citizens = citizens.filter((citizen) => citizen.id !== leaving.id);
+        nextPopulation = Math.max(5, state.population - 1);
+        notes.push(leaving.name + ' ha lasciato il borgo perché non si sentiva più a casa.');
+        if (community) { community.morale = clamp(community.morale - 4); community.trust = clamp(community.trust - 3); }
+      }
+    }
+  }
+
   let nextWorld: WorldState = { ...world, citizens, goods, researchPoints: world.researchPoints + 0.025 + (state.buildings.some((building) => building.type === 'school') ? citizens.filter((citizen) => citizen.profession === 'scholar').length * 0.09 : 0) };
   const scholars = state.buildings.some((building) => building.type === 'school')
     ? citizens.filter((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident').length : 0;
@@ -403,7 +464,7 @@ export function advanceRealmMinute(input: GameState): GameState {
   if (notes.length) {
     nextWorld = { ...nextWorld, chronicle: [...notes.reverse(), ...nextWorld.chronicle].slice(0, 12) };
   }
-  return { ...state, resources, community, world: nextWorld };
+  return { ...state, population: nextPopulation, resources, community, world: nextWorld };
 }
 
 function applyCommunityEffects(community: CommunityState | undefined, moodDelta = 0, trustDelta = 0): CommunityState | undefined {
