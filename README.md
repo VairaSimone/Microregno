@@ -15,7 +15,7 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Cittadini persistenti con nomi, tratti, bisogni, salute, energia, umore, competenze e mestieri assegnabili.
 - Filiere produttive: grano, farina, pane, strumenti e rimedi; mulino, panificio, officina e magazzino.
 - Mercato dinamico con prezzi aggiornati ogni 120 minuti di gioco, domanda variabile e vendita di beni lavorati in presenza di un mercante.
-- Rete stradale costruibile: gli edifici produttivi adiacenti a una strada lavorano con efficienza maggiore; le strade non richiedono miglioramenti di livello.
+- Rete stradale costruibile: gli edifici produttivi adiacenti a una strada lavorano con efficienza maggiore; le strade non richiedono miglioramenti di livello. Pane, farina, grano e rimedi deperiscono nel tempo; i magazzini riducono gli sprechi e aumentano la capienza.
 - Sala del Regno con leggi economiche, gestione delle dispense, politiche forestali e pattuglie.
 - Ricerca in sei percorsi, spedizioni esplorative, nuove regioni, reperti, rischi e ricompense.
 - Diplomazia con tre comunità vicine, accordi permanenti e rotte commerciali.
