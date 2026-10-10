@@ -92,7 +92,7 @@ function buildRequest(seed: number, number: number, gameMinutes: number, state?:
       deadline: gameMinutes + 180,
       options: [
         ...(hasRoom ? [option('newcomer-welcome', 'Accogli la famiglia', 'Spendi 8 cibo e aggiungi un abitante', { food: 8 }, {}, 9, 11, 1)] : []),
-        option('newcomer-shelter', 'Prepara un alloggio', 'Spendi 8 legname e 3 pietra · crea 2 posti abitativi extra', { wood: 8, stone: 3 }, {}, 7, 7, 0, 2),
+        option('newcomer-shelter', 'Prepara un alloggio', 'Spendi 8 legname e 3 pietra · crea 2 posti e accogli un abitante', { wood: 8, stone: 3 }, {}, 7, 7, 1, 2),
         option('newcomer-wait', 'Chiedi di aspettare', 'Conservi i materiali, ma la fiducia cala', {}, {}, -4, -5),
       ],
     }),
@@ -219,7 +219,7 @@ export function resolveCitizenRequest(
       return { state, ok: false, message: 'Non hai abbastanza ' + name + ' per questa scelta.' };
     }
   }
-  if (selected.populationDelta && state.population + selected.populationDelta > capacityOf(state.buildings) + (community.housingBonus ?? 0)) {
+  if (selected.populationDelta && state.population + selected.populationDelta > capacityOf(state.buildings) + (community.housingBonus ?? 0) + (selected.housingDelta ?? 0)) {
     return { state, ok: false, message: 'Non ci sono posti abitativi liberi. Costruisci o migliora una casa prima di accogliere nuovi abitanti.' };
   }
 
