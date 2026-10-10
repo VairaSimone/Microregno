@@ -118,6 +118,42 @@ describe('simulazione Microregno',()=>{
     expect(later.community?.activeRequest).not.toBeNull();
     expect(later.community?.requestNumber).toBe(2);
   });
+  it('fa dipendere la produzione dall’umore e il reddito dalla fiducia',()=>{
+    const s=createInitialState(),map=generateTerrain(s.seed),farm=buildAt(s,map,6,4,'farm');
+    const building=farm.state.buildings[1]!;
+    const normal=productionForBuilding(building,map,360,60).food!;
+    expect(productionForBuilding(building,map,360,80).food).toBeCloseTo(normal*1.05);
+    expect(productionForBuilding(building,map,360,25).food).toBeCloseTo(normal*.9);
+    farm.state.community!.trust=75;
+    expect(resourceRates(farm.state,map,360).coins).toBeCloseTo(.036);
+  });
+  it('permette a una scelta di alloggio di aggiungere capienza abitativa',()=>{
+    const s=createInitialState();
+    s.community!.activeRequest!.options=[
+      {id:'shelter',label:'Prepara un alloggio',detail:'',cost:{wood:8,stone:3},reward:{},moodDelta:5,trustDelta:5,housingDelta:2},
+    ];
+    const result=resolveCitizenRequest(s,'shelter');
+    expect(result.ok).toBe(true);
+    expect(housingCapacity(s)).toBe(5);
+    expect(housingCapacity(result.state)).toBe(7);
+    expect(result.state.resources.wood).toBe(34);
+  });
+  it('non fa crescere la popolazione quando il morale è sotto 20',()=>{
+    const s=createInitialState(),house=buildAt(s,generateTerrain(s.seed),6,6,'house');
+    expect(house.check.ok).toBe(true);
+    house.state.resources.food=200;
+    house.state.community!.morale=19;
+    expect(advanceTime(house.state,20).population).toBe(5);
+  });
+  it('non penalizza le richieste durante il tempo offline',()=>{
+    const s=createInitialState();
+    s.lastSavedAt=1_000;
+    const offline=applyOfflineProgress(s,181_000);
+    expect(offline.minutes).toBe(180);
+    expect(offline.state.community?.ignoredRequests).toBe(0);
+    expect(offline.state.community?.morale).toBe(60);
+    expect(advanceTime(offline.state,1,true).community?.ignoredRequests).toBe(1);
+  });
   it('genera la stessa sfida per una stessa data',()=>{
     const date=new Date(2026,9,10,12),challenge=createDailyChallenge(date);
     expect(challenge).toEqual(createDailyChallenge(date));
