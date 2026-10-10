@@ -23,7 +23,7 @@ v.buildings=v.buildings.filter((b,i,list)=>b.type!=='townHall'||list.findIndex(o
 const hall=v.buildings.find(b=>b.type==='townHall');
 if(hall){
 const nonHallCapacity=v.buildings.filter(b=>b.type!=='townHall').reduce((total,b)=>total+(BUILDINGS[b.type].housing??0)*b.level,0);
-while(hall.level<MAX_BUILDING_LEVEL&&nonHallCapacity+(BUILDINGS.townHall.housing??0)*hall.level<v.population)hall.level++;
+while(hall.level<MAX_BUILDING_LEVEL&&nonHallCapacity+(BUILDINGS.townHall.housing??0)*hall.level+(v.community?.housingBonus??0)<v.population)hall.level++;
 }
 return v;
 }
