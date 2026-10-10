@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {advanceTime,buildAt,canBuild,createInitialState,generateTerrain,housingCapacity,productionForBuilding,resourceRates,upgradeBuilding} from './engine';
+import {advanceTime,awardPopulationMilestones,buildAt,canBuild,createInitialState,generateTerrain,housingCapacity,productionForBuilding,resourceRates,upgradeBuilding} from './engine';
 import {createDailyChallenge,challengeProgress,isChallengeComplete} from './challenge';
 import {applyOfflineProgress} from './save';
 
@@ -65,6 +65,15 @@ describe('simulazione Microregno',()=>{
     const levelThree=upgradeBuilding(upgraded.state,id);
     expect(levelThree.state.buildings[1]!.level).toBe(3);
     expect(upgradeBuilding(levelThree.state,id).check.ok).toBe(false);
+  });
+  it('premia i traguardi di popolazione una sola volta',()=>{
+    const s=createInitialState();s.population=8;
+    const first=awardPopulationMilestones(s);
+    expect(first.reward).toBe(10);
+    expect(first.state.resources.coins).toBe(28);
+    expect(awardPopulationMilestones(first.state).reward).toBe(0);
+    first.state.population=12;
+    expect(awardPopulationMilestones(first.state).reward).toBe(15);
   });
   it('usa regole identiche online e offline',()=>{
     const s=createInitialState(),farm=buildAt(s,generateTerrain(s.seed),6,4,'farm'),savedAt=farm.state.lastSavedAt;
