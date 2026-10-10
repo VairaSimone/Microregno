@@ -27,7 +27,7 @@ Il primo obiettivo è portare il borgo a **8 abitanti**. La guida in gioco segue
 - Il municipio ospita i 5 abitanti iniziali; costruisci una casa o migliora il municipio per aumentare la capienza.
 - La popolazione cresce ogni 20 minuti di gioco se ci sono almeno 18 unità di cibo e posti abitativi liberi.
 - Fattorie vicine all'acqua e segherie vicine ai boschi producono di più; le statistiche mostrano i bonus reali.
-- Gli edifici si possono migliorare fino al livello 3 dal pannello Dettagli.
+- Gli edifici si possono migliorare fino al livello 3 dal pannello Dettagli; i miglioramenti costano anche monete, che diventano una risorsa da pianificare.
 - Il regno principale è persistente. La sfida giornaliera è opzionale e ha un salvataggio separato.
 
 La grafica degli edifici è inclusa localmente come SVG con dimensioni esplicite; non dipende da immagini caricate da siti terzi.
