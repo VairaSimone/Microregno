@@ -145,15 +145,32 @@ export function createCommunityState(seed: number, gameMinutes = 0): CommunitySt
   };
 }
 
+function validPartialResourceBag(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const allowed = ['wood', 'stone', 'food', 'coins'];
+  return Object.entries(value).every(([key, amount]) => allowed.includes(key) && typeof amount === 'number' && Number.isFinite(amount) && amount >= 0);
+}
+
+function validRequestOption(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const item = value as Partial<CitizenRequestOption>;
+  return typeof item.id === 'string' && item.id.length > 0
+    && typeof item.label === 'string' && typeof item.detail === 'string'
+    && validPartialResourceBag(item.cost) && validPartialResourceBag(item.reward)
+    && Number.isFinite(item.moodDelta) && Number.isFinite(item.trustDelta)
+    && (item.populationDelta === undefined || Number.isFinite(item.populationDelta))
+    && (item.housingDelta === undefined || Number.isFinite(item.housingDelta));
+}
+
 export function ensureCommunity(state: GameState): GameState {
   const current = state.community;
-  const requestLooksValid = !current?.activeRequest || (
-    typeof current.activeRequest.id === 'string'
-    && typeof current.activeRequest.citizen === 'string'
-    && typeof current.activeRequest.title === 'string'
-    && Number.isFinite(current.activeRequest.deadline)
-    && Array.isArray(current.activeRequest.options)
-    && current.activeRequest.options.every((item) => typeof item.id === 'string' && typeof item.label === 'string')
+  const request = current?.activeRequest;
+  const requestLooksValid = !request || (
+    typeof request.id === 'string' && typeof request.citizen === 'string'
+    && typeof request.role === 'string' && typeof request.title === 'string'
+    && typeof request.description === 'string' && Number.isFinite(request.deadline)
+    && Array.isArray(request.options) && request.options.length > 0
+    && request.options.length <= 20 && request.options.every(validRequestOption)
   );
   if (
     current
@@ -162,10 +179,10 @@ export function ensureCommunity(state: GameState): GameState {
     && Number.isFinite(current.fulfilledRequests) && current.fulfilledRequests >= 0
     && Number.isFinite(current.ignoredRequests) && current.ignoredRequests >= 0
     && Number.isFinite(current.requestNumber) && current.requestNumber >= 1
-    && Number.isFinite(current.nextRequestAt)
-    && Array.isArray(current.history)
+    && Number.isFinite(current.nextRequestAt) && current.nextRequestAt >= 0
+    && Array.isArray(current.history) && current.history.every((note) => typeof note === 'string')
     && requestLooksValid
-    && (current.housingBonus === undefined || (Number.isFinite(current.housingBonus) && current.housingBonus >= 0))
+    && (current.housingBonus === undefined || (Number.isFinite(current.housingBonus) && current.housingBonus >= 0 && current.housingBonus <= 5000))
   ) return state;
   return { ...state, community: createCommunityState(state.seed, state.gameMinutes) };
 }
