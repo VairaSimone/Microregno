@@ -37,22 +37,16 @@
 <section class="panel inspector-panel"><div class="panel-heading"><div><small class="eyebrow">DETTAGLI</small><h2 id="inspector-title">Il territorio</h2></div></div><p id="inspector-copy">Seleziona un edificio sulla mappa per vederne i dettagli.</p><div id="inspector-stats"></div><button id="upgrade-button" class="primary hidden">Migliora edificio</button><button id="demolish-button" class="danger hidden">Demolisci edificio</button><button id="cancel-build" class="secondary hidden">Annulla costruzione</button></section></aside>
 </main><footer class="app-footer"><strong>MICROREGNO · Un piccolo mondo, una grande avventura</strong><div><button id="reset-game">Ricomincia il regno</button><span id="local-save-label">Dati salvati su questo dispositivo</span></div></footer></div>
 <div id="toast-region" role="status" aria-live="polite"></div>
-<dialog id="help-dialog"><div class="dialog-top"><small class="eyebrow">COME SI GIOCA</small><button id="close-help" class="icon-button" aria-label="Chiudi guida">×</button></div>
-<h2>Non devi costruire tutto. Devi far crescere un borgo.</h2>
-<p>All'inizio l'obiettivo è semplice: rendere il villaggio autosufficiente, poi portarlo a <strong>8 abitanti</strong>. La guida a sinistra ti accompagna passo dopo passo.</p>
+<dialog id="help-dialog"><div class="dialog-top"><small class="eyebrow">PRIMA PARTITA · 2 MINUTI PER CAPIRE</small><button id="close-help" class="icon-button" aria-label="Chiudi guida">×</button></div>
+<h2>Il tuo primo obiettivo: arrivare a 8 abitanti</h2>
+<p>Non devi costruire tutto subito. Parti da un villaggio di 5 persone: fai crescere il cibo, crea spazio per nuovi abitanti e sblocca gli edifici man mano che la comunità cresce.</p>
 <div class="help-grid">
-<div><b>01 · Assicura il cibo</b><span>Seleziona Fattoria e clicca una casella d'erba libera. Produce cibo; gli abitanti lo consumano.</span></div>
-<div><b>02 · Fai spazio</b><span>La Casa costa 12 legname e 5 pietra e aggiunge 6 posti. Il municipio ospita i 5 abitanti iniziali.</span></div>
-<div><b>03 · Sblocca le produzioni</b><span>Segheria e Cava si sbloccano a 6 abitanti. La crescita richiede cibo e posti abitativi liberi.</span></div>
-<div><b>04 · Produci materiali</b><span>La Segheria genera legname vicino agli alberi. La Cava produce pietra vicino alla roccia.</span></div>
-<div><b>05 · Porta il borgo a 8</b><span>Ogni 20 minuti di gioco arriva un abitante se hai almeno 18 cibo, umore sufficiente e un posto libero. A 8 si sblocca il Mercato.</span></div>
-<div><b>06 · Ascolta il borgo</b><span>Gli abitanti portano richieste con tre possibili risposte. Ogni scelta costa o concede risorse e cambia umore e fiducia. Le richieste scadono dopo 3 minuti reali: ignorarle ha conseguenze.</span></div>
-<div><b>07 · Preparati alle stagioni</b><span>La stagione cambia ogni 360 minuti di gioco (circa 6 minuti reali). In autunno le fattorie rendono di più, in inverno il raccolto cala e il consumo di cibo aumenta. Il morale alto aumenta la produzione; la fiducia alta migliora le entrate in monete.</span></div>
-<div><b>08 · Ricorda le decisioni</b><span>Apri la cronaca del borgo per rileggere le ultime scelte. I traguardi di popolazione danno monete da investire nei miglioramenti degli edifici.</span></div>
-<div><b>09 · Governa cittadini reali</b><span>Apri la Sala del Regno per assegnare professioni, osservare fame, energia, felicità e salute, gestire famiglie e relazioni e organizzare le filiere grano → farina → pane.</span></div>
-<div><b>10 · Esplora la frontiera</b><span>Leggi, ricerca, spedizioni, diplomazia, eventi concatenati e grandi opere si trovano nella Sala del Regno. Le decisioni consumano risorse e producono conseguenze permanenti nel salvataggio.</span></div>
+<div><b>01 · Costruisci una Fattoria</b><span>Nel pannello “Costruisci”, scegli Fattoria e poi clicca una casella verde libera sulla mappa. La fattoria produce cibo ogni minuto di gioco.</span></div>
+<div><b>02 · Aggiungi una Casa</b><span>La Casa costa 12 legname e 5 pietra, e aggiunge 6 posti abitativi. Il municipio ospita già i 5 abitanti iniziali.</span></div>
+<div><b>03 · Tieni piene le dispense</b><span>Servono almeno 18 unità di cibo e un posto libero perché arrivi un nuovo abitante. Il tempo di gioco scorre da solo.</span></div>
+<div><b>04 · Sblocca Segheria e Cava</b><span>A 6 abitanti si sbloccano: la Segheria rende vicino agli alberi, la Cava vicino alle rocce. A 8 abitanti arriva il Mercato.</span></div>
 </div>
-<p class="help-footnote">Scegli l'edificio, poi scegli la casella sulla mappa. Le caselle rosse non sono valide. Le sfide giornaliere sono facoltative e separate dal tuo regno.</p>
+<p class="help-footnote"><strong>Il ciclo base è tutto qui:</strong> cibo → case → abitanti → nuove produzioni. Usa la guida a sinistra: evidenzia il prossimo passo e ti porta direttamente alla costruzione corretta. Sala del Regno, ricerca ed esplorazione sono sistemi avanzati; puoi ignorarli finché non hai capito le basi. La Sfida del giorno è facoltativa e non modifica il tuo regno.</p>
 <div class="dialog-actions"><button id="start-playing" class="primary">Inizia la guida</button><button id="skip-tutorial" class="secondary">Gioca liberamente</button></div>
 </dialog>
 <dialog id="community-history-dialog">
