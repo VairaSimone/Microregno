@@ -2,7 +2,7 @@ import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS
 import { buildingUnlocked } from './game/challenge';
 import { getSeason } from './game/community';
 import { canExploreRegion, PROFESSION_LABELS, PROFESSIONS, PROJECTS, RESEARCH, REGIONS } from './game/livingWorld';
-import type { Profession } from './game/types';
+import type { GoodsBag, Profession } from './game/types';
 import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, GameSnapshot, Resource } from './game/types';
 
@@ -524,7 +524,7 @@ function realmActionButton(label: string, action: string, id: string, value = ''
 function hasResourceCost(resources: GameSnapshot['state']['resources'], cost: Partial<Record<Resource, number>>): boolean {
   return Object.entries(cost).every(([key, amount]) => resources[key as Resource] >= (amount ?? 0));
 }
-function hasGoodsCost(goods: NonNullable<GameSnapshot['state']['world']>['goods'], cost: Partial<Record<keyof NonNullable<GameSnapshot['state']['world']>['goods'], number>>): boolean {
+function hasGoodsCost(goods: GoodsBag, cost: Partial<GoodsBag>): boolean {
   return Object.entries(cost).every(([key, amount]) => goods[key as keyof typeof goods] >= (amount ?? 0));
 }
 function renderRealmDashboard(snapshot: GameSnapshot): void {
@@ -553,10 +553,14 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
 
   if (realmTab === 'citizens') {
     const citizens = world.citizens.map((citizen) => {
+      const home = state.buildings.find((building) => building.id === citizen.homeId);
+      const nearestTie = Object.entries(citizen.relationships).sort((a, b) => b[1] - a[1])[0];
+      const tieCitizen = nearestTie ? world.citizens.find((other) => other.id === nearestTie[0]) : undefined;
+      const relationshipNote = tieCitizen && nearestTie ? (nearestTie[1] >= 25 ? 'Amico di ' : nearestTie[1] <= -15 ? 'In contrasto con ' : 'Conosce ') + tieCitizen.name : '';
       const options = PROFESSIONS.map((profession) =>
         '<option value="' + profession + '"' + (citizen.profession === profession ? ' selected' : '') + '>' + escapeRealmHtml(PROFESSION_LABELS[profession]) + '</option>',
       ).join('');
-      return '<article class="realm-citizen-card"><div class="realm-citizen-head"><div><strong>' + escapeRealmHtml(citizen.name) + '</strong><small>' + citizen.age + ' anni · ' + escapeRealmHtml(citizen.traits.join(' · ')) + (citizen.status === 'exploring' ? ' · IN SPEDIZIONE' : '') + '</small></div>' +
+      return '<article class="realm-citizen-card"><div class="realm-citizen-head"><div><strong>' + escapeRealmHtml(citizen.name) + '</strong><small>' + citizen.age + ' anni · ' + escapeRealmHtml(citizen.traits.join(' · ')) + ' · Casa: ' + escapeRealmHtml(home ? BUILDINGS[home.type].shortName : 'da assegnare') + ' · ' + escapeRealmHtml(citizen.familyId) + (relationshipNote ? ' · ' + escapeRealmHtml(relationshipNote) : '') + (citizen.status === 'exploring' ? ' · IN SPEDIZIONE' : '') + '</small></div>' +
         '<label>Mestiere<select data-citizen="' + escapeRealmHtml(citizen.id) + '"' + (citizen.status === 'exploring' ? ' disabled' : '') + '>' + options + '</select></label></div>' +
         '<div class="realm-needs">' + realmMeter('Fame', citizen.hunger) + realmMeter('Energia', citizen.energy) + realmMeter('Felicità', citizen.happiness) + realmMeter('Salute', citizen.health) + '</div>' +
         '<div class="realm-citizen-footer"><span>' + escapeRealmHtml(citizen.lastAction) + '</span><b>Abilità: ' + Math.round(citizen.skills[citizen.profession]) + '/100</b></div></article>';
