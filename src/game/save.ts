@@ -1,48 +1,159 @@
-import {BUILDINGS,MAX_BUILDING_LEVEL,OFFLINE_CAP_MINUTES} from './definitions';
-import {advanceTime,createInitialState} from './engine';
-import {ensureCommunity} from './community';
-import {ensureWorldState} from './livingWorld';
-import {localDateKey} from './challenge';
-import type {Building,ChallengeSave,GameState} from './types';
-const KEY='microregno:kingdom:v1',CHALLENGE='microregno:challenge:';
-function valid(v:unknown):v is GameState{
-if(!v||typeof v!=='object')return false;
-const s=v as Partial<GameState>,r=s.resources as Record<string,unknown>|undefined;
-return s.version===1&&typeof s.seed==='number'&&Number.isFinite(s.seed)&&typeof s.population==='number'&&Number.isFinite(s.population)&&s.population>=0&&typeof s.gameMinutes==='number'&&Number.isFinite(s.gameMinutes)&&s.gameMinutes>=0&&Array.isArray(s.buildings)&&!!r&&['wood','stone','food','coins'].every(k=>typeof r[k]==='number'&&Number.isFinite(r[k])&&(r[k] as number)>=0);}
-function read<T>(key:string):T|null{try{if(typeof localStorage==='undefined')return null;const v=localStorage.getItem(key);return v?JSON.parse(v) as T:null;}catch{return null;}}
-function write(key:string,v:unknown):boolean{try{if(typeof localStorage==='undefined')return false;localStorage.setItem(key,JSON.stringify(v));return true;}catch{return false;}}
-export function loadKingdom():GameState{
-const stored=read<unknown>(KEY);
-if(valid(stored)){
-const v=ensureWorldState(ensureCommunity(stored));
-const types=['townHall','house','farm','sawmill','quarry','market','road','mill','bakery','warehouse','school','watchtower','workshop'];
-const safe=(v.buildings as Building[]).filter(b=>!!b&&typeof b==='object'&&typeof b.id==='string'&&Number.isInteger(b.x)&&Number.isInteger(b.y)&&b.x>=0&&b.x<12&&b.y>=0&&b.y<12&&types.includes(b.type)&&Number.isInteger(b.level)&&b.level>=1&&b.level<=MAX_BUILDING_LEVEL);
-const unique=safe.filter((b,i,list)=>list.findIndex(other=>other.x===b.x&&other.y===b.y)===i);
-v.buildings=unique;
-if(!v.buildings.some(b=>b.type==='townHall'))return createInitialState();
-v.buildings=v.buildings.filter((b,i,list)=>b.type!=='townHall'||list.findIndex(other=>other.type==='townHall')===i);
-const hall=v.buildings.find(b=>b.type==='townHall');
-if(hall){
-const nonHallCapacity=v.buildings.filter(b=>b.type!=='townHall').reduce((total,b)=>total+(BUILDINGS[b.type].housing??0)*b.level,0);
-while(hall.level<MAX_BUILDING_LEVEL&&nonHallCapacity+(BUILDINGS.townHall.housing??0)*hall.level+(v.community?.housingBonus??0)<v.population)hall.level++;
+import { BOARD_SIZE, BUILDINGS, MAX_BUILDING_LEVEL, OFFLINE_CAP_MINUTES } from './definitions';
+import { advanceTime, createInitialState } from './engine';
+import { ensureCommunity } from './community';
+import { ensureWorldState } from './livingWorld';
+import { localDateKey } from './challenge';
+import type { Building, ChallengeSave, GameState, Resource } from './types';
+
+const KEY = 'microregno:kingdom:v1';
+const CHALLENGE = 'microregno:challenge:';
+const MAX_SAVED_POPULATION = 5000;
+const BUILDING_TYPES = Object.keys(BUILDINGS) as Array<Building['type']>;
+const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
+
+function valid(value: unknown): value is GameState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const state = value as Partial<GameState>;
+  const resources = state.resources as Record<string, unknown> | undefined;
+  return state.version === 1
+    && typeof state.seed === 'number' && Number.isFinite(state.seed)
+    && typeof state.population === 'number' && Number.isInteger(state.population)
+    && state.population >= 0 && state.population <= MAX_SAVED_POPULATION
+    && typeof state.gameMinutes === 'number' && Number.isFinite(state.gameMinutes) && state.gameMinutes >= 0
+    && Array.isArray(state.buildings) && state.buildings.length <= BOARD_SIZE * BOARD_SIZE * 2
+    && !!resources && RESOURCES.every((key) => typeof resources[key] === 'number' && Number.isFinite(resources[key]) && (resources[key] as number) >= 0);
 }
-return v;
+
+function read<T>(key: string): T | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) as T : null;
+  } catch {
+    return null;
+  }
 }
-return createInitialState();}
-export function saveKingdom(s:GameState):boolean{s.lastSavedAt=Date.now();return write(KEY,s);}
-export function applyOfflineProgress(s:GameState,now=Date.now()):{state:GameState;minutes:number}{
-/* Live play advances one in-game minute per real second. Keep offline play identical. */
-const normalized=ensureCommunity(s);
-const minutes=Math.min(OFFLINE_CAP_MINUTES*60,Math.floor(Math.max(0,now-(normalized.lastSavedAt||now))/1000));
-let copy:GameState={...normalized,resources:{...normalized.resources},buildings:normalized.buildings.map(b=>({...b}))};
-let remaining=minutes;
-while(remaining>0){const chunk=Math.min(360,remaining);copy=advanceTime(copy,chunk,false);remaining-=chunk;}
-copy.lastSavedAt=now;
-return{state:copy,minutes};}
-export function loadChallengeSave(date=localDateKey()):ChallengeSave|null{
-const v=read<ChallengeSave>(CHALLENGE+date);
-if(!v||v.date!==date||!valid(v.state)||typeof v.completed!=='boolean'||!Number.isFinite(v.score)||!Number.isFinite(v.bestScore))return null;
-return {...v,state:ensureWorldState(ensureCommunity(v.state))};
+
+function write(key: string, value: unknown): boolean {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
 }
-export function saveChallenge(s:ChallengeSave):boolean{return write(CHALLENGE+s.date,s);}
-export function resetKingdom():void{try{if(typeof localStorage!=='undefined')localStorage.removeItem(KEY);}catch{/* Browser storage may be disabled. */}}
+
+/** Validate map entries before the world migration touches buildings or citizen homes. */
+function normalizeStoredState(value: unknown): GameState | null {
+  if (!valid(value)) return null;
+  const source = value;
+  const safeBuildings = (source.buildings as unknown[])
+    .filter((raw): raw is Building => {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
+      const building = raw as Partial<Building>;
+      return typeof building.id === 'string' && building.id.length > 0 && building.id.length <= 160
+        && BUILDING_TYPES.includes(building.type as Building['type'])
+        && Number.isInteger(building.x) && Number.isInteger(building.y)
+        && (building.x as number) >= 0 && (building.x as number) < BOARD_SIZE
+        && (building.y as number) >= 0 && (building.y as number) < BOARD_SIZE
+        && Number.isInteger(building.level) && (building.level as number) >= 1 && (building.level as number) <= MAX_BUILDING_LEVEL;
+    })
+    .slice(0, BOARD_SIZE * BOARD_SIZE);
+  const usedPositions = new Set<string>();
+  const usedIds = new Set<string>();
+  let buildings = safeBuildings.filter((building) => {
+    const position = building.x + ',' + building.y;
+    if (usedPositions.has(position) || usedIds.has(building.id)) return false;
+    usedPositions.add(position);
+    usedIds.add(building.id);
+    return true;
+  });
+  if (!buildings.some((building) => building.type === 'townHall')) return null;
+  buildings = buildings.filter((building, index, list) =>
+    building.type !== 'townHall' || list.findIndex((other) => other.type === 'townHall') === index);
+
+  const state: GameState = {
+    ...source,
+    seed: Math.trunc(source.seed),
+    population: Math.floor(source.population),
+    gameMinutes: Math.floor(source.gameMinutes),
+    resources: Object.fromEntries(RESOURCES.map((resource) => [resource, source.resources[resource]])) as GameState['resources'],
+    buildings,
+    lastSavedAt: typeof source.lastSavedAt === 'number' && Number.isFinite(source.lastSavedAt) && source.lastSavedAt >= 0
+      ? source.lastSavedAt
+      : Date.now(),
+  };
+
+  let normalized = ensureWorldState(ensureCommunity(state));
+  const hall = normalized.buildings.find((building) => building.type === 'townHall');
+  if (hall) {
+    const nonHallCapacity = normalized.buildings
+      .filter((building) => building.type !== 'townHall')
+      .reduce((total, building) => total + (BUILDINGS[building.type].housing ?? 0) * building.level, 0);
+    while (
+      hall.level < MAX_BUILDING_LEVEL
+      && nonHallCapacity + (BUILDINGS.townHall.housing ?? 0) * hall.level + (normalized.community?.housingBonus ?? 0) < normalized.population
+    ) hall.level++;
+  }
+  normalized = ensureWorldState(normalized);
+  return normalized;
+}
+
+export function loadKingdom(): GameState {
+  return normalizeStoredState(read<unknown>(KEY)) ?? createInitialState();
+}
+
+export function saveKingdom(state: GameState): boolean {
+  return write(KEY, { ...state, lastSavedAt: Date.now() });
+}
+
+export function applyOfflineProgress(state: GameState, now = Date.now()): { state: GameState; minutes: number } {
+  const normalized = ensureWorldState(ensureCommunity(state));
+  const secondsAway = Math.floor(Math.max(0, now - (normalized.lastSavedAt || now)) / 1000);
+  const minutes = Math.min(OFFLINE_CAP_MINUTES * 60, secondsAway);
+  let copy: GameState = { ...normalized, resources: { ...normalized.resources }, buildings: normalized.buildings.map((building) => ({ ...building })) };
+  let remaining = minutes;
+  while (remaining > 0) {
+    const chunk = Math.min(360, remaining);
+    copy = advanceTime(copy, chunk, false);
+    remaining -= chunk;
+  }
+
+  // Citizen requests pause while the game is closed. Shift their game-time
+  // deadlines by the offline interval, so they do not expire immediately on return.
+  if (minutes > 0 && copy.community) {
+    const community = copy.community;
+    copy = {
+      ...copy,
+      community: {
+        ...community,
+        activeRequest: community.activeRequest
+          ? { ...community.activeRequest, deadline: community.activeRequest.deadline + minutes }
+          : null,
+        nextRequestAt: community.nextRequestAt + minutes,
+      },
+    };
+  }
+  copy.lastSavedAt = now;
+  return { state: copy, minutes };
+}
+
+export function loadChallengeSave(date = localDateKey()): ChallengeSave | null {
+  const value = read<ChallengeSave>(CHALLENGE + date);
+  if (!value || value.date !== date || typeof value.completed !== 'boolean' || !Number.isFinite(value.score) || !Number.isFinite(value.bestScore)) return null;
+  const state = normalizeStoredState(value.state);
+  return state ? { ...value, state } : null;
+}
+
+export function saveChallenge(state: ChallengeSave): boolean {
+  return write(CHALLENGE + state.date, state);
+}
+
+export function resetKingdom(): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(KEY);
+  } catch {
+    // Browser storage may be disabled.
+  }
+}
