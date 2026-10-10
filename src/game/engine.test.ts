@@ -130,13 +130,14 @@ describe('simulazione Microregno',()=>{
   it('permette a una scelta di alloggio di aggiungere capienza abitativa',()=>{
     const s=createInitialState();
     s.community!.activeRequest!.options=[
-      {id:'shelter',label:'Prepara un alloggio',detail:'',cost:{wood:8,stone:3},reward:{},moodDelta:5,trustDelta:5,housingDelta:2},
+      {id:'shelter',label:'Prepara un alloggio',detail:'',cost:{wood:8,stone:3},reward:{},moodDelta:5,trustDelta:5,populationDelta:1,housingDelta:2},
     ];
     const result=resolveCitizenRequest(s,'shelter');
     expect(result.ok).toBe(true);
     expect(housingCapacity(s)).toBe(5);
     expect(housingCapacity(result.state)).toBe(7);
     expect(result.state.resources.wood).toBe(34);
+    expect(result.state.population).toBe(6);
   });
   it('non fa crescere la popolazione quando il morale è sotto 20',()=>{
     const s=createInitialState(),house=buildAt(s,generateTerrain(s.seed),6,6,'house');
