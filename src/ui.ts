@@ -14,6 +14,7 @@ const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
 const TUTORIAL_SEEN_KEY = 'microregno:tutorial-seen:v1';
 let renderedRequestId: string | null | undefined;
 let showAllBuildOptions = false;
+let kingdomSaveStatus = 'Salvataggio locale attivo';
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
@@ -1001,7 +1002,7 @@ export function setupUI(): void {
       : 'Record: ' + (snapshot.bestScore ? snapshot.bestScore + ' pt' : '—');
 
     $('save-status').textContent = snapshot.mode === 'kingdom'
-      ? 'Salvataggio locale attivo'
+      ? kingdomSaveStatus
       : 'Progressi della sfida salvati oggi';
     $('local-save-label').textContent = snapshot.mode === 'kingdom'
       ? 'Dati salvati su questo dispositivo'
@@ -1031,7 +1032,8 @@ export function setupUI(): void {
 
   window.addEventListener('microregno:notice', ((event: CustomEvent<string>) => showToast(event.detail)) as EventListener);
   window.addEventListener('microregno:save-status', ((event: CustomEvent<string>) => {
-    $('save-status').textContent = event.detail;
+    kingdomSaveStatus = event.detail;
+    if (latestSnapshot?.mode !== 'challenge') $('save-status').textContent = event.detail;
   }) as EventListener);
 }
 
