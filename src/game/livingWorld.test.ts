@@ -145,6 +145,19 @@ describe('living world simulation', () => {
     expect(sold.state.resources.coins).toBe(state.resources.coins + 15);
   });
 
+  it('lets warehouses preserve perishable goods over a game day', () => {
+    const exposed = createInitialState(123);
+    exposed.world!.goods.bread = 100;
+    const spoiled = advanceTime(exposed, 60);
+    expect(spoiled.world!.goods.bread).toBeLessThan(100);
+
+    const stored = createInitialState(123);
+    stored.world!.goods.bread = 100;
+    stored.buildings.push({ id: 'warehouse-test', type: 'warehouse', x: 4, y: 4, level: 1 });
+    const preserved = advanceTime(stored, 60);
+    expect(preserved.world!.goods.bread).toBeGreaterThan(spoiled.world!.goods.bread);
+  });
+
   it('makes intensive forestry deplete the woods while protection regenerates them', () => {
     const intensive = createInitialState(712);
     intensive.world!.policies.forest = 'intensive';
