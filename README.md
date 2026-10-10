@@ -4,7 +4,7 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 
 ## Funzionalità
 - Mappa a griglia con proiezione isometrica leggera e terreno generato proceduralmente.
-- Sprite SVG originali per municipio, case, fattoria, segheria, cava, mercato, alberi e rocce.
+- Sprite SVG originali per municipio, case, fattoria, segheria, cava, mercato, sei nuovi edifici civici e produttivi, strade, alberi e rocce.
 - Economia, popolazione, costi, vincoli del terreno, bonus ambientali e sblocco del mercato.
 - Edifici migliorabili fino al livello 3: aumentano produzione o capienza e richiedono investimenti di risorse.
 - Traguardi di popolazione a 8, 12, 18 e 24 abitanti con ricompense una tantum in monete; gli obiettivi si aggiornano man mano che il borgo cresce.
@@ -14,6 +14,8 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Quattro stagioni con effetti reali su raccolti, consumo di cibo, produzione e colore del territorio.
 - Cittadini persistenti con nomi, tratti, bisogni, salute, energia, umore, competenze e mestieri assegnabili.
 - Filiere produttive: grano, farina, pane, strumenti e rimedi; mulino, panificio, officina e magazzino.
+- Mercato dinamico con prezzi aggiornati ogni 120 minuti di gioco, domanda variabile e vendita di beni lavorati in presenza di un mercante.
+- Rete stradale costruibile: gli edifici produttivi adiacenti a una strada lavorano con efficienza maggiore; le strade non richiedono miglioramenti di livello.
 - Sala del Regno con leggi economiche, gestione delle dispense, politiche forestali e pattuglie.
 - Ricerca in sei percorsi, spedizioni esplorative, nuove regioni, reperti, rischi e ricompense.
 - Diplomazia con tre comunità vicine, accordi permanenti e rotte commerciali.
@@ -51,8 +53,8 @@ La grafica degli edifici è inclusa localmente come SVG con dimensioni esplicite
 ### Sala del Regno e simulazione vivente
 
 Apri **Sala del Regno** nella barra superiore per passare fra cinque sezioni:
-- **Cittadini & Economia**: assegna mestieri, osserva fame, energia, felicità e salute, e gestisci le filiere grano → farina → pane. Le abilità crescono facendo il mestiere; il personale influisce sulla resa degli edifici.
-- **Leggi**: tasse (basse, equilibrate o alte), dispense (riserva, equilibrio o generosità), gestione dei boschi e pattuglie. Le politiche modificano davvero i tassi economici e la sicurezza.
+- **Cittadini & Economia**: assegna mestieri, osserva fame, energia, felicità e salute, e gestisci le filiere grano → farina → pane. Le abilità crescono facendo il mestiere; il personale influisce sulla resa degli edifici. Le strade danno un bonus agli edifici produttivi adiacenti. Puoi vendere grano, farina, pane, attrezzi e rimedi se hai un mercato e un mercante assegnato; le quotazioni riflettono una domanda che cambia con il tempo e con le scorte.
+- **Leggi**: tasse (basse, equilibrate o alte), dispense (riserva, equilibrio o generosità), gestione dei boschi e pattuglie. Le politiche modificano davvero i tassi economici e la sicurezza. Il taglio intensivo riduce la salute forestale; protezione e ricerca di silvicoltura favoriscono la rigenerazione. Le pattuglie richiedono 2 monete per ora di gioco.
 - **Esplorazione**: assegna il mestiere Esploratore e invia spedizioni per ottenere scorte, attrezzi e punti conoscenza. Il successo dipende dalle competenze e dagli strumenti; le zone lontane richiedono cartografia o grandi opere.
 - **Ricerca**: avvia una sola ricerca alla volta. I punti conoscenza arrivano lentamente e aumentano con la scuola e gli studiosi. Irrigazione, utensili, commercio, istruzione, cartografia e silvicoltura offrono benefici permanenti.
 - **Progetti & Eventi**: finanzia tre fasi per acquedotto, ponte, quartiere artigiano e grande archivio. Gli eventi emergono durante la partita; alcune decisioni avviano una seconda storia dopo un intervallo.
