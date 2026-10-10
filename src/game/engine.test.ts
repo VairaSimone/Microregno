@@ -60,6 +60,7 @@ describe('simulazione Microregno',()=>{
     expect(upgraded.check.ok).toBe(true);
     expect(upgraded.state.buildings[1]!.level).toBe(2);
     expect(upgraded.state.resources.wood).toBe(24);
+    expect(upgraded.state.resources.coins).toBe(15);
     expect(productionForBuilding(upgraded.state.buildings[1]!,map).food).toBeCloseTo(4.14);
     const levelThree=upgradeBuilding(upgraded.state,id);
     expect(levelThree.state.buildings[1]!.level).toBe(3);
