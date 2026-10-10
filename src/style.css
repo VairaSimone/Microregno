@@ -905,3 +905,9 @@ dialog p strong { color: #38583b; }
 .realm-map-legend span{display:flex;align-items:center;gap:6px}
 .realm-map-legend i{height:9px;width:9px;border-radius:50%;display:inline-block}
 .realm-map-legend i.known{background:#75a875}.realm-map-legend i.open{background:#d9be6d}.realm-map-legend i.fog{background:#abb4a4}
+
+.realm-weather-alert{display:flex;flex-direction:column;gap:5px;border:1px solid #cbdcc1;border-radius:11px;background:#eff5e9;padding:11px 13px;color:#436442}
+.realm-weather-alert strong{font-size:11px}
+.realm-weather-alert span{font-size:10px;line-height:1.45;color:#74826c}
+.realm-weather-alert.drought{border-color:#e0c58b;background:#fcf1d9;color:#835f20}
+.realm-weather-alert.drought span{color:#8e774f}
