@@ -296,7 +296,8 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   if (job) {
     const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident' && getCitizenWorkplace(state, citizen)?.id === building.id);
     const workers = assigned.length;
-    const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / Math.max(1, assigned.length);
+    if (workers === 0) return 0;
+    const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / assigned.length;
     const readiness = assigned.reduce((total, citizen) => total + (citizen.energy + citizen.health + citizen.happiness) / 3, 0) / Math.max(1, assigned.length) / 100;
     multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
   }
@@ -538,24 +539,36 @@ export function advanceRealmMinute(input: GameState): GameState {
     return { ...citizen, activity, hunger, energy, happiness: clamp(happiness), health: clamp(health), skills, experience: citizen.experience + (atWork ? 0.002 : 0) };
   });
 
+  const labourState: GameState = { ...state, world: { ...world, citizens } };
   const farms = state.buildings.filter((building) => building.type === 'farm');
-  const farmers = citizens.filter((citizen) => citizen.profession === 'farmer' && citizen.status === 'resident');
   const farmSeason = getSeason(state.gameMinutes);
-  goods.grain += Math.min(farms.reduce((sum, farm) => sum + 0.085 * farm.level * worldBuildingMultiplier(state, farm), 0), farmers.length * 0.06) * farmSeason.farmMultiplier;
-  const mills = state.buildings.filter((building) => building.type === 'mill').length;
-  const millers = citizens.filter((citizen) => citizen.profession === 'miller' && citizen.status === 'resident').length;
-  const flourProduced = Math.min(goods.grain, Math.min(mills * 0.14, millers * 0.11));
-  goods.grain -= flourProduced; goods.flour += flourProduced;
-  const bakeries = state.buildings.filter((building) => building.type === 'bakery').length;
-  const bakers = citizens.filter((citizen) => citizen.profession === 'baker' && citizen.status === 'resident').length;
-  const breadProduced = Math.min(goods.flour, Math.min(bakeries * 0.14, bakers * 0.11));
-  goods.flour -= breadProduced; goods.bread += breadProduced;
+  for (const farm of farms) {
+    const workers = citizens.filter((citizen) => citizen.profession === 'farmer' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === farm.id).length;
+    if (!workers) continue;
+    const produced = Math.min(0.085 * farm.level * worldBuildingMultiplier(labourState, farm), workers * 0.06) * farmSeason.farmMultiplier;
+    goods.grain += Math.max(0, produced);
+  }
+  const mills = state.buildings.filter((building) => building.type === 'mill');
+  for (const mill of mills) {
+    const workers = citizens.filter((citizen) => citizen.profession === 'miller' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === mill.id).length;
+    if (!workers || goods.grain <= 0) continue;
+    const produced = Math.min(goods.grain, Math.min(0.14 * mill.level * worldBuildingMultiplier(labourState, mill), workers * 0.11));
+    goods.grain -= produced; goods.flour += produced;
+  }
+  const bakeries = state.buildings.filter((building) => building.type === 'bakery');
+  for (const bakery of bakeries) {
+    const workers = citizens.filter((citizen) => citizen.profession === 'baker' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === bakery.id).length;
+    if (!workers || goods.flour <= 0) continue;
+    const produced = Math.min(goods.flour, Math.min(0.14 * bakery.level * worldBuildingMultiplier(labourState, bakery), workers * 0.11));
+    goods.flour -= produced; goods.bread += produced;
+  }
   if (goods.bread > 0 && state.gameMinutes > 0 && state.gameMinutes % 18 === 0 && resources.food > 0.1) goods.bread = Math.max(0, goods.bread - state.population * 0.015);
-  const workshops = state.buildings.filter((building) => building.type === 'workshop').length;
-  const artisans = citizens.filter((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident').length;
-  if (workshops > 0 && artisans > 0 && state.gameMinutes % 45 === 0 && resources.wood >= 2 && resources.stone >= 1) {
-    resources.wood -= 2; resources.stone -= 1; goods.tools += 1;
-    notes.push('L’officina ha completato un nuovo attrezzo.');
+  const workshops = state.buildings.filter((building) => building.type === 'workshop');
+  const staffedWorkshops = workshops.filter((workshop) => citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === workshop.id)).length;
+  const toolBatch = Math.min(staffedWorkshops, Math.floor(resources.wood / 2), Math.floor(resources.stone));
+  if (toolBatch > 0 && state.gameMinutes % 45 === 0) {
+    resources.wood -= 2 * toolBatch; resources.stone -= toolBatch; goods.tools += toolBatch;
+    notes.push(toolBatch === 1 ? 'L’officina ha completato un nuovo attrezzo.' : 'Le officine hanno completato ' + toolBatch + ' nuovi attrezzi.');
   }
   const cap = goodsCapacity(state);
   (Object.keys(goods) as Array<keyof GoodsBag>).forEach((key) => { goods[key] = clamp(goods[key], 0, cap); });
@@ -687,11 +700,12 @@ export function advanceRealmMinute(input: GameState): GameState {
     const forestChange = world.policies.forest === 'protected' ? 0.6 - sawmillLevels * 0.08 : world.policies.forest === 'managed' ? 0.12 - sawmillLevels * 0.42 : -0.35 - sawmillLevels * 1.25;
     const forestHealth = clamp(world.forestHealth + forestChange);
     nextWorld = { ...nextWorld, forestHealth };
-    const workshopsForMedicine = state.buildings.filter((building) => building.type === 'workshop').length;
-    const schoolsForMedicine = state.buildings.filter((building) => building.type === 'school').length;
-    const artisansForMedicine = citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident');
-    const scholarsForMedicine = citizens.some((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident');
-    if (workshopsForMedicine > 0 && schoolsForMedicine > 0 && artisansForMedicine && scholarsForMedicine && goods.grain >= 1 && goods.medicine < 20) {
+    const workshopsForMedicine = state.buildings.filter((building) => building.type === 'workshop');
+    const schoolsForMedicine = state.buildings.filter((building) => building.type === 'school');
+    const medicineLabState: GameState = { ...state, world: { ...world, citizens } };
+    const artisansForMedicine = workshopsForMedicine.some((workshop) => citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident' && getCitizenWorkplace(medicineLabState, citizen)?.id === workshop.id));
+    const scholarsForMedicine = schoolsForMedicine.some((school) => citizens.some((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident' && getCitizenWorkplace(medicineLabState, citizen)?.id === school.id));
+    if (workshopsForMedicine.length > 0 && schoolsForMedicine.length > 0 && artisansForMedicine && scholarsForMedicine && goods.grain >= 1 && goods.medicine < 20) {
       goods.grain -= 1; goods.medicine += 1;
       notes.push('Artigiani e studiosi hanno preparato un rimedio usando le scorte botaniche.');
     }
@@ -712,6 +726,9 @@ export function advanceRealmMinute(input: GameState): GameState {
       else if (community) { community.trust = clamp(community.trust - 2); community.morale = clamp(community.morale - 1); notes.push('Le guardie non sono state pagate: il Consiglio deve rifinanziare le pattuglie.'); }
     }
   }
+  const goodsLimit = goodsCapacity(state);
+  (Object.keys(goods) as Array<keyof GoodsBag>).forEach((good) => { goods[good] = Math.max(0, Math.min(goodsLimit, Number.isFinite(goods[good]) ? goods[good] : 0)); });
+  nextWorld = { ...nextWorld, goods: { ...goods } };
   const now = state.gameMinutes;
   if (nextWorld.weather.id === 'drought' && now >= nextWorld.weather.endsAt) {
     nextWorld = { ...nextWorld, weather: { id: 'clear', endsAt: 0 } };
@@ -811,11 +828,15 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     if (crew.some((citizen) => !citizen || citizen.status !== 'resident')) return fail('Tutti i membri dell’equipaggio devono essere cittadini disponibili.');
     const crewMembers = crew.filter((citizen): citizen is Citizen => !!citizen);
     const minimumFood = 8 + Math.max(0, crewMembers.length - 1) * 3;
-    const foodSupply = Math.floor(action.foodSupply ?? minimumFood);
+    const requestedFood = action.foodSupply ?? minimumFood;
+    if (!Number.isFinite(requestedFood)) return fail('La quantità di provviste deve essere un numero valido.');
+    const foodSupply = Math.floor(requestedFood);
     if (foodSupply < minimumFood || foodSupply > 50) return fail('Servono almeno ' + minimumFood + ' unità di cibo per questo equipaggio (massimo 50).');
     if (resources.food < foodSupply) return fail('La dispensa non contiene ' + foodSupply + ' unità di cibo per la spedizione.');
     const carriesTools = action.useTools === false ? false : world.goods.tools > 0;
-    const durationFactor = Math.max(0.75, Math.min(1.5, action.durationFactor ?? 1));
+    const requestedDuration = action.durationFactor ?? 1;
+    if (!Number.isFinite(requestedDuration)) return fail('Il ritmo di viaggio non è valido.');
+    const durationFactor = Math.max(0.75, Math.min(1.5, requestedDuration));
     resources.food -= foodSupply;
     const goods = { ...world.goods, tools: Math.max(0, world.goods.tools - (carriesTools ? 1 : 0)) };
     const averageSkill = crewMembers.reduce((sum, citizen) => sum + citizen.skills.scout, 0) / crewMembers.length;
