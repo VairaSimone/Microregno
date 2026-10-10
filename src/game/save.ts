@@ -34,7 +34,7 @@ export function applyOfflineProgress(s:GameState,now=Date.now()):{state:GameStat
 const minutes=Math.min(OFFLINE_CAP_MINUTES*60,Math.floor(Math.max(0,now-(s.lastSavedAt||now))/1000));
 let copy:GameState={...s,resources:{...s.resources},buildings:s.buildings.map(b=>({...b}))};
 let remaining=minutes;
-while(remaining>0){const chunk=Math.min(360,remaining);copy=advanceTime(copy,chunk);remaining-=chunk;}
+while(remaining>0){const chunk=Math.min(360,remaining);copy=advanceTime(copy,chunk,false);remaining-=chunk;}
 copy.lastSavedAt=now;
 return{state:copy,minutes};}
 export function loadChallengeSave(date=localDateKey()):ChallengeSave|null{
