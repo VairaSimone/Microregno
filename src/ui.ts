@@ -233,19 +233,19 @@ function renderObjectives(snapshot: GameSnapshot): void {
   if (snapshot.mode === 'challenge') {
     objectives = [
       {
-        label: snapshot.challenge.title,
+        label: 'Completa la missione',
         done: snapshot.challengeCompleted,
         value: snapshot.challengeProgress + '/' + snapshot.challenge.target,
       },
       {
-        label: 'Risorse totali',
-        done: Object.values(state.resources).reduce((sum, amount) => sum + amount, 0) >= 100,
-        value: formatNumber(Object.values(state.resources).reduce((sum, amount) => sum + amount, 0)),
+        label: 'Migliora un edificio',
+        done: levelTwo > 0,
+        value: levelTwo > 0 ? levelTwo + ' livello 2+' : 'Da migliorare',
       },
       {
-        label: 'Edifici costruiti',
-        done: state.buildings.length >= 3,
-        value: String(state.buildings.length),
+        label: 'Costruisci 3 edifici',
+        done: state.buildings.filter((building) => building.type !== 'townHall').length >= 3,
+        value: state.buildings.filter((building) => building.type !== 'townHall').length + '/3',
       },
     ];
   } else if (state.population < 8) {
