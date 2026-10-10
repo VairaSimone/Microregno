@@ -10,6 +10,8 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Traguardi di popolazione a 8, 12, 18 e 24 abitanti con ricompense una tantum in monete; gli obiettivi si aggiornano man mano che il borgo cresce.
 - Piccoli abitanti animati percorrono il centro del villaggio e gli edifici migliorati mostrano il loro livello sulla mappa.
 - Salvataggio locale, progressione offline limitata, regno persistente e sfida giornaliera.
+- Richieste dei cittadini con scelte a tempo, conseguenze su umore e fiducia, cronaca persistente e scadenze.
+- Quattro stagioni con effetti reali su raccolti, consumo di cibo, produzione e colore del territorio.
 - Obiettivi, record locali, demolizione con rimborso parziale e interfaccia responsive.
 
 ## Come si gioca
@@ -31,6 +33,11 @@ Il primo obiettivo è portare il borgo a **8 abitanti**. La guida in gioco segue
 - Fattorie vicine all'acqua e segherie vicine ai boschi producono di più; le statistiche mostrano i bonus reali.
 - Gli edifici si possono migliorare fino al livello 3 dal pannello Dettagli; i miglioramenti costano anche monete, che diventano una risorsa da pianificare.
 - Il regno principale è persistente. La sfida giornaliera è opzionale e ha un salvataggio separato.
+- Ogni richiesta presenta tre risposte: pagare o scambiare risorse, aiutare la comunità o conservare le scorte. Le richieste scadono dopo 3 minuti reali; ignorarle abbassa umore e fiducia.
+- Umore almeno 75: produzione +5%; umore fino a 25: produzione −10%; umore sotto 20: la popolazione non cresce. Fiducia almeno 75: gli abitanti generano il 20% di monete in più.
+- Le stagioni cambiano ogni 360 minuti di gioco (circa 6 minuti reali). Inverno riduce la produzione agricola e aumenta del 50% il consumo di cibo; l'autunno aumenta la resa agricola del 35%.
+- Accogliere un nuovo abitante richiede capienza libera; in alternativa, una richiesta può finanziare un piccolo alloggio che aggiunge due posti abitativi.
+- La cronaca del borgo conserva le ultime sei conseguenze. Le richieste, i traguardi e lo stato della comunità sono inclusi nel salvataggio locale.
 
 La grafica degli edifici è inclusa localmente come SVG con dimensioni esplicite; non dipende da immagini caricate da siti terzi.
 
@@ -56,9 +63,11 @@ Il workflow di deploy è manuale per evitare tentativi di pubblicazione prima di
 - **src/game/engine.ts**: costruzioni, produzione, popolazione e terreno.
 - **src/game/KingdomScene.ts**: rendering e input Phaser.
 - **src/game/challenge.ts**: sfide giornaliere.
+- **src/game/community.ts**: richieste dei cittadini, scelte, conseguenze e stagioni.
 - **src/game/save.ts**: salvataggi e progressione offline.
 - **src/ui.ts** e **src/style.css**: interfaccia e layout.
 - **public/assets/**: sprite SVG originali.
 
 ## Limiti
-I salvataggi e i record sono locali. Account, sincronizzazione, classifiche online e anti-cheat richiedono un backend e non sono inclusi in questa base. La licenza open source non è ancora stata scelta.
+I salvataggi e i record sono locali. Le stagioni si alternano rapidamente per rendere visibili i cambiamenti in una sessione breve; i cittadini sono ancora agenti semplici e non hanno percorsi o bisogni individuali persistenti.
+ Account, sincronizzazione, classifiche online e anti-cheat richiedono un backend e non sono inclusi in questa base. La licenza open source non è ancora stata scelta.
