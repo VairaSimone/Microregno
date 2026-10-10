@@ -67,8 +67,15 @@ next.resources.food=Math.max(0,next.resources.food-next.population*.035*season.f
 next.resources.coins+=next.population*.006*((next.community?.trust??50)>=75?1.2:1)*modifiers.taxMultiplier+modifiers.tradeIncome;
 next.gameMinutes++;
 if(processCommunity)next=advanceCommunityMinute(next);
+const populationBeforeRealmStep=next.population;
 if(processRealm)next=advanceRealmMinute(next);
-if(next.gameMinutes%20===0&&next.resources.food>=18&&next.population<housingCapacity(next)&&(next.community?.morale??60)>=20)next.population++;
+// Births and departures are processed by the living-world simulation. Do not
+// apply normal growth a second time on that same minute, and keep citizens
+// synchronized with population before publishing or saving the state.
+if(next.gameMinutes%20===0&&(!processRealm||next.population===populationBeforeRealmStep)&&next.resources.food>=18&&next.population<housingCapacity(next)&&(next.community?.morale??60)>=20){
+  next={...next,population:next.population+1};
+  if(processRealm)next=ensureWorldState(next);
+}
 (Object.keys(next.resources) as Resource[]).forEach(r=>next.resources[r]=Math.max(0,Math.round(next.resources[r]*100)/100));
 }
 return next;}
