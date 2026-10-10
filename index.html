@@ -12,7 +12,24 @@
   <div class="tutorial-rule"><strong>Regola chiave</strong><span id="tutorial-rule-copy">Costruisci una fattoria: il cibo sostiene la crescita della popolazione.</span></div>
   <button id="tutorial-action" class="primary tutorial-action">Seleziona fattoria</button>
 </section>
-<section class="panel daily-panel"><div class="panel-heading"><div><small class="eyebrow">OGGI NEL REGNO</small><h2 id="challenge-title">Una nuova alba</h2></div><span class="sun-badge">✦</span></div><p id="challenge-description">Ogni grande regno comincia con una piccola decisione.</p><div class="progress-label"><span>Progresso</span><strong id="challenge-progress-label">0 / 10</strong></div><div class="progress-track"><span id="challenge-progress-fill"></span></div><div class="daily-foot"><span id="challenge-date">SFIDA GIORNALIERA</span><span id="challenge-best">Record: —</span></div></section>
+<section class="panel daily-panel living-panel" id="living-panel">
+<div id="community-content">
+  <div class="panel-heading"><div><small class="eyebrow" id="community-eyebrow">VOCI DAL BORGO · PRIMAVERA</small><h2 id="community-title">Una richiesta in piazza</h2></div><span class="sun-badge" id="season-badge" title="Stagione attuale">🌱</span></div>
+  <p id="community-description">Gli abitanti iniziano a portare al Consiglio piccoli problemi e nuove occasioni.</p>
+  <div class="season-note" id="community-season-note">La stagione influenza raccolto e scorte.</div>
+  <div class="progress-label"><span id="community-person">ADA · FORNAIA</span><strong id="community-deadline">Scade tra 03:00</strong></div>
+  <div id="community-options" class="community-options"></div>
+  <div class="community-stats"><span>Umore <b id="community-morale">60</b></span><span>Fiducia <b id="community-trust">50</b></span><span>Aiuti <b id="community-fulfilled">0</b></span></div>
+  <p class="community-outcome" id="community-outcome">Le prime decisioni del Consiglio daranno forma alla comunità.</p>
+</div>
+<div id="challenge-content" class="hidden">
+  <div class="panel-heading"><div><small class="eyebrow">SFIDA DI OGGI</small><h2 id="challenge-title">Una nuova alba</h2></div><span class="sun-badge">✦</span></div>
+  <p id="challenge-description">Ogni grande regno comincia con una piccola decisione.</p>
+  <div class="progress-label"><span>Progresso</span><strong id="challenge-progress-label">0 / 10</strong></div>
+  <div class="progress-track"><span id="challenge-progress-fill"></span></div>
+  <div class="daily-foot"><span id="challenge-date">SFIDA GIORNALIERA</span><span id="challenge-best">Record: —</span></div>
+</div>
+</section>
 <section class="panel objectives-panel"><div class="panel-heading"><div><small class="eyebrow">PICCOLI PASSI</small><h2>Obiettivi</h2></div><span class="count" id="objective-count">0/3</span></div><div id="objectives-list"></div></section><div class="tip"><b>✦</b><p><strong>Un consiglio del custode</strong><br/><span id="tip-text">Una casa dà spazio a nuovi abitanti. Senza cibo, però, nessun villaggio può crescere.</span></p></div></aside>
 <section class="world-column"><div class="world-heading"><div><small class="eyebrow" id="world-eyebrow">IL TUO TERRITORIO</small><h1 id="world-title">Valle di Brumadoro</h1><p id="world-subtitle">Un piccolo inizio. Infinite possibilità.</p></div><button id="center-map" class="subtle-button">⌖ <span>Centra</span></button></div>
 <div class="world-frame"><div class="frame-top"><span>● Territorio conosciuto</span><span id="game-clock">Giorno 1 · 00:00</span></div><div id="game-mount" class="game-mount" aria-label="Mappa interattiva del regno"></div><div class="frame-bottom"><span id="map-instruction">Scegli un edificio, poi una casella libera.</span><span>◇ Casella selezionata</span></div></div><div class="world-footer"><span><i></i><span id="save-status">Salvataggio locale attivo</span></span><span id="world-population-note">Il villaggio è pronto a crescere.</span></div></section>
