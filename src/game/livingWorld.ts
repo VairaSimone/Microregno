@@ -222,25 +222,34 @@ export function ensureWorldState(state: GameState): GameState {
     while (citizens.length > state.population) citizens.pop();
   }
   const knownCitizenIds = new Set(citizens.map((citizen) => citizen.id));
+  const seenExpeditionIds = new Set<string>();
   const validExpeditions = existing.expeditions
-    .filter((trip) => trip && typeof trip.id === 'string' && REGIONS.some((region) => region.id === trip.region)
-      && typeof trip.scoutId === 'string' && knownCitizenIds.has(trip.scoutId)
-      && Number.isFinite(trip.startedAt) && trip.startedAt >= 0 && Number.isFinite(trip.eta) && trip.eta >= trip.startedAt
-      && ['active', 'success', 'partial', 'failed'].includes(trip.status))
+    .filter((trip) => {
+      if (!trip || typeof trip.id !== 'string' || seenExpeditionIds.has(trip.id) || !REGIONS.some((region) => region.id === trip.region)
+        || typeof trip.scoutId !== 'string' || !knownCitizenIds.has(trip.scoutId)
+        || !Number.isFinite(trip.startedAt) || trip.startedAt < 0 || trip.startedAt > state.gameMinutes
+        || !Number.isFinite(trip.eta) || trip.eta < trip.startedAt
+        || !['active', 'success', 'partial', 'failed'].includes(trip.status)) return false;
+      seenExpeditionIds.add(trip.id);
+      return true;
+    })
     .map((trip) => {
       const crewIds = [...new Set([trip.scoutId, ...(Array.isArray(trip.crewIds) ? trip.crewIds.filter((id): id is string => typeof id === 'string' && knownCitizenIds.has(id)) : [])])].slice(0, 3);
       return { ...trip, crewIds, successChance: Number.isFinite(trip.successChance) ? clamp(trip.successChance) : 45 };
     });
   const assignedActiveCrew = new Set<string>();
+  const acceptedActiveTripIds = new Set<string>();
   const activeTripsByCitizen = new Map<string, Expedition>();
   for (const trip of validExpeditions.filter((entry) => entry.status === 'active')) {
     const crewIds = trip.crewIds ?? [trip.scoutId];
     if (crewIds.some((id) => assignedActiveCrew.has(id))) continue;
+    acceptedActiveTripIds.add(trip.id);
     for (const id of crewIds) {
       assignedActiveCrew.add(id);
       activeTripsByCitizen.set(id, trip);
     }
   }
+  const sanitizedExpeditions = validExpeditions.filter((trip) => trip.status !== 'active' || acceptedActiveTripIds.has(trip.id));
   citizens = citizens.map((citizen) => {
     const activeTrip = activeTripsByCitizen.get(citizen.id);
     if (activeTrip) return { ...citizen, status: 'exploring', activity: 'exploring', expeditionId: activeTrip.id, lastAction: 'Sta esplorando il territorio' };
@@ -286,7 +295,7 @@ export function ensureWorldState(state: GameState): GameState {
     researchProgress: Number.isFinite(existing.researchProgress) ? Math.max(0, existing.researchProgress) : 0,
     researched: [...new Set(existing.researched.filter((id): id is ResearchId => RESEARCH.some((entry) => entry.id === id)))],
     activeResearch: RESEARCH.some((entry) => entry.id === existing.activeResearch) ? existing.activeResearch : null,
-    expeditions: validExpeditions.slice(-8),
+    expeditions: sanitizedExpeditions.slice(-8),
     discoveredRegions: [...new Set(existing.discoveredRegions.filter((id): id is RegionId => REGIONS.some((region) => region.id === id)))],
     chronicle: existing.chronicle.filter((entry): entry is string => typeof entry === 'string').slice(0, 12),
     activeEvent: existing.activeEvent && typeof existing.activeEvent.id === 'string' && typeof existing.activeEvent.title === 'string' && typeof existing.activeEvent.description === 'string' && Number.isFinite(existing.activeEvent.startedAt) && existing.activeEvent.startedAt >= 0 && Array.isArray(existing.activeEvent.choices) && existing.activeEvent.choices.length > 0 && existing.activeEvent.choices.length <= 8 && existing.activeEvent.choices.every(validEventChoice) ? existing.activeEvent : null,
