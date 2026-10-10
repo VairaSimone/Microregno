@@ -73,6 +73,36 @@ const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', for
 function clamp(value: number, low = 0, high = 100): number {
   return Math.max(low, Math.min(high, Math.round(value * 100) / 100));
 }
+
+function validPartialResourceBag(value: unknown): value is Partial<ResourceBag> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const allowed = new Set<Resource>(['wood', 'stone', 'food', 'coins']);
+  return Object.entries(value).every(([key, amount]) => allowed.has(key as Resource) && typeof amount === 'number' && Number.isFinite(amount) && amount >= 0);
+}
+
+function validPartialGoodsBag(value: unknown): value is Partial<GoodsBag> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const allowed = new Set<keyof GoodsBag>(['grain', 'flour', 'bread', 'tools', 'medicine']);
+  return Object.entries(value).every(([key, amount]) => allowed.has(key as keyof GoodsBag) && typeof amount === 'number' && Number.isFinite(amount) && amount >= 0);
+}
+
+function validEventChoice(value: unknown): value is RealmEventChoice {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const choice = value as Partial<RealmEventChoice>;
+  const finiteOptional = (number: unknown) => number === undefined || (typeof number === 'number' && Number.isFinite(number));
+  return typeof choice.id === 'string' && choice.id.length > 0
+    && typeof choice.label === 'string' && typeof choice.detail === 'string'
+    && (choice.cost === undefined || validPartialResourceBag(choice.cost))
+    && (choice.reward === undefined || validPartialResourceBag(choice.reward))
+    && (choice.goodsCost === undefined || validPartialGoodsBag(choice.goodsCost))
+    && (choice.goodsReward === undefined || validPartialGoodsBag(choice.goodsReward))
+    && finiteOptional(choice.moodDelta) && finiteOptional(choice.trustDelta)
+    && finiteOptional(choice.researchDelta) && (choice.researchDelta === undefined || choice.researchDelta >= 0)
+    && finiteOptional(choice.populationDelta) && (choice.populationDelta === undefined || (Number.isInteger(choice.populationDelta) && Math.abs(choice.populationDelta) <= 100))
+    && (choice.chain === undefined || typeof choice.chain === 'string')
+    && (choice.profession === undefined || PROFESSIONS.includes(choice.profession));
+}
+
 function makeCitizen(seed: number, index: number, gameMinutes: number): Citizen {
   const allSkills: Record<Profession, number> = {
     farmer: 5, lumberjack: 5, miner: 5, merchant: 5, miller: 5, baker: 5,
@@ -157,8 +187,8 @@ export function ensureWorldState(state: GameState): GameState {
     const sourceRelationships = source.relationships && typeof source.relationships === 'object' && !Array.isArray(source.relationships) ? source.relationships as Record<string, unknown> : {};
     const relationships = Object.fromEntries(Object.entries(sourceRelationships).filter(([, value]) => Number.isFinite(value)).map(([key, value]) => [key, clamp(value as number, -100, 100)]));
     const traits = Array.isArray(source.traits) ? source.traits.filter((trait): trait is string => typeof trait === 'string').slice(0, 4) : fallback.traits;
-    const activityValues = ['working', 'resting', 'socializing', 'commuting', 'eating', 'exploring'];
-    const activity = activityValues.includes(source.activity as string) ? source.activity as Citizen['activity'] : status === 'exploring' ? 'exploring' : 'socializing';
+    const activityValues = ['working', 'resting', 'socializing', 'commuting', 'eating'];
+    const activity = status === 'exploring' ? 'exploring' : activityValues.includes(source.activity as string) ? source.activity as Citizen['activity'] : 'socializing';
     return {
       ...fallback, id,
       name: typeof source.name === 'string' && source.name.trim() ? source.name.trim().slice(0, 80) : fallback.name,
@@ -171,7 +201,7 @@ export function ensureWorldState(state: GameState): GameState {
       experience: Number.isFinite(source.experience) ? Math.max(0, source.experience as number) : 0,
       status, activity,
       workplaceId: typeof source.workplaceId === 'string' ? source.workplaceId : null,
-      expeditionId: typeof source.expeditionId === 'string' ? source.expeditionId : null,
+      expeditionId: status === 'exploring' && typeof source.expeditionId === 'string' ? source.expeditionId : null,
       lastAction: typeof source.lastAction === 'string' ? source.lastAction.slice(0, 240) : fallback.lastAction,
       relationships,
       homeId: typeof source.homeId === 'string' ? source.homeId : null,
@@ -233,11 +263,12 @@ export function ensureWorldState(state: GameState): GameState {
     },
     researchPoints: Number.isFinite(existing.researchPoints) ? Math.max(0, Math.min(100000, existing.researchPoints)) : 0,
     researchProgress: Number.isFinite(existing.researchProgress) ? Math.max(0, existing.researchProgress) : 0,
+    researched: [...new Set(existing.researched.filter((id): id is ResearchId => RESEARCH.some((entry) => entry.id === id))],
     activeResearch: RESEARCH.some((entry) => entry.id === existing.activeResearch) ? existing.activeResearch : null,
     expeditions: existing.expeditions.filter((expedition) => expedition && typeof expedition.id === 'string' && REGIONS.some((region) => region.id === expedition.region) && typeof expedition.scoutId === 'string' && Number.isFinite(expedition.startedAt) && Number.isFinite(expedition.eta) && ['active', 'success', 'partial', 'failed'].includes(expedition.status)).map((expedition) => ({ ...expedition, crewIds: Array.isArray(expedition.crewIds) ? expedition.crewIds.filter((id): id is string => typeof id === 'string') : [expedition.scoutId], eta: Math.max(0, expedition.eta), successChance: Number.isFinite(expedition.successChance) ? clamp(expedition.successChance) : 45 })).slice(-8),
     discoveredRegions: [...new Set(existing.discoveredRegions.filter((id): id is RegionId => REGIONS.some((region) => region.id === id)))],
     chronicle: existing.chronicle.filter((entry): entry is string => typeof entry === 'string').slice(0, 12),
-    activeEvent: existing.activeEvent && typeof existing.activeEvent.id === 'string' && typeof existing.activeEvent.title === 'string' && typeof existing.activeEvent.description === 'string' && Array.isArray(existing.activeEvent.choices) && existing.activeEvent.choices.every((choice) => choice && typeof choice.id === 'string' && typeof choice.label === 'string' && typeof choice.detail === 'string') ? existing.activeEvent : null,
+    activeEvent: existing.activeEvent && typeof existing.activeEvent.id === 'string' && typeof existing.activeEvent.title === 'string' && typeof existing.activeEvent.description === 'string' && Number.isFinite(existing.activeEvent.startedAt) && existing.activeEvent.startedAt >= 0 && Array.isArray(existing.activeEvent.choices) && existing.activeEvent.choices.length > 0 && existing.activeEvent.choices.length <= 8 && existing.activeEvent.choices.every(validEventChoice) ? existing.activeEvent : null,
     nextEventAt: Number.isFinite(existing.nextEventAt) ? existing.nextEventAt : state.gameMinutes + 240,
     queuedEvent: existing.queuedEvent ?? null,
     projectStages: {
