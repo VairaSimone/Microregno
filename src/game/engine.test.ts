@@ -2,6 +2,7 @@ import {describe,expect,it} from 'vitest';
 import {advanceTime,awardPopulationMilestones,buildAt,canBuild,createInitialState,generateTerrain,housingCapacity,productionForBuilding,resourceRates,upgradeBuilding} from './engine';
 import {createDailyChallenge,challengeProgress,isChallengeComplete} from './challenge';
 import {applyOfflineProgress} from './save';
+import {getSeason,resolveCitizenRequest} from './community';
 
 describe('simulazione Microregno',()=>{
   it('genera un terreno deterministico per seed',()=>{
@@ -51,8 +52,8 @@ describe('simulazione Microregno',()=>{
   it('mostra produzione con bonus ambientali e livelli effettivi',()=>{
     const s=createInitialState(),map=generateTerrain(s.seed),farm=buildAt(s,map,6,4,'farm');
     expect(farm.check.ok).toBe(true);
-    expect(productionForBuilding(farm.state.buildings[1]!,map).food).toBeCloseTo(2.07);
-    expect(resourceRates(farm.state,map).food).toBeCloseTo(1.895);
+    expect(productionForBuilding(farm.state.buildings[1]!,map,360,60).food).toBeCloseTo(2.07);
+    expect(resourceRates(farm.state,map,360).food).toBeCloseTo(1.895);
   });
   it('permette di migliorare un edificio fino al livello 3',()=>{
     const s=createInitialState(),map=generateTerrain(s.seed),farm=buildAt(s,map,6,4,'farm'),id=farm.state.buildings[1]!.id;
@@ -61,7 +62,7 @@ describe('simulazione Microregno',()=>{
     expect(upgraded.state.buildings[1]!.level).toBe(2);
     expect(upgraded.state.resources.wood).toBe(24);
     expect(upgraded.state.resources.coins).toBe(15);
-    expect(productionForBuilding(upgraded.state.buildings[1]!,map).food).toBeCloseTo(4.14);
+    expect(productionForBuilding(upgraded.state.buildings[1]!,map,360,60).food).toBeCloseTo(4.14);
     const levelThree=upgradeBuilding(upgraded.state,id);
     expect(levelThree.state.buildings[1]!.level).toBe(3);
     expect(upgradeBuilding(levelThree.state,id).check.ok).toBe(false);
@@ -82,6 +83,40 @@ describe('simulazione Microregno',()=>{
     expect(offline.state.gameMinutes).toBe(online.gameMinutes);
     expect(offline.state.population).toBe(online.population);
     expect(offline.state.resources).toEqual(online.resources);
+  });
+  it('cambia stagione e applica il consumo invernale',()=>{
+    const s=createInitialState(),map=generateTerrain(s.seed);
+    expect(getSeason(0).id).toBe('spring');
+    expect(getSeason(360).id).toBe('summer');
+    expect(getSeason(720).id).toBe('autumn');
+    expect(getSeason(1080).id).toBe('winter');
+    expect(resourceRates(s,map,1080).food).toBeCloseTo(-0.2625);
+  });
+  it('risolve una richiesta e salva conseguenze misurabili',()=>{
+    const s=createInitialState(),result=resolveCitizenRequest(s,'share-food');
+    expect(result.ok).toBe(true);
+    expect(result.state.resources.food).toBe(34);
+    expect(result.state.community?.morale).toBe(72);
+    expect(result.state.community?.trust).toBe(60);
+    expect(result.state.community?.fulfilledRequests).toBe(1);
+    expect(result.state.community?.activeRequest).toBeNull();
+  });
+  it('non permette scelte senza risorse sufficienti',()=>{
+    const s=createInitialState();
+    s.resources.food=0;
+    const result=resolveCitizenRequest(s,'share-food');
+    expect(result.ok).toBe(false);
+    expect(result.state.resources.food).toBe(0);
+    expect(result.state.community?.activeRequest?.id).toContain('request-0');
+  });
+  it('penalizza una richiesta ignorata e genera una nuova richiesta più tardi',()=>{
+    const s=createInitialState(),ignored=advanceTime(s,180);
+    expect(ignored.community?.activeRequest).toBeNull();
+    expect(ignored.community?.ignoredRequests).toBe(1);
+    expect(ignored.community?.morale).toBe(52);
+    const later=advanceTime(ignored,120);
+    expect(later.community?.activeRequest).not.toBeNull();
+    expect(later.community?.requestNumber).toBe(2);
   });
   it('genera la stessa sfida per una stessa data',()=>{
     const date=new Date(2026,9,10,12),challenge=createDailyChallenge(date);
