@@ -147,7 +147,26 @@ export function createCommunityState(seed: number, gameMinutes = 0): CommunitySt
 }
 
 export function ensureCommunity(state: GameState): GameState {
-  if (state.community && typeof state.community.morale === 'number' && typeof state.community.trust === 'number') return state;
+  const current = state.community;
+  const requestLooksValid = !current?.activeRequest || (
+    typeof current.activeRequest.id === 'string'
+    && typeof current.activeRequest.citizen === 'string'
+    && typeof current.activeRequest.title === 'string'
+    && Number.isFinite(current.activeRequest.deadline)
+    && Array.isArray(current.activeRequest.options)
+    && current.activeRequest.options.every((item) => typeof item.id === 'string' && typeof item.label === 'string')
+  );
+  if (
+    current
+    && Number.isFinite(current.morale) && current.morale >= 0 && current.morale <= 100
+    && Number.isFinite(current.trust) && current.trust >= 0 && current.trust <= 100
+    && Number.isFinite(current.fulfilledRequests) && current.fulfilledRequests >= 0
+    && Number.isFinite(current.ignoredRequests) && current.ignoredRequests >= 0
+    && Number.isFinite(current.requestNumber) && current.requestNumber >= 1
+    && Number.isFinite(current.nextRequestAt)
+    && Array.isArray(current.history)
+    && requestLooksValid
+  ) return state;
   return { ...state, community: createCommunityState(state.seed, state.gameMinutes) };
 }
 
