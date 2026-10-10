@@ -5,7 +5,8 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 ## Funzionalità
 - Mappa a griglia con proiezione isometrica leggera e terreno generato proceduralmente.
 - Sprite SVG originali per municipio, case, fattoria, segheria, cava, mercato, alberi e rocce.
-- Economia, popolazione, costi, vincoli del terreno e sblocco del mercato.
+- Economia, popolazione, costi, vincoli del terreno, bonus ambientali e sblocco del mercato.
+- Edifici migliorabili fino al livello 3: aumentano produzione o capienza e richiedono investimenti di risorse.
 - Salvataggio locale, progressione offline limitata, regno persistente e sfida giornaliera.
 - Obiettivi, record locali, demolizione con rimborso parziale e interfaccia responsive.
 
@@ -23,7 +24,10 @@ Il primo obiettivo è portare il borgo a **8 abitanti**. La guida in gioco segue
 - Verde = posizione valida; rosso = posizione non valida.
 - La segheria richiede un bosco vicino; la cava richiede roccia vicina.
 - Segheria e cava si sbloccano a 6 abitanti; il mercato a 8.
+- Il municipio ospita i 5 abitanti iniziali; costruisci una casa o migliora il municipio per aumentare la capienza.
 - La popolazione cresce ogni 20 minuti di gioco se ci sono almeno 18 unità di cibo e posti abitativi liberi.
+- Fattorie vicine all'acqua e segherie vicine ai boschi producono di più; le statistiche mostrano i bonus reali.
+- Gli edifici si possono migliorare fino al livello 3 dal pannello Dettagli.
 - Il regno principale è persistente. La sfida giornaliera è opzionale e ha un salvataggio separato.
 
 La grafica degli edifici è inclusa localmente come SVG con dimensioni esplicite; non dipende da immagini caricate da siti terzi.
