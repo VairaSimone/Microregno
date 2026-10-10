@@ -155,7 +155,7 @@ function renderTutorial(snapshot: GameSnapshot): void {
 
   const buildAlreadySelected = current.actionType !== null && snapshot.selectedBuildType === current.actionType;
   action.textContent = buildAlreadySelected ? 'Ora clicca una casella libera sulla mappa' : current.actionLabel;
-  action.disabled = buildAlreadySelected;
+  action.disabled = current.actionType === null || buildAlreadySelected;
 }
 
 function renderBuildList(snapshot: GameSnapshot): void {
