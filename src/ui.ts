@@ -9,6 +9,7 @@ import type { BuildingType, GameSnapshot, Resource } from './game/types';
 const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
 const TUTORIAL_SEEN_KEY = 'microregno:tutorial-seen:v1';
 let renderedRequestId: string | null | undefined;
+let showAllBuildOptions = false;
 
 const $ = <T extends HTMLElement>(id: string): T => {
   const element = document.getElementById(id);
@@ -24,6 +25,15 @@ const formatDelta = (value: number): string => value > 0 ? '+' + value : String(
 const dispatch = (name: string, detail?: unknown): void => {
   window.dispatchEvent(new CustomEvent(name, { detail }));
 };
+
+function publicAssetUrl(file: string): string {
+  // GitHub Pages may be opened with or without a trailing slash. Treat extensionless
+  // final path segments as directories so assets still resolve under /Microregno/.
+  const page = new URL(window.location.href);
+  const finalSegment = page.pathname.split('/').pop() ?? '';
+  if (!page.pathname.endsWith('/') && !finalSegment.includes('.')) page.pathname += '/';
+  return new URL('assets/' + file.replace(/^\\/+/, ''), page).toString();
+}
 
 let latestSnapshot: GameSnapshot | null = null;
 
@@ -161,14 +171,32 @@ function renderTutorial(snapshot: GameSnapshot): void {
 
   const buildAlreadySelected = current.actionType !== null && snapshot.selectedBuildType === current.actionType;
   action.textContent = buildAlreadySelected ? 'Ora clicca una casella libera sulla mappa' : current.actionLabel;
-  action.disabled = current.actionType === null || buildAlreadySelected;
+  // Keep the control actionable even on waiting steps: it explains the exact condition
+  // instead of presenting a disabled button that looks broken.
+  action.disabled = false;
 }
 
 function renderBuildList(snapshot: GameSnapshot): void {
   const host = $('build-list');
   host.innerHTML = '';
 
-  BUILD_ORDER.forEach((type) => {
+  const population = snapshot.state.population;
+  const coreTypes = new Set<BuildingType>([
+    'farm',
+    'house',
+    ...(population >= 6 ? ['sawmill', 'quarry'] as BuildingType[] : []),
+    ...(population >= 8 ? ['market', 'road', 'mill', 'warehouse'] as BuildingType[] : []),
+    ...(population >= 10 ? ['bakery', 'school', 'workshop'] as BuildingType[] : []),
+    ...(population >= 12 ? ['watchtower'] as BuildingType[] : []),
+  ]);
+  // Keep the first screen focused on the next sensible choices. The complete sandbox
+  // catalogue remains available on demand; locked items are not the first thing a new
+  // player has to parse.
+  const visibleTypes = BUILD_ORDER.filter((type) =>
+    showAllBuildOptions || (coreTypes.has(type) && buildingUnlocked(snapshot.state, type)),
+  );
+
+  visibleTypes.forEach((type) => {
     const definition = BUILDINGS[type];
     const unlocked = buildingUnlocked(snapshot.state, type);
     const affordable = Object.entries(definition.cost).every(([resource, amount]) =>
@@ -187,9 +215,16 @@ function renderBuildList(snapshot: GameSnapshot): void {
     icon.className = 'build-icon';
     icon.setAttribute('aria-hidden', 'true');
     const sprite = document.createElement('img');
-    sprite.src = new URL('assets/' + type + '.svg', document.baseURI).toString();
+    const spriteName = type === 'townHall' ? 'town-hall' : type;
+    sprite.src = publicAssetUrl(spriteName + '.svg');
     sprite.alt = '';
     sprite.draggable = false;
+    sprite.addEventListener('error', () => {
+      // A missing asset should never leave a dead/empty icon in the build menu.
+      sprite.remove();
+      icon.classList.add('build-icon-fallback');
+      icon.textContent = definition.icon;
+    }, { once: true });
     icon.append(sprite);
 
     const copy = document.createElement('span');
@@ -215,15 +250,35 @@ function renderBuildList(snapshot: GameSnapshot): void {
     host.append(button);
   });
 
+  const catalogToggle = document.createElement('button');
+  catalogToggle.type = 'button';
+  catalogToggle.className = 'catalog-toggle';
+  catalogToggle.setAttribute('aria-expanded', String(showAllBuildOptions));
+  catalogToggle.textContent = showAllBuildOptions
+    ? 'Mostra solo gli edifici consigliati'
+    : 'Catalogo completo · tutti gli edifici';
+  catalogToggle.addEventListener('click', () => {
+    showAllBuildOptions = !showAllBuildOptions;
+    if (latestSnapshot) renderBuildList(latestSnapshot);
+  });
+  host.append(catalogToggle);
+
   $('build-description').textContent = snapshot.selectedBuildType
-    ? 'Costruzione selezionata. Scegli una casella verde valida sulla mappa; le caselle rosse non vanno bene.'
-    : 'Seleziona un edificio, poi clicca una casella d’erba libera sulla mappa.';
+    ? 'Costruzione selezionata. Clicca una casella verde libera sulla mappa; le caselle rosse non sono valide.'
+    : showAllBuildOptions
+      ? 'Catalogo completo: gli edifici bloccati indicano quanti abitanti servono per sbloccarli.'
+      : population < 6
+        ? 'Per iniziare bastano Fattoria e Casa: prima assicura il cibo, poi aumenta i posti abitativi.'
+        : population < 8
+          ? 'Ora puoi costruire una Segheria vicino agli alberi e una Cava vicino alle rocce.'
+          : 'Gli edifici avanzati si sbloccano con la popolazione. Usa il catalogo completo per consultarli tutti.';
 
   $('map-instruction').textContent = snapshot.selectedBuildType
     ? 'Costruisci: ' + BUILDINGS[snapshot.selectedBuildType].name + ' · scegli una casella d’erba libera.'
-    : 'Seleziona una costruzione a destra, poi scegli dove piazzarla.';
+    : population < 6 && !showAllBuildOptions
+      ? 'Primo obiettivo: Fattoria → Casa → almeno 18 unità di cibo.'
+      : 'Seleziona una costruzione a destra, poi scegli dove piazzarla.';
 }
-
 function renderCitizenPanel(snapshot: GameSnapshot): void {
   const communityHost = $('community-content');
   const challengeHost = $('challenge-content');
@@ -822,7 +877,11 @@ export function setupUI(): void {
 
   $('help-button').addEventListener('click', openGuide);
   $('close-help').addEventListener('click', () => dialog.close());
-  $('start-playing').addEventListener('click', () => dialog.close());
+  $('start-playing').addEventListener('click', () => {
+    dialog.close();
+    if (latestSnapshot?.mode === 'challenge') dispatch('microregno:mode', 'kingdom');
+    dispatch('microregno:build', 'farm');
+  });
   $('skip-tutorial').addEventListener('click', () => dialog.close());
 
   dialog.addEventListener('close', markTutorialSeen);
@@ -845,8 +904,15 @@ export function setupUI(): void {
       return;
     }
     const current = createTutorialSteps(latestSnapshot).find((step) => !step.done);
-    if (current?.actionType) dispatch('microregno:build', current.actionType);
-    else openGuide();
+    if (current?.actionType) {
+      if (latestSnapshot.selectedBuildType === current.actionType) {
+        dispatch('microregno:notice', 'La costruzione è selezionata: ora clicca una casella libera con contorno verde sulla mappa.');
+      } else {
+        dispatch('microregno:build', current.actionType);
+      }
+    } else if (current) {
+      dispatch('microregno:notice', current.rule);
+    }
   });
 
   $('upgrade-button').addEventListener('click', () => dispatch('microregno:upgrade'));
