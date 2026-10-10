@@ -7,6 +7,8 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Sprite SVG originali per municipio, case, fattoria, segheria, cava, mercato, alberi e rocce.
 - Economia, popolazione, costi, vincoli del terreno, bonus ambientali e sblocco del mercato.
 - Edifici migliorabili fino al livello 3: aumentano produzione o capienza e richiedono investimenti di risorse.
+- Traguardi di popolazione a 8, 12, 18 e 24 abitanti con ricompense una tantum in monete; gli obiettivi si aggiornano man mano che il borgo cresce.
+- Piccoli abitanti animati percorrono il centro del villaggio e gli edifici migliorati mostrano il loro livello sulla mappa.
 - Salvataggio locale, progressione offline limitata, regno persistente e sfida giornaliera.
 - Obiettivi, record locali, demolizione con rimborso parziale e interfaccia responsive.
 
