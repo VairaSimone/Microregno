@@ -4,9 +4,9 @@ export type Terrain='grass'|'forest'|'rock'|'water';
 export type GameMode='kingdom'|'challenge';
 export type SeasonId='spring'|'summer'|'autumn'|'winter';
 export interface SeasonInfo{id:SeasonId;name:string;icon:string;description:string;farmMultiplier:number;foodConsumptionMultiplier:number}
-export interface CitizenRequestOption{id:string;label:string;detail:string;cost:Partial<ResourceBag>;reward:Partial<ResourceBag>;moodDelta:number;trustDelta:number;populationDelta?:number}
+export interface CitizenRequestOption{id:string;label:string;detail:string;cost:Partial<ResourceBag>;reward:Partial<ResourceBag>;moodDelta:number;trustDelta:number;populationDelta?:number;housingDelta?:number}
 export interface CitizenRequest{id:string;citizen:string;role:string;title:string;description:string;deadline:number;options:CitizenRequestOption[]}
-export interface CommunityState{morale:number;trust:number;fulfilledRequests:number;ignoredRequests:number;requestNumber:number;nextRequestAt:number;activeRequest:CitizenRequest|null;history:string[];lastOutcome:string}
+export interface CommunityState{morale:number;trust:number;fulfilledRequests:number;ignoredRequests:number;requestNumber:number;nextRequestAt:number;activeRequest:CitizenRequest|null;history:string[];lastOutcome:string;housingBonus?:number}
 export type ResourceBag=Record<Resource,number>;
 export interface Building{id:string;type:BuildingType;x:number;y:number;level:number}
 export interface GameState{version:1;seed:number;resources:ResourceBag;population:number;gameMinutes:number;buildings:Building[];lastSavedAt:number;milestones?:number[];community?:CommunityState}
