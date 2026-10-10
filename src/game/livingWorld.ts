@@ -337,7 +337,7 @@ export function ensureWorldState(input: GameState): GameState {
   // Drop orphan expeditions whose crew no longer exists and safely repair IDs for future arrivals.
   normalized.expeditions = normalized.expeditions.filter((trip) => trip.status !== 'active' || (trip.crewIds?.length ?? 0) > 0);
   const maxId = normalized.citizens.reduce((max, citizen) => {
-    const match = /^citizen-(\\d+)$/.exec(citizen.id);
+    const match = /^citizen-(\d+)$/.exec(citizen.id);
     return match ? Math.max(max, Number(match[1])) : max;
   }, 0);
   normalized.nextCitizenId = Math.max(normalized.nextCitizenId, maxId + 1, normalized.citizens.length + 1);
@@ -387,7 +387,7 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
     const readiness = assigned.reduce((total, citizen) => total + (citizen.energy + citizen.health + citizen.happiness) / 3, 0) / Math.max(1, assigned.length) / 100;
     multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
   }
-  if (world.researched.includes('tools') && ['farm', 'sawmill', 'quarry', 'market'].includes(building.type)) multiplier *= 1.12;
+  if (world.researched.includes('tools') && ['farm', 'sawmill', 'quarry', 'market', 'mill', 'bakery', 'workshop'].includes(building.type)) multiplier *= 1.12;
   if (building.type !== 'road' && state.buildings.some((entry) => entry.type === 'road' && Math.abs(entry.x - building.x) + Math.abs(entry.y - building.y) <= 1)) multiplier *= 1.08;
   if (world.completedProjects.includes('artisan-quarter')) multiplier *= 1.08;
   if (building.type === 'farm' && world.researched.includes('irrigation')) multiplier *= 1.15;
@@ -650,9 +650,10 @@ export function advanceRealmMinute(input: GameState): GameState {
   if (goods.bread > 0 && state.gameMinutes > 0 && state.gameMinutes % 18 === 0 && resources.food > 0.1) goods.bread = Math.max(0, goods.bread - state.population * 0.015);
   const workshops = state.buildings.filter((building) => building.type === 'workshop');
   const workshopProductivity = workshops.reduce((sum, workshop) => sum + workshop.level * worldBuildingMultiplier(state, workshop), 0);
-  if (workshopProductivity > 0.1 && state.gameMinutes % 45 === 0 && resources.wood >= 2 && resources.stone >= 1 && goods.tools < goodsCapacity(state)) {
-    resources.wood -= 2; resources.stone -= 1; goods.tools += 1;
-    notes.push('L’officina ha completato un nuovo attrezzo.');
+  const toolBatch = Math.min(Math.max(1, Math.floor(workshopProductivity)), Math.floor(resources.wood / 2), resources.stone, Math.floor(goodsCapacity(state) - goods.tools));
+  if (workshopProductivity > 0.1 && state.gameMinutes % 45 === 0 && toolBatch > 0) {
+    resources.wood -= toolBatch * 2; resources.stone -= toolBatch; goods.tools += toolBatch;
+    notes.push(toolBatch === 1 ? 'L’officina ha completato un nuovo attrezzo.' : 'Le officine hanno completato ' + toolBatch + ' nuovi attrezzi.');
   }
   const cap = goodsCapacity(state);
   (Object.keys(goods) as Array<keyof GoodsBag>).forEach((key) => { goods[key] = clamp(goods[key], 0, cap); });
