@@ -14,7 +14,7 @@
 </section>
 <section class="panel daily-panel living-panel" id="living-panel">
 <div id="community-content">
-  <div class="panel-heading"><div><small class="eyebrow" id="community-eyebrow">VOCI DAL BORGO · PRIMAVERA</small><h2 id="community-title">Una richiesta in piazza</h2></div><span class="sun-badge" id="season-badge" title="Stagione attuale">🌱</span></div>
+  <div class="panel-heading"><div><small class="eyebrow" id="community-eyebrow">VOCI DAL BORGO · PRIMAVERA</small><h2 id="community-title">Una richiesta in piazza</h2></div><div class="community-panel-actions"><button id="community-history-button" class="history-trigger" type="button" aria-label="Apri la cronaca del borgo" title="Cronaca del borgo">▤</button><span class="sun-badge" id="season-badge" title="Stagione attuale">🌱</span></div></div>
   <p id="community-description">Gli abitanti iniziano a portare al Consiglio piccoli problemi e nuove occasioni.</p>
   <div class="season-note" id="community-season-note">La stagione influenza raccolto e scorte.</div>
   <div class="progress-label"><span id="community-person">ADA · FORNAIA</span><strong id="community-deadline">Scade tra 03:00</strong></div>
@@ -49,5 +49,12 @@
 </div>
 <p class="help-footnote">Scegli l'edificio, poi scegli la casella sulla mappa. Le caselle rosse non sono valide. Le sfide giornaliere sono facoltative e separate dal tuo regno.</p>
 <div class="dialog-actions"><button id="start-playing" class="primary">Inizia la guida</button><button id="skip-tutorial" class="secondary">Gioca liberamente</button></div>
+</dialog>
+<dialog id="community-history-dialog">
+  <div class="dialog-top"><small class="eyebrow">MEMORIA DEL BORGO</small><button id="close-community-history" class="icon-button" aria-label="Chiudi cronaca">×</button></div>
+  <h2>La cronaca di Brumadoro</h2>
+  <p id="community-history-summary">Ogni decisione contribuisce a costruire la fiducia del villaggio.</p>
+  <div id="community-history-list" class="community-history-list"></div>
+  <div class="dialog-actions"><button id="close-community-history-footer" class="primary">Torna al borgo</button></div>
 </dialog>
 <script type="module" src="./src/main.ts"></script></body></html>
