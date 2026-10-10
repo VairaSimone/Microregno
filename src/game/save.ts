@@ -15,7 +15,7 @@ export function loadKingdom():GameState{
 const stored=read<unknown>(KEY);
 if(valid(stored)){
 const v=ensureWorldState(ensureCommunity(stored));
-const types=['townHall','house','farm','sawmill','quarry','market','mill','bakery','warehouse','school','watchtower','workshop'];
+const types=['townHall','house','farm','sawmill','quarry','market','road','mill','bakery','warehouse','school','watchtower','workshop'];
 const safe=(v.buildings as Building[]).filter(b=>!!b&&typeof b==='object'&&typeof b.id==='string'&&Number.isInteger(b.x)&&Number.isInteger(b.y)&&b.x>=0&&b.x<12&&b.y>=0&&b.y<12&&types.includes(b.type)&&Number.isInteger(b.level)&&b.level>=1&&b.level<=MAX_BUILDING_LEVEL);
 const unique=safe.filter((b,i,list)=>list.findIndex(other=>other.x===b.x&&other.y===b.y)===i);
 v.buildings=unique;
