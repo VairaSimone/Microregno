@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from './engine';
-import { ensureWorldState } from './livingWorld';
+import { ensureWorldState, performRealmAction } from './livingWorld';
 import { loadKingdom, resetKingdom, saveKingdom } from './save';
 import type { GameState } from './types';
 
@@ -101,6 +101,39 @@ describe('save resilience', () => {
     expect(repaired?.profession).not.toBe('not-a-job');
     expect(repaired?.energy).toBe(0);
     expect(repaired?.happiness).toBe(100);
+  });
+
+  it('drops malformed event rewards and unknown research IDs during world migration', () => {
+    const state = createInitialState(445);
+    const corruptedWorld = {
+      ...state.world!,
+      researched: ['not-a-research', 'tools'],
+      activeEvent: { id: 'corrupt-event', title: 'Evento', description: 'Descrizione', startedAt: 0, choices: [{ id: 'free-money', label: 'Prendi tutto', detail: 'Ricompensa non valida', reward: { coins: Number.NaN } }] },
+    } as unknown as NonNullable<GameState['world']>;
+
+    const repaired = ensureWorldState({ ...state, world: corruptedWorld });
+
+    expect(repaired.world!.researched).toEqual(['tools']);
+    expect(repaired.world!.activeEvent).toBeNull();
+  });
+
+  it('releases crew when an active expedition is malformed or has impossible timing', () => {
+    const state = createInitialState(446);
+    state.resources.food = 100;
+    const launched = performRealmAction(state, { type: 'expedition', id: 'forest', scoutId: 'citizen-5', crewIds: ['citizen-5', 'citizen-1'], foodSupply: 11 });
+    expect(launched.ok).toBe(true);
+    const corrupted = {
+      ...launched.state,
+      world: {
+        ...launched.state.world!,
+        expeditions: launched.state.world!.expeditions.map((trip) => ({ ...trip, eta: trip.startedAt - 1 })),
+      },
+    } as GameState;
+
+    const repaired = ensureWorldState(corrupted);
+
+    expect(repaired.world!.expeditions).toHaveLength(0);
+    expect(repaired.world!.citizens.every((citizen) => citizen.status === 'resident' && citizen.expeditionId === null)).toBe(true);
   });
 
   it('reports a failed local save instead of throwing when browser storage is blocked', () => {
