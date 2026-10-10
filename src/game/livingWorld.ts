@@ -363,13 +363,13 @@ function eventTemplate(id: string, gameMinutes: number, seed = 2310): RealmEvent
 
 function chooseDynamicEvent(state: GameState): string {
   const world = state.world;
-  const weights: Array<[string, number]> = [
+  const weights = ([
     ['drought', state.resources.food < 18 ? 5 : world?.weather.id === 'drought' ? 0 : 1],
     ['caravan', state.buildings.some((building) => building.type === 'market') || (world?.tradeRoutes.length ?? 0) > 0 ? 4 : 2],
     ['wanderer', housing(state) > state.population ? 4 : 1],
     ['wolves', world?.policies.guard === 'none' ? 3 : 1 + ((world?.forestHealth ?? 100) < 35 ? 2 : 0)],
     ['fair', state.buildings.some((building) => building.type === 'market') ? 4 : 1],
-  ].filter((entry) => entry[1] > 0);
+  ] as Array<[string, number]>).filter((entry) => entry[1] > 0);
   const total = weights.reduce((sum, item) => sum + item[1], 0);
   const mixed = Math.imul(state.seed ^ Math.imul(state.gameMinutes + 1, 2654435761), 2246822519) >>> 0;
   let roll = mixed % Math.max(1, total);
@@ -470,8 +470,7 @@ export function advanceRealmMinute(input: GameState): GameState {
   const farms = state.buildings.filter((building) => building.type === 'farm');
   const farmers = citizens.filter((citizen) => citizen.profession === 'farmer' && citizen.status === 'resident');
   const farmSeason = getSeason(state.gameMinutes);
-  const droughtMultiplier = world.weather.id === 'drought' && state.gameMinutes < world.weather.endsAt ? 0.68 : 1;
-  goods.grain += Math.min(farms.reduce((sum, farm) => sum + 0.085 * farm.level * worldBuildingMultiplier(state, farm), 0), farmers.length * 0.06) * farmSeason.farmMultiplier * droughtMultiplier;
+  goods.grain += Math.min(farms.reduce((sum, farm) => sum + 0.085 * farm.level * worldBuildingMultiplier(state, farm), 0), farmers.length * 0.06) * farmSeason.farmMultiplier;
   const mills = state.buildings.filter((building) => building.type === 'mill').length;
   const millers = citizens.filter((citizen) => citizen.profession === 'miller' && citizen.status === 'resident').length;
   const flourProduced = Math.min(goods.grain, Math.min(mills * 0.14, millers * 0.11));
@@ -581,7 +580,6 @@ export function advanceRealmMinute(input: GameState): GameState {
     if (expedition.eta > state.gameMinutes) continue;
     const index = expeditions.findIndex((entry) => entry.id === expedition.id);
     if (index < 0) continue;
-    const scout = citizens.find((citizen) => citizen.id === expedition.scoutId);
     const crewIds = expedition.crewIds?.length ? expedition.crewIds : [expedition.scoutId];
     const crewSkill = citizens.filter((citizen) => crewIds.includes(citizen.id)).reduce((sum, citizen) => sum + citizen.skills.scout, 0) / Math.max(1, crewIds.length);
     const roll = Math.abs(state.seed * 11 + crewSkill * 7 + expedition.startedAt * 13 + expedition.region.length * 3) % 100;
