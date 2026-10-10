@@ -26,8 +26,9 @@ function option(
   mood: number,
   trust: number,
   populationDelta = 0,
+  housingDelta = 0,
 ): CitizenRequestOption {
-  return { id, label, detail, cost, reward, moodDelta: mood, trustDelta: trust, populationDelta };
+  return { id, label, detail, cost, reward, moodDelta: mood, trustDelta: trust, populationDelta, housingDelta };
 }
 
 function capacityOf(buildings: Building[]): number {
@@ -93,7 +94,7 @@ function buildRequest(seed: number, number: number, gameMinutes: number, state?:
       deadline: gameMinutes + 180,
       options: [
         ...(hasRoom ? [option('newcomer-welcome', 'Accogli la famiglia', 'Spendi 8 cibo e aggiungi un abitante', { food: 8 }, {}, 9, 11, 1)] : []),
-        option('newcomer-shelter', 'Prepara un alloggio', 'Spendi 8 legname e 3 pietra', { wood: 8, stone: 3 }, {}, 7, 7),
+        option('newcomer-shelter', 'Prepara un alloggio', 'Spendi 8 legname e 3 pietra · crea 2 posti temporanei', { wood: 8, stone: 3 }, {}, 7, 7, 0, 2),
         option('newcomer-wait', 'Chiedi di aspettare', 'Conservi i materiali, ma la fiducia cala', {}, {}, -4, -5),
       ],
     }),
@@ -235,6 +236,7 @@ export function resolveCitizenRequest(
     fulfilledRequests: community.fulfilledRequests + 1,
     activeRequest: null,
     nextRequestAt: state.gameMinutes + 180,
+    housingBonus: Math.max(0, (community.housingBonus ?? 0) + (selected.housingDelta ?? 0)),
     lastOutcome: message,
     history: [message, ...community.history].slice(0, 6),
   };
