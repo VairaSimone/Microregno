@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState, advanceTime, resourceRates } from './engine';
-import { advanceRealmMinute, canExploreRegion, createWorldState, performRealmAction, realmModifiers } from './livingWorld';
+import { advanceRealmMinute, canExploreRegion, createWorldState, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
 import type { Building } from './types';
 
 describe('living world simulation', () => {
@@ -113,6 +113,50 @@ describe('living world simulation', () => {
     expect(treaty.ok).toBe(true);
     expect(treaty.state.world?.tradeRoutes).toContain(faction.id);
     expect(realmModifiers(treaty.state).tradeIncome).toBeGreaterThan(0);
+  });
+
+  it('adds useful transport value to a productive building beside a road', () => {
+    const state = createInitialState();
+    const farm: Building = { id: 'farm-road-test', type: 'farm', x: 5, y: 4, level: 1 };
+    state.buildings.push(farm);
+    const before = worldBuildingMultiplier(state, farm);
+    state.buildings.push({ id: 'road-test', type: 'road', x: 5, y: 5, level: 1 });
+    const after = worldBuildingMultiplier(state, farm);
+    expect(after).toBeCloseTo(before * 1.08);
+  });
+
+  it('refreshes market demand on a schedule and makes stock sellable through a staffed market', () => {
+    const state = createInitialState(9182);
+    const initialPrices = { ...state.world!.market.prices };
+    const refreshed = advanceTime(state, 120);
+    expect(refreshed.world!.market.cycle).toBe(1);
+    expect(refreshed.world!.market.nextShiftAt).toBe(240);
+    expect(refreshed.world!.market.demand).not.toEqual({ grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1 });
+    expect(refreshed.world!.market.prices).not.toEqual(initialPrices);
+
+    state.world!.goods.grain = 15;
+    state.world!.market.prices.grain = 3;
+    const denied = performRealmAction(state, { type: 'tradeGoods', good: 'grain', amount: 5 });
+    expect(denied.ok).toBe(false);
+    state.buildings.push({ id: 'market-test', type: 'market', x: 4, y: 4, level: 1 });
+    const sold = performRealmAction(state, { type: 'tradeGoods', good: 'grain', amount: 5 });
+    expect(sold.ok).toBe(true);
+    expect(sold.state.world!.goods.grain).toBe(10);
+    expect(sold.state.resources.coins).toBe(state.resources.coins + 15);
+  });
+
+  it('makes intensive forestry deplete the woods while protection regenerates them', () => {
+    const intensive = createInitialState(712);
+    intensive.world!.policies.forest = 'intensive';
+    intensive.buildings.push({ id: 'sawmill-test', type: 'sawmill', x: 4, y: 5, level: 1 });
+    const depleted = advanceTime(intensive, 60);
+    expect(depleted.world!.forestHealth).toBeLessThan(100);
+
+    const protectedState = createInitialState(712);
+    protectedState.world!.policies.forest = 'protected';
+    protectedState.buildings.push({ id: 'sawmill-test', type: 'sawmill', x: 4, y: 5, level: 1 });
+    const recovered = advanceTime(protectedState, 60);
+    expect(recovered.world!.forestHealth).toBe(100);
   });
 
   it('requires discoveries or cartography before entering distant regions', () => {
