@@ -223,24 +223,104 @@ function renderObjectives(snapshot: GameSnapshot): void {
   const host = $('objectives-list');
   host.innerHTML = '';
 
-  const farms = snapshot.state.buildings.filter((building) => building.type === 'farm').length;
-  const objectives = [
-    {
-      label: 'Raggiungi 8 abitanti',
-      done: snapshot.state.population >= 8,
-      value: Math.min(8, snapshot.state.population) + '/8',
-    },
-    {
-      label: 'Costruisci una fattoria',
-      done: farms > 0,
-      value: farms > 0 ? farms + (farms === 1 ? ' costruita' : ' costruite') : 'Da costruire',
-    },
-    {
-      label: 'Tieni almeno 18 cibo',
-      done: snapshot.state.resources.food >= 18,
-      value: formatNumber(snapshot.state.resources.food) + ' cibo',
-    },
-  ];
+  const state = snapshot.state;
+  const farms = state.buildings.filter((building) => building.type === 'farm').length;
+  const markets = state.buildings.filter((building) => building.type === 'market').length;
+  const levelTwo = state.buildings.filter((building) => building.level >= 2).length;
+  const levelThree = state.buildings.filter((building) => building.level >= 3).length;
+  let objectives: { label: string; done: boolean; value: string }[];
+
+  if (snapshot.mode === 'challenge') {
+    objectives = [
+      {
+        label: snapshot.challenge.title,
+        done: snapshot.challengeCompleted,
+        value: snapshot.challengeProgress + '/' + snapshot.challenge.target,
+      },
+      {
+        label: 'Risorse totali',
+        done: Object.values(state.resources).reduce((sum, amount) => sum + amount, 0) >= 100,
+        value: formatNumber(Object.values(state.resources).reduce((sum, amount) => sum + amount, 0)),
+      },
+      {
+        label: 'Edifici costruiti',
+        done: state.buildings.length >= 3,
+        value: String(state.buildings.length),
+      },
+    ];
+  } else if (state.population < 8) {
+    objectives = [
+      {
+        label: 'Raggiungi 8 abitanti',
+        done: state.population >= 8,
+        value: Math.min(8, state.population) + '/8',
+      },
+      {
+        label: 'Costruisci una fattoria',
+        done: farms > 0,
+        value: farms > 0 ? farms + (farms === 1 ? ' costruita' : ' costruite') : 'Da costruire',
+      },
+      {
+        label: 'Tieni almeno 18 cibo',
+        done: state.resources.food >= 18,
+        value: formatNumber(state.resources.food) + ' cibo',
+      },
+    ];
+  } else if (state.population < 12 || markets === 0 || levelTwo === 0) {
+    objectives = [
+      {
+        label: 'Costruisci un mercato',
+        done: markets > 0,
+        value: markets > 0 ? markets + ' costruito' : 'Sbloccato a 8',
+      },
+      {
+        label: 'Migliora un edificio',
+        done: levelTwo > 0,
+        value: levelTwo > 0 ? levelTwo + ' livello 2+' : 'Da migliorare',
+      },
+      {
+        label: 'Raggiungi 12 abitanti',
+        done: state.population >= 12,
+        value: Math.min(12, state.population) + '/12',
+      },
+    ];
+  } else if (state.population < 18) {
+    objectives = [
+      {
+        label: 'Raggiungi 18 abitanti',
+        done: state.population >= 18,
+        value: Math.min(18, state.population) + '/18',
+      },
+      {
+        label: 'Migliora 3 edifici',
+        done: levelTwo >= 3,
+        value: levelTwo + '/3 al livello 2+',
+      },
+      {
+        label: 'Risparmia 50 monete',
+        done: state.resources.coins >= 50,
+        value: formatNumber(state.resources.coins) + '/50',
+      },
+    ];
+  } else {
+    objectives = [
+      {
+        label: 'Raggiungi 24 abitanti',
+        done: state.population >= 24,
+        value: Math.min(24, state.population) + '/24',
+      },
+      {
+        label: 'Porta 2 edifici al livello 3',
+        done: levelThree >= 2,
+        value: levelThree + '/2 al livello 3',
+      },
+      {
+        label: 'Accumula 100 monete',
+        done: state.resources.coins >= 100,
+        value: formatNumber(state.resources.coins) + '/100',
+      },
+    ];
+  }
 
   let completed = 0;
   objectives.forEach((objective) => {
@@ -263,9 +343,10 @@ function renderObjectives(snapshot: GameSnapshot): void {
   });
 
   $('objective-count').textContent = completed + '/3';
-  $('world-population-note').textContent = snapshot.state.population >= housingCapacity(snapshot.state)
-    ? 'Capienza piena: costruisci altre case per far crescere il borgo.'
-    : 'Posti abitativi disponibili: ' + (housingCapacity(snapshot.state) - snapshot.state.population) + '.';
+  const capacity = housingCapacity(state);
+  $('world-population-note').textContent = state.population >= capacity
+    ? 'Capienza piena: costruisci una casa o migliora il municipio.'
+    : 'Posti liberi: ' + (capacity - state.population) + ' · prossimo traguardo: 8/12/18/24 abitanti.';
 }
 
 function renderInspector(snapshot: GameSnapshot): void {
