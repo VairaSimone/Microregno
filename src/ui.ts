@@ -266,7 +266,7 @@ function renderObjectives(snapshot: GameSnapshot): void {
         value: formatNumber(state.resources.food) + ' cibo',
       },
     ];
-  } else if (state.population < 12 || markets === 0 || levelTwo === 0) {
+  } else if (state.population < 12) {
     objectives = [
       {
         label: 'Costruisci un mercato',
