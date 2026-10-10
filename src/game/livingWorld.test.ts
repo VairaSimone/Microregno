@@ -81,6 +81,30 @@ describe('living world simulation', () => {
     expect(worldBuildingMultiplier(assigned.state, second)).toBeGreaterThan(0);
   });
 
+  it('does not corrupt resources when expedition input contains invalid numbers', () => {
+    const state = createInitialState(1234); state.resources.food = 120;
+    const invalidFood = performRealmAction(state, { type: 'expedition', id: 'forest', foodSupply: Number.NaN });
+    expect(invalidFood.ok).toBe(false);
+    expect(Number.isFinite(invalidFood.state.resources.food)).toBe(true);
+    expect(invalidFood.state.resources.food).toBe(120);
+    const invalidDuration = performRealmAction(state, { type: 'expedition', id: 'forest', foodSupply: 8, durationFactor: Number.POSITIVE_INFINITY });
+    expect(invalidDuration.ok).toBe(false);
+    expect(Number.isFinite(invalidDuration.state.resources.food)).toBe(true);
+    expect(invalidDuration.state.resources.food).toBe(120);
+  });
+
+  it('does not produce goods in a workplace that has no assigned worker', () => {
+    const state = createInitialState();
+    state.gameMinutes = 500;
+    const farm: Building = { id: 'farm-unstaffed', type: 'farm', x: 4, y: 4, level: 1 };
+    state.buildings.push(farm);
+    state.world!.citizens.forEach((citizen) => { citizen.profession = 'builder'; citizen.workplaceId = null; });
+    state.world!.goods.grain = 0;
+    expect(worldBuildingMultiplier(state, farm)).toBe(0);
+    const next = advanceRealmMinute(state);
+    expect(next.world!.goods.grain).toBe(0);
+  });
+
   it('configures expedition crew, provisions, equipment and duration', () => {
     const state = createInitialState(1234); state.resources.food = 120; state.world!.goods.tools = 2;
     const started = performRealmAction(state, { type: 'expedition', id: 'forest', scoutId: 'citizen-5', crewIds: ['citizen-5', 'citizen-1'], foodSupply: 14, durationFactor: 1.25, useTools: false });
