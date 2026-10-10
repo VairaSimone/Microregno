@@ -629,8 +629,11 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
         const labels: Record<string, string> = { farm: 'Fattorie', mill: 'Mulini', bakery: 'Panifici', workshop: 'Officine' };
         return '<span><b>' + (labels[type] ?? type) + '</b>' + count + '</span>';
       }).join('') + '</div></div>';
+    const weatherNotice = world.weather.id === 'drought' && state.gameMinutes < world.weather.endsAt
+      ? '<div class="realm-weather-alert drought"><strong>☀ Siccità in corso</strong><span>Le fattorie rendono il 32% in meno. Il fenomeno dovrebbe durare ancora circa ' + Math.ceil((world.weather.endsAt - state.gameMinutes) / 60) + ' minuti reali.</span></div>'
+      : '<div class="realm-weather-alert"><strong>☀ Tempo stabile</strong><span>Le condizioni stagionali si applicano normalmente; gli eventi climatici possono modificare i raccolti per un periodo limitato.</span></div>';
     root.innerHTML = '<div class="realm-summary-grid"><div><small>ABITANTI</small><strong>' + world.citizens.length + '</strong></div><div><small>IN SPEDIZIONE</small><strong>' + world.citizens.filter((citizen) => citizen.status === 'exploring').length + '</strong></div><div><small>PUNTI CONOSCENZA</small><strong>' + formatNumber(world.researchPoints) + '</strong></div></div>' +
-      '<p class="realm-intro">Ogni cittadino ha un mestiere, competenze e bisogni persistenti. Assegna persone agli edifici giusti: gli edifici senza personale funzionano solo in parte.</p>' +
+      weatherNotice + '<p class="realm-intro">Ogni cittadino ha un mestiere, competenze e bisogni persistenti. Assegna persone agli edifici giusti: gli edifici senza personale funzionano solo in parte.</p>' +
       '<div class="realm-citizen-list">' + citizens + '</div>' + employment;
     return;
   }
