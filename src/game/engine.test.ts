@@ -21,6 +21,26 @@ describe('simulazione Microregno',()=>{
     expect(house.check.ok).toBe(true);
     expect(advanceTime(house.state,20).population).toBe(6);
   });
+  it('mantiene sincronizzati popolazione e cittadini nello stesso minuto di crescita',()=>{
+    const initial=createInitialState(),house=buildAt(initial,generateTerrain(initial.seed),6,6,'house');
+    expect(house.check.ok).toBe(true);
+    house.state.resources.food=200;
+    house.state.gameMinutes=19;
+    const next=advanceTime(house.state,1);
+    expect(next.population).toBe(6);
+    expect(next.world?.citizens).toHaveLength(6);
+    expect(new Set(next.world?.citizens.map(c=>c.id)).size).toBe(6);
+  });
+  it('non applica una seconda crescita quando nasce un cittadino',()=>{
+    const initial=createInitialState(),house=buildAt(initial,generateTerrain(initial.seed),6,6,'house');
+    house.state.resources.food=200;
+    house.state.gameMinutes=43199;
+    house.state.world!.citizens.forEach(c=>{c.age=30;c.happiness=90;c.health=100;});
+    const next=advanceTime(house.state,1);
+    expect(next.population).toBe(6);
+    expect(next.world?.citizens).toHaveLength(6);
+    expect(next.world?.citizens.some(c=>c.age===0&&c.lastAction.includes('nato'))).toBe(true);
+  });
   it('impedisce di costruire su acqua o su un edificio',()=>{
     const s=createInitialState(5),map=generateTerrain(5);
     expect(canBuild(s,map,7,2,'house').ok).toBe(false);
