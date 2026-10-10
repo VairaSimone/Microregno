@@ -38,7 +38,7 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
   return [
     {
       key: 'farm',
-      title: 'Metti in sicurezza il cibo',
+      title: '1 · Metti in sicurezza il cibo',
       description: 'Seleziona la Fattoria e piazzala su una casella d’erba libera. È la priorità del villaggio.',
       rule: 'La fattoria produce cibo ogni minuto di gioco. Gli abitanti ne consumano 0,035 ciascuno al minuto.',
       actionType: 'farm',
@@ -47,27 +47,36 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
     },
     {
       key: 'house',
-      title: 'Fai spazio a nuovi abitanti',
-      description: 'Costruisci una Casa. Aggiunge 6 posti abitativi, così il villaggio può superare gli 8 posti iniziali.',
+      title: '2 · Fai spazio al villaggio',
+      description: 'Costruisci una Casa: aggiunge 6 posti abitativi. Ti serviranno posti liberi per far arrivare altri abitanti.',
       rule: 'Costo della Casa: 12 legname e 5 pietra. I materiali vengono scalati solo quando la costruzione è valida.',
       actionType: 'house',
       actionLabel: 'Seleziona casa',
       done: has('house'),
     },
     {
+      key: 'grow-six',
+      title: '3 · Raggiungi 6 abitanti',
+      description: 'Lascia lavorare la fattoria e aspetta il prossimo abitante. La Segheria e la Cava si sbloccano a 6 abitanti.',
+      rule: 'Ogni 20 minuti di gioco arriva un abitante, se hai almeno 18 cibo e un posto abitativo libero. Il tempo scorre automaticamente.',
+      actionType: null,
+      actionLabel: 'Attendi il prossimo abitante',
+      done: state.population >= 6,
+    },
+    {
       key: 'sawmill',
-      title: 'Produci il tuo legname',
-      description: 'Costruisci una Segheria su erba, vicino agli alberi. Il contorno verde indica una casella valida.',
-      rule: 'La Segheria richiede un bosco entro 3 caselle. Non si costruisce sull’albero: si costruisce accanto.',
+      title: '4 · Costruisci una Segheria',
+      description: 'Ora che hai 6 abitanti, costruisci la Segheria su erba vicino agli alberi. Il contorno verde indica una casella valida.',
+      rule: 'La Segheria costa 14 legname e 5 pietra e deve trovarsi entro 3 caselle da un bosco. Non si costruisce sopra l’albero.',
       actionType: 'sawmill',
       actionLabel: 'Seleziona segheria',
       done: has('sawmill'),
     },
     {
       key: 'population',
-      title: 'Porta il borgo a 8 abitanti',
-      description: 'Ora il villaggio può crescere da solo. Lascia passare il tempo e tieni le dispense rifornite.',
-      rule: 'Ogni 20 minuti di gioco arriva un abitante se hai almeno 18 cibo e una capienza abitativa libera.',
+      title: '5 · Porta il borgo a 8 abitanti',
+      description: 'Il villaggio può crescere da solo. Tieni le dispense rifornite e lascia passare il tempo di gioco.',
+      rule: 'A 8 abitanti si sblocca il Mercato. Costruire altre case aumenta la capienza; senza cibo sufficiente, la crescita si ferma.',
       actionType: null,
       actionLabel: 'Lascia crescere il villaggio',
       done: state.population >= 8,
@@ -107,7 +116,7 @@ function renderTutorial(snapshot: GameSnapshot): void {
   const currentIndex = steps.findIndex((step) => !step.done);
   const current = currentIndex < 0 ? null : steps[currentIndex]!;
 
-  count.textContent = completedCount + '/4';
+  count.textContent = completedCount + '/5';
   stepsHost.innerHTML = '';
 
   steps.forEach((step, index) => {
