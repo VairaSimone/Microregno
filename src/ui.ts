@@ -1,6 +1,6 @@
-import { BUILDINGS, BUILD_ORDER, formatCost, RESOURCE_LABELS } from './game/definitions';
+import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
-import { housingCapacity } from './game/engine';
+import { generateTerrain, housingCapacity, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, GameSnapshot, Resource } from './game/types';
 
 const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
@@ -277,15 +277,24 @@ function renderInspector(snapshot: GameSnapshot): void {
     $('inspector-title').textContent = definition.name;
     $('inspector-copy').textContent = definition.description;
 
-    if (definition.housing) {
-      addStat(stats, 'Posti abitativi', '+' + definition.housing * selected.level);
-    }
+    addStat(stats, 'Livello', selected.level + ' / ' + MAX_BUILDING_LEVEL);
+    if (definition.housing) addStat(stats, 'Capienza abitativa', '+' + definition.housing * selected.level);
 
-    Object.entries(definition.production ?? {}).forEach(([resource, amount]) => {
-      addStat(stats, RESOURCE_LABELS[resource as Resource] + ' / min', '+' + Number(amount).toLocaleString('it-IT'));
+    const output = productionForBuilding(selected, generateTerrain(snapshot.state.seed));
+    Object.entries(output).forEach(([resource, amount]) => {
+      addStat(stats, RESOURCE_LABELS[resource as Resource] + ' / min', '+' + Number(amount).toLocaleString('it-IT', { maximumFractionDigits: 2 }));
     });
+    if (!definition.housing && Object.keys(output).length === 0) addStat(stats, 'Funzione', 'Centro del regno');
 
-    if (!definition.housing && !definition.production) addStat(stats, 'Funzione', 'Centro del regno');
+    const upgrade = $('upgrade-button') as HTMLButtonElement;
+    const canUpgrade = selected.level < MAX_BUILDING_LEVEL && !snapshot.challengeCompleted;
+    upgrade.classList.toggle('hidden', !canUpgrade);
+    if (canUpgrade) {
+      const cost = upgradeCost(selected);
+      const affordable = Object.entries(cost).every(([resource, amount]) => snapshot.state.resources[resource as Resource] >= (amount ?? 0));
+      upgrade.textContent = 'Migliora · livello ' + (selected.level + 1) + ' · ' + formatCost(cost);
+      upgrade.disabled = !affordable;
+    }
 
     $('demolish-button').classList.toggle('hidden', selected.type === 'townHall' || snapshot.challengeCompleted);
     $('cancel-build').classList.add('hidden');
@@ -293,13 +302,16 @@ function renderInspector(snapshot: GameSnapshot): void {
     const definition = BUILDINGS[snapshot.selectedBuildType];
     $('inspector-title').textContent = 'Posiziona ' + definition.shortName;
     $('inspector-copy').textContent = definition.description + ' Costo: ' + formatCost(definition.cost) + '.';
+    $('upgrade-button').classList.add('hidden');
     $('demolish-button').classList.add('hidden');
     $('cancel-build').classList.remove('hidden');
   } else {
+    $('upgrade-button').classList.add('hidden');
     $('inspector-title').textContent = 'Il territorio';
     $('inspector-copy').textContent = snapshot.mode === 'challenge'
       ? 'Completa l’obiettivo del giorno. I progressi della sfida sono separati dalla città principale.'
       : 'Clicca un edificio sulla mappa per selezionarlo e consultarne produzione o capienza.';
+    $('upgrade-button').classList.add('hidden');
     $('demolish-button').classList.add('hidden');
     $('cancel-build').classList.add('hidden');
   }
@@ -352,6 +364,8 @@ export function setupUI(): void {
     else openGuide();
   });
 
+  $('upgrade-button').addEventListener('click', () => dispatch('microregno:upgrade'));
+
   $('demolish-button').addEventListener('click', () => {
     if (window.confirm('Demolire questo edificio? Recupererai una parte dei materiali.')) {
       dispatch('microregno:demolish');
@@ -374,22 +388,16 @@ export function setupUI(): void {
     });
     $('population-count').textContent = formatNumber(state.population) + ' / ' + housingCapacity(state);
 
-    const foodRate = state.buildings.reduce(
-      (total, building) => total + (BUILDINGS[building.type].production?.food ?? 0),
-      0,
-    ) - state.population * 0.035;
-
+    const rates = resourceRates(state, generateTerrain(state.seed));
+    const foodRate = rates.food;
     $('rate-food').textContent = (foodRate >= 0 ? '+' : '') + foodRate.toFixed(1) + '/min';
 
     (['wood', 'stone', 'coins'] as Resource[]).forEach((resource) => {
-      const rate = state.buildings.reduce(
-        (total, building) => total + (BUILDINGS[building.type].production?.[resource] ?? 0),
-        0,
-      );
-      $('rate-' + resource).textContent = rate > 0 ? '+' + rate.toFixed(1) + '/min' : '—';
+      const rate = rates[resource];
+      $('rate-' + resource).textContent = Math.abs(rate) > 0.0001 ? (rate > 0 ? '+' : '') + rate.toFixed(1) + '/min' : '—';
     });
 
-    $('population-rate').textContent = state.population < housingCapacity(state) ? 'può crescere' : 'case piene';
+    $('population-rate').textContent = state.resources.food < 18 ? 'serve cibo' : state.population < housingCapacity(state) ? 'può crescere' : 'case piene';
     $('world-title').textContent = snapshot.mode === 'challenge' ? snapshot.challenge.title : 'Valle di Brumadoro';
     $('world-subtitle').textContent = snapshot.mode === 'challenge'
       ? 'Una mappa uguale per tutti. La tua strategia fa la differenza.'
