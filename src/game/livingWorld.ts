@@ -352,7 +352,8 @@ export function advanceRealmMinute(input: GameState): GameState {
     }
   }
   let expeditions = [...nextWorld.expeditions];
-  for (const expedition of activeExpeditions) {
+  for (const activeExpedition of activeExpeditions) {
+    let expedition = activeExpedition;
     if (expedition.eta > state.gameMinutes) continue;
     const index = expeditions.findIndex((entry) => entry.id === expedition.id);
     if (index < 0) continue;
