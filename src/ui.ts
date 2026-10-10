@@ -2,7 +2,7 @@ import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS
 import { buildingUnlocked } from './game/challenge';
 import { getSeason } from './game/community';
 import { canExploreRegion, PROFESSION_LABELS, PROFESSIONS, PROJECTS, RESEARCH, REGIONS, worldBuildingMultiplier } from './game/livingWorld';
-import type { GoodsBag, Profession } from './game/types';
+import type { GoodsBag, Profession, WorldState } from './game/types';
 import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, GameSnapshot, Resource } from './game/types';
 
@@ -528,6 +528,42 @@ function hasResourceCost(resources: GameSnapshot['state']['resources'], cost: Pa
 function hasGoodsCost(goods: GoodsBag, cost: Partial<GoodsBag>): boolean {
   return Object.entries(cost).every(([key, amount]) => goods[key as keyof typeof goods] >= (amount ?? 0));
 }
+function renderFrontierMap(world: WorldState): string {
+  const nodes: Array<{ id: 'forest' | 'mountains' | 'lake' | 'ancient-ruins' | 'borderlands'; x: number; y: number; icon: string; name: string }> = [
+    { id: 'forest', x: 98, y: 93, icon: '🌲', name: 'Bosco antico' },
+    { id: 'mountains', x: 104, y: 223, icon: '⛰', name: 'Passo delle rocce' },
+    { id: 'lake', x: 250, y: 52, icon: '◉', name: 'Lago velato' },
+    { id: 'ancient-ruins', x: 392, y: 93, icon: '⌂', name: 'Rovine della Corona' },
+    { id: 'borderlands', x: 394, y: 224, icon: '⚑', name: 'Terre di confine' },
+  ];
+  const links: Array<{ from: [number, number]; to: [number, number]; open: boolean }> = [
+    { from: [247, 153], to: [98, 93], open: true },
+    { from: [98, 93], to: [104, 223], open: world.discoveredRegions.includes('forest') },
+    { from: [98, 93], to: [250, 52], open: world.discoveredRegions.includes('forest') },
+    { from: [104, 223], to: [392, 93], open: world.discoveredRegions.includes('mountains') && world.researched.includes('cartography') },
+    { from: [392, 93], to: [394, 224], open: world.researched.includes('cartography') || world.completedProjects.includes('stone-bridge') },
+  ];
+  const paths = links.map((link) => '<path d="M' + link.from[0] + ' ' + link.from[1] + ' L' + link.to[0] + ' ' + link.to[1] + '" fill="none" stroke="' +
+    (link.open ? '#7b9c73' : '#adb5a3') + '" stroke-width="' + (link.open ? 3 : 2) + '"' + (link.open ? '' : ' stroke-dasharray="5 7"') + ' stroke-linecap="round"/>').join('');
+  const markers = nodes.map((node) => {
+    const discovered = world.discoveredRegions.includes(node.id);
+    const unlocked = canExploreRegion(world, node.id);
+    const fill = discovered ? '#d6ead0' : unlocked ? '#eee3bd' : '#e0e3da';
+    const stroke = discovered ? '#5d9160' : unlocked ? '#c5a65a' : '#aab1a2';
+    const icon = discovered ? node.icon : unlocked ? '?' : '×';
+    const label = discovered ? node.name : unlocked ? 'Da scoprire' : 'Nebbia';
+    return '<g><circle cx="' + node.x + '" cy="' + node.y + '" r="20" fill="' + fill + '" stroke="' + stroke + '" stroke-width="2"/>' +
+      '<text x="' + node.x + '" y="' + (node.y + 6) + '" text-anchor="middle" font-size="19" fill="#3d5940">' + icon + '</text>' +
+      '<text x="' + node.x + '" y="' + (node.y + 35) + '" text-anchor="middle" font-size="10" font-weight="700" fill="#52634f">' + escapeRealmHtml(label) + '</text></g>';
+  }).join('');
+  return '<div class="realm-frontier-map"><svg viewBox="0 0 500 285" role="img" aria-label="Mappa delle regioni conosciute e ancora avvolte dalla nebbia">' +
+    '<defs><pattern id="frontier-dots" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1" fill="#b4c1a7" opacity=".6"/></pattern></defs>' +
+    '<rect x="1" y="1" width="498" height="283" rx="16" fill="#e9eddf" stroke="#d0dac7"/><rect x="2" y="2" width="496" height="281" rx="16" fill="url(#frontier-dots)"/>' +
+    '<path d="M28 168 Q83 139 123 154 T220 159 T322 152 T474 168" fill="none" stroke="#b5d1c3" stroke-width="11" stroke-linecap="round"/>' +
+    '<path d="M28 168 Q83 139 123 154 T220 159 T322 152 T474 168" fill="none" stroke="#d0e4d8" stroke-width="4" stroke-linecap="round"/>' +
+    paths + '<g><circle cx="247" cy="153" r="24" fill="#d0e4c9" stroke="#5d9160" stroke-width="2"/><text x="247" y="159" font-size="21" text-anchor="middle">⌂</text><text x="247" y="190" text-anchor="middle" font-size="11" font-weight="800" fill="#355b3d">Valle di Brumadoro</text></g>' +
+    markers + '</svg><div class="realm-map-legend"><span><i class="known"></i>Territorio scoperto</span><span><i class="open"></i>Spedizione possibile</span><span><i class="fog"></i>Ancora nella nebbia</span></div></div>';
+}
 function renderRealmDashboard(snapshot: GameSnapshot): void {
   const root = $('realm-content');
   const tabs = $('realm-tabs');
@@ -653,8 +689,10 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
       realmActionButton('Scambio · 6 legna', 'diplomacy', faction.id, 'trade', state.resources.wood < 6) +
       realmActionButton(faction.treaty ? 'Trattato firmato' : 'Firma trattato · 10 monete', 'diplomacy', faction.id, 'treaty', faction.treaty || faction.relation < 55 || state.resources.coins < 10) +
       '</div></article>').join('');
+    const frontierMap = renderFrontierMap(world);
     root.innerHTML = '<div class="realm-summary-grid"><div><small>REGIONI NOTE</small><strong>' + world.discoveredRegions.length + '/' + REGIONS.length + '</strong></div><div><small>SPEDIZIONI ATTIVE</small><strong>' + activeTrips.length + '/' + (world.researched.includes('cartography') ? 2 : 1) + '</strong></div><div><small>ESPLORATORI DISPONIBILI</small><strong>' + activeScouts + '</strong></div></div>' +
       '<p class="realm-intro">Le spedizioni consumano cibo, richiedono un cittadino assegnato a Esploratore e possono riportare risorse, attrezzi, conoscenze e incontri diplomatici. Alcune regioni richiedono la cartografia.</p>' +
+      '<h3 class="realm-section-title">Carta della frontiera</h3>' + frontierMap +
       '<h3 class="realm-section-title">Frontiera e spedizioni</h3><div class="realm-region-list">' + regions + '</div>' +
       '<div class="realm-card"><div class="realm-card-title"><h3>Diario delle spedizioni</h3><span>ULTIME CINQUE</span></div>' + (trips || '<p>Non è ancora partita nessuna squadra.</p>') + '</div>' +
       '<h3 class="realm-section-title">Diplomazia e rotte commerciali</h3><p class="realm-intro">Invia doni e commercia per migliorare i rapporti. Con relazione almeno 55 puoi firmare un trattato: la rotta aumenta le entrate ogni minuto di gioco.</p>' +
