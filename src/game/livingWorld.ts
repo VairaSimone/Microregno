@@ -110,7 +110,7 @@ export function createWorldState(seed: number, population = 5, gameMinutes = 0):
     researched: [], expeditions: [], discoveredRegions: [], chronicle: ['È nato un nuovo Consiglio del Regno. I cittadini ora hanno bisogni, mestieri e ambizioni.'],
     activeEvent: null, nextEventAt: gameMinutes + 240, queuedEvent: null,
     projectStages: { aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 },
-    market: createMarketState(gameMinutes), forestHealth: 100,
+    market: createMarketState(gameMinutes), forestHealth: 100, weather: { id: 'clear', endsAt: 0 },
     completedProjects: [], factions, tradeRoutes: [],
   };
 }
@@ -167,6 +167,8 @@ export function ensureWorldState(state: GameState): GameState {
     projectStages: Object.assign({ aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 }, existing.projectStages),
     market: { ...createMarketState(state.gameMinutes), ...(existing.market ?? {}), prices: { ...MARKET_BASE_PRICES, ...(existing.market?.prices ?? {}) }, demand: Object.assign({ grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1 }, existing.market?.demand), cycle: Number.isFinite(existing.market?.cycle) ? existing.market!.cycle : 0, nextShiftAt: Number.isFinite(existing.market?.nextShiftAt) ? existing.market!.nextShiftAt : state.gameMinutes + 120 },
     forestHealth: Number.isFinite(existing.forestHealth) ? clamp(existing.forestHealth!) : 100,
+    weather: existing.weather && ['clear', 'drought'].includes(existing.weather.id) && Number.isFinite(existing.weather.endsAt)
+      ? { ...existing.weather } : { id: 'clear', endsAt: 0 },
     completedProjects: [...new Set(existing.completedProjects)],
     factions: existing.factions,
     tradeRoutes: [...new Set(existing.tradeRoutes)],
@@ -195,6 +197,7 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   if (building.type !== 'road' && state.buildings.some((entry) => entry.type === 'road' && Math.abs(entry.x - building.x) + Math.abs(entry.y - building.y) <= 1)) multiplier *= 1.08;
   if (world.completedProjects.includes('artisan-quarter')) multiplier *= 1.08;
   if (building.type === 'farm' && world.researched.includes('irrigation')) multiplier *= 1.15;
+  if (building.type === 'farm' && world.weather.id === 'drought' && state.gameMinutes < world.weather.endsAt) multiplier *= 0.68;
   if (building.type === 'farm' && world.completedProjects.includes('aqueduct')) multiplier *= 1.12;
   if (building.type === 'market' && world.researched.includes('trade')) multiplier *= 1.25;
   if (building.type === 'sawmill') {
@@ -224,7 +227,7 @@ function addCitizenForState(state: GameState, world: WorldState, profession: Pro
   return { ...world, nextCitizenId: world.nextCitizenId + 1, citizens: [...world.citizens, citizen] };
 }
 
-function eventTemplate(id: string, gameMinutes: number): RealmEvent {
+function eventTemplate(id: string, gameMinutes: number, seed = 2310): RealmEvent {
   const event = (eventId: string, title: string, description: string, choices: RealmEventChoice[]): RealmEvent =>
     ({ id: eventId, title, description, choices, startedAt: gameMinutes });
   if (id === 'caravan-rescue') return event(id, 'La carovana è salva', 'La spedizione ha trovato i carri dispersi. Ora bisogna decidere come usare le merci recuperate.', [
@@ -270,7 +273,8 @@ function eventTemplate(id: string, gameMinutes: number): RealmEvent {
       { id: 'skip-fair', label: 'Continua il lavoro', detail: 'Non spendi nulla e non ottieni bonus.', moodDelta: 0, trustDelta: 0 },
     ]),
   ];
-  const index = Math.abs(gameMinutes * 13 + id.length * 11) % choiceSets.length;
+  const mixed = Math.imul(seed ^ Math.imul(gameMinutes + 1, 2654435761), 2246822519) >>> 0;
+  const index = mixed % choiceSets.length;
   const chosen = choiceSets[index]!;
   return { ...chosen, id: id === 'random' ? chosen.id : id };
 }
@@ -499,10 +503,15 @@ export function advanceRealmMinute(input: GameState): GameState {
     }
   }
   const now = state.gameMinutes;
+  if (nextWorld.weather.id === 'drought' && now >= nextWorld.weather.endsAt) {
+    nextWorld = { ...nextWorld, weather: { id: 'clear', endsAt: 0 } };
+    notes.push('La siccità è terminata: i raccolti possono riprendersi.');
+  }
   if (!nextWorld.activeEvent && now >= nextWorld.nextEventAt) {
     const id = nextWorld.queuedEvent ?? 'random';
-    const created = eventTemplate(id, now);
+    const created = eventTemplate(id, now, state.seed);
     nextWorld = { ...nextWorld, activeEvent: created, queuedEvent: null, nextEventAt: now + 360 };
+    if (created.id === 'drought') nextWorld = { ...nextWorld, weather: { id: 'drought', endsAt: now + 180 } };
     notes.push('Nuovo avvenimento: ' + created.title + '.');
   }
   if (notes.length) {
@@ -608,7 +617,7 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
       citizens = world.citizens.map((citizen, index) => index === world.citizens.length - 1 ? { ...citizen, profession, skills: { ...citizen.skills, [profession]: 24 }, lastAction: 'È arrivato grazie a un evento del regno' } : citizen);
     }
     if (choice.populationDelta && choice.populationDelta < 0) citizens = citizens.slice(0, Math.max(0, citizens.length + choice.populationDelta));
-    world = { ...world, citizens, goods, activeEvent: null, queuedEvent: choice.chain ?? null, nextEventAt: state.gameMinutes + (choice.chain ? 75 : 300), researchPoints: world.researchPoints + (choice.researchDelta ?? 0) };
+    world = { ...world, citizens, goods, activeEvent: null, queuedEvent: choice.chain ?? null, nextEventAt: state.gameMinutes + (choice.chain ? 75 : 300), researchPoints: world.researchPoints + (choice.researchDelta ?? 0), weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather };
     community = applyCommunityEffects(community, choice.moodDelta ?? 0, choice.trustDelta ?? 0);
     return finish(event.title + ' — ' + choice.label + '. ' + choice.detail);
   }
