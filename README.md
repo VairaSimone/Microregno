@@ -20,6 +20,7 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Ricerca in sei percorsi, spedizioni esplorative, nuove regioni, reperti, rischi e ricompense.
 - Diplomazia con tre comunità vicine, accordi permanenti e rotte commerciali.
 - Quattro grandi progetti a tre fasi e avvenimenti concatenati con conseguenze su risorse e comunità.
+- Mappa della frontiera con regioni scoperte, spedizioni possibili e territori ancora coperti dalla nebbia; eventi climatici temporanei, inclusa la siccità che rallenta i raccolti e avvia storie di recupero.
 - Obiettivi, record locali, demolizione con rimborso parziale e interfaccia responsive.
 
 ## Come si gioca
