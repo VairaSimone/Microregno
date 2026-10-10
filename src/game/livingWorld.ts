@@ -132,14 +132,63 @@ export function ensureWorldState(state: GameState): GameState {
       !existing.projectStages || !Array.isArray(existing.factions)) {
     return { ...state, world: createWorldState(state.seed, state.population, state.gameMinutes) };
   }
-  let citizens = existing.citizens.map((citizen) => ({ ...citizen, skills: { ...citizen.skills }, traits: [...citizen.traits], relationships: { ...citizen.relationships }, workplaceId: typeof citizen.workplaceId === 'string' ? citizen.workplaceId : null, activity: citizen.status === 'exploring' ? 'exploring' as const : citizen.activity ?? 'socializing' as const }));
-  let nextCitizenId = Number.isFinite(existing.nextCitizenId) ? existing.nextCitizenId : citizens.length + 1;
+  const rawCitizens = (existing.citizens as unknown[]).slice(0, 1200);
+  let nextCitizenId = Number.isSafeInteger(existing.nextCitizenId) && existing.nextCitizenId > 0 ? existing.nextCitizenId : rawCitizens.length + 1;
+  for (const raw of rawCitizens) {
+    if (!raw || typeof raw !== 'object') continue;
+    const id = (raw as { id?: unknown }).id;
+    if (typeof id === 'string') {
+      const match = /^citizen-(\d+)$/.exec(id);
+      if (match) nextCitizenId = Math.max(nextCitizenId, Number(match[1]) + 1);
+    }
+  }
+  const usedCitizenIds = new Set<string>();
+  let citizens = rawCitizens.map((raw, index): Citizen => {
+    const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Partial<Citizen> : {};
+    const fallback = makeCitizen(state.seed, index, state.gameMinutes);
+    let id = typeof source.id === 'string' && source.id.trim() ? source.id.trim() : fallback.id;
+    if (usedCitizenIds.has(id)) { do { id = 'citizen-' + nextCitizenId++; } while (usedCitizenIds.has(id)); }
+    usedCitizenIds.add(id);
+    const profession = PROFESSIONS.includes(source.profession as Profession) ? source.profession as Profession : fallback.profession;
+    const status = source.status === 'exploring' ? 'exploring' : 'resident';
+    const sourceSkills = source.skills && typeof source.skills === 'object' && !Array.isArray(source.skills) ? source.skills as Partial<Record<Profession, unknown>> : {};
+    const skills = { ...fallback.skills } as Record<Profession, number>;
+    for (const job of PROFESSIONS) if (Number.isFinite(sourceSkills[job])) skills[job] = clamp(sourceSkills[job] as number);
+    const sourceRelationships = source.relationships && typeof source.relationships === 'object' && !Array.isArray(source.relationships) ? source.relationships as Record<string, unknown> : {};
+    const relationships = Object.fromEntries(Object.entries(sourceRelationships).filter(([, value]) => Number.isFinite(value)).map(([key, value]) => [key, clamp(value as number, -100, 100)]));
+    const traits = Array.isArray(source.traits) ? source.traits.filter((trait): trait is string => typeof trait === 'string').slice(0, 4) : fallback.traits;
+    const activityValues = ['working', 'resting', 'socializing', 'commuting', 'eating', 'exploring'];
+    const activity = activityValues.includes(source.activity as string) ? source.activity as Citizen['activity'] : status === 'exploring' ? 'exploring' : 'socializing';
+    return {
+      ...fallback, id,
+      name: typeof source.name === 'string' && source.name.trim() ? source.name.trim().slice(0, 80) : fallback.name,
+      age: Number.isFinite(source.age) ? Math.max(0, Math.min(120, Math.floor(source.age as number))) : fallback.age,
+      profession, traits: traits.length ? traits : fallback.traits, skills,
+      hunger: Number.isFinite(source.hunger) ? clamp(source.hunger as number) : fallback.hunger,
+      energy: Number.isFinite(source.energy) ? clamp(source.energy as number) : fallback.energy,
+      happiness: Number.isFinite(source.happiness) ? clamp(source.happiness as number) : fallback.happiness,
+      health: Number.isFinite(source.health) ? clamp(source.health as number) : fallback.health,
+      experience: Number.isFinite(source.experience) ? Math.max(0, source.experience as number) : 0,
+      status, activity,
+      workplaceId: typeof source.workplaceId === 'string' ? source.workplaceId : null,
+      expeditionId: typeof source.expeditionId === 'string' ? source.expeditionId : null,
+      lastAction: typeof source.lastAction === 'string' ? source.lastAction.slice(0, 240) : fallback.lastAction,
+      relationships,
+      homeId: typeof source.homeId === 'string' ? source.homeId : null,
+      familyId: typeof source.familyId === 'string' && source.familyId ? source.familyId.slice(0, 80) : fallback.familyId,
+      bornAt: Number.isFinite(source.bornAt) ? Math.max(0, source.bornAt as number) : state.gameMinutes,
+    };
+  });
   while (citizens.length < state.population) {
     const citizen = makeCitizen(state.seed, nextCitizenId - 1, state.gameMinutes);
     citizen.id = 'citizen-' + nextCitizenId;
     citizens.push(citizen);
     nextCitizenId++;
   }
+  const activeTripIds = new Set((Array.isArray(existing.expeditions) ? existing.expeditions : []).filter((trip) => trip && typeof trip.id === 'string' && trip.status === 'active').map((trip) => trip.id));
+  citizens = citizens.map((citizen) => citizen.status === 'exploring' && (!citizen.expeditionId || !activeTripIds.has(citizen.expeditionId))
+    ? { ...citizen, status: 'resident', activity: 'socializing', expeditionId: null, lastAction: 'È tornato alla vita del borgo dopo aver corretto una spedizione incompleta' }
+    : citizen);
   if (citizens.length > state.population) {
     const remove = citizens.length - state.population;
     const removable = citizens.filter((citizen) => citizen.status !== 'exploring').slice(-remove).map((citizen) => citizen.id);
@@ -163,25 +212,47 @@ export function ensureWorldState(state: GameState): GameState {
     ...existing,
     nextCitizenId,
     citizens,
-    goods: { ...DEFAULT_GOODS, ...existing.goods },
-    policies: { ...DEFAULT_POLICIES, ...existing.policies },
-    researchPoints: Number.isFinite(existing.researchPoints) ? existing.researchPoints : 0,
-    researchProgress: Number.isFinite(existing.researchProgress) ? existing.researchProgress : 0,
-    activeResearch: existing.activeResearch ?? null,
-    expeditions: existing.expeditions.filter((expedition) => expedition && typeof expedition.id === 'string').slice(-8),
-    discoveredRegions: [...new Set(existing.discoveredRegions)],
-    chronicle: existing.chronicle.slice(0, 12),
-    activeEvent: existing.activeEvent ?? null,
+    goods: {
+      grain: Number.isFinite(existing.goods.grain) ? Math.max(0, Math.min(100000, existing.goods.grain)) : DEFAULT_GOODS.grain,
+      flour: Number.isFinite(existing.goods.flour) ? Math.max(0, Math.min(100000, existing.goods.flour)) : DEFAULT_GOODS.flour,
+      bread: Number.isFinite(existing.goods.bread) ? Math.max(0, Math.min(100000, existing.goods.bread)) : DEFAULT_GOODS.bread,
+      tools: Number.isFinite(existing.goods.tools) ? Math.max(0, Math.min(100000, existing.goods.tools)) : DEFAULT_GOODS.tools,
+      medicine: Number.isFinite(existing.goods.medicine) ? Math.max(0, Math.min(100000, existing.goods.medicine)) : DEFAULT_GOODS.medicine,
+    },
+    policies: {
+      tax: ['low', 'balanced', 'high'].includes(existing.policies.tax) ? existing.policies.tax : DEFAULT_POLICIES.tax,
+      food: ['reserve', 'balanced', 'generous'].includes(existing.policies.food) ? existing.policies.food : DEFAULT_POLICIES.food,
+      forest: ['protected', 'managed', 'intensive'].includes(existing.policies.forest) ? existing.policies.forest : DEFAULT_POLICIES.forest,
+      guard: ['none', 'patrol'].includes(existing.policies.guard) ? existing.policies.guard : DEFAULT_POLICIES.guard,
+    },
+    researchPoints: Number.isFinite(existing.researchPoints) ? Math.max(0, Math.min(100000, existing.researchPoints)) : 0,
+    researchProgress: Number.isFinite(existing.researchProgress) ? Math.max(0, existing.researchProgress) : 0,
+    activeResearch: RESEARCH.some((entry) => entry.id === existing.activeResearch) ? existing.activeResearch : null,
+    expeditions: existing.expeditions.filter((expedition) => expedition && typeof expedition.id === 'string' && REGIONS.some((region) => region.id === expedition.region) && typeof expedition.scoutId === 'string' && Number.isFinite(expedition.startedAt) && Number.isFinite(expedition.eta) && ['active', 'success', 'partial', 'failed'].includes(expedition.status)).map((expedition) => ({ ...expedition, crewIds: Array.isArray(expedition.crewIds) ? expedition.crewIds.filter((id): id is string => typeof id === 'string') : [expedition.scoutId], eta: Math.max(0, expedition.eta), successChance: Number.isFinite(expedition.successChance) ? clamp(expedition.successChance) : 45 })).slice(-8),
+    discoveredRegions: [...new Set(existing.discoveredRegions.filter((id): id is RegionId => REGIONS.some((region) => region.id === id)))],
+    chronicle: existing.chronicle.filter((entry): entry is string => typeof entry === 'string').slice(0, 12),
+    activeEvent: existing.activeEvent && typeof existing.activeEvent.id === 'string' && typeof existing.activeEvent.title === 'string' && typeof existing.activeEvent.description === 'string' && Array.isArray(existing.activeEvent.choices) && existing.activeEvent.choices.every((choice) => choice && typeof choice.id === 'string' && typeof choice.label === 'string' && typeof choice.detail === 'string') ? existing.activeEvent : null,
     nextEventAt: Number.isFinite(existing.nextEventAt) ? existing.nextEventAt : state.gameMinutes + 240,
     queuedEvent: existing.queuedEvent ?? null,
-    projectStages: Object.assign({ aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 }, existing.projectStages),
-    market: { ...createMarketState(state.gameMinutes), ...(existing.market ?? {}), prices: { ...MARKET_BASE_PRICES, ...(existing.market?.prices ?? {}) }, demand: Object.assign({ grain: 1, flour: 1, bread: 1, tools: 1, medicine: 1 }, existing.market?.demand), cycle: Number.isFinite(existing.market?.cycle) ? existing.market!.cycle : 0, nextShiftAt: Number.isFinite(existing.market?.nextShiftAt) ? existing.market!.nextShiftAt : state.gameMinutes + 120 },
+    projectStages: {
+      aqueduct: Number.isFinite(existing.projectStages.aqueduct) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages.aqueduct))) : 0,
+      'stone-bridge': Number.isFinite(existing.projectStages['stone-bridge']) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages['stone-bridge']))) : 0,
+      'artisan-quarter': Number.isFinite(existing.projectStages['artisan-quarter']) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages['artisan-quarter']))) : 0,
+      'grand-archive': Number.isFinite(existing.projectStages['grand-archive']) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages['grand-archive']))) : 0,
+    },
+    market: {
+      ...createMarketState(state.gameMinutes), ...(existing.market ?? {}),
+      prices: Object.fromEntries((Object.keys(MARKET_BASE_PRICES) as TradableGood[]).map((good) => [good, Number.isFinite(existing.market?.prices?.[good]) ? Math.max(1, Math.min(10000, existing.market!.prices[good])) : MARKET_BASE_PRICES[good]])) as Record<TradableGood, number>,
+      demand: Object.fromEntries((Object.keys(MARKET_BASE_PRICES) as TradableGood[]).map((good) => [good, Number.isFinite(existing.market?.demand?.[good]) ? Math.max(0.1, Math.min(10, existing.market!.demand[good])) : 1])) as Record<TradableGood, number>,
+      cycle: Number.isSafeInteger(existing.market?.cycle) ? Math.max(0, existing.market!.cycle) : 0,
+      nextShiftAt: Number.isFinite(existing.market?.nextShiftAt) ? Math.max(state.gameMinutes, existing.market!.nextShiftAt) : state.gameMinutes + 120,
+    },
     forestHealth: Number.isFinite(existing.forestHealth) ? clamp(existing.forestHealth!) : 100,
     weather: existing.weather && ['clear', 'drought'].includes(existing.weather.id) && Number.isFinite(existing.weather.endsAt)
       ? { ...existing.weather } : { id: 'clear', endsAt: 0 },
-    completedProjects: [...new Set(existing.completedProjects)],
-    factions: existing.factions,
-    tradeRoutes: [...new Set(existing.tradeRoutes)],
+    completedProjects: [...new Set(existing.completedProjects.filter((id): id is ProjectId => PROJECTS.some((project) => project.id === id)))],
+    factions: existing.factions.filter((faction) => faction && typeof faction.id === 'string' && typeof faction.name === 'string' && typeof faction.specialty === 'string' && Number.isFinite(faction.relation)).map((faction) => ({ ...faction, relation: clamp(faction.relation), lastContact: Number.isFinite(faction.lastContact) ? Math.max(0, faction.lastContact) : 0, treaty: faction.treaty === true })),
+    tradeRoutes: [...new Set(existing.tradeRoutes.filter((id) => typeof id === 'string' && existing.factions.some((faction) => faction?.id === id)))],
   };
   return { ...state, world };
 }
