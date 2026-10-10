@@ -879,8 +879,13 @@ export function setupUI(): void {
   $('close-help').addEventListener('click', () => dialog.close());
   $('start-playing').addEventListener('click', () => {
     dialog.close();
+    // Do not send a one-shot game event before Phaser has emitted its first snapshot:
+    // startup is asynchronous, so that event could otherwise be lost.
     if (latestSnapshot?.mode === 'challenge') dispatch('microregno:mode', 'kingdom');
-    dispatch('microregno:build', 'farm');
+    if (latestSnapshot) {
+      const current = createTutorialSteps(latestSnapshot).find((step) => !step.done);
+      if (current?.actionType) dispatch('microregno:build', current.actionType);
+    }
   });
   $('skip-tutorial').addEventListener('click', () => dialog.close());
 
