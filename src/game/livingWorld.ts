@@ -188,7 +188,7 @@ export function ensureWorldState(input: GameState): GameState {
   const rawCitizens = (existing.citizens as unknown[]).slice(0, 5000);
   const highestExistingId = rawCitizens.reduce((highest, raw) => {
     const id = recordOf(raw)?.id;
-    const match = typeof id === 'string' ? /^citizen-(\\d+)$/.exec(id) : null;
+    const match = typeof id === 'string' ? /^citizen-(\d+)$/.exec(id) : null;
     return match ? Math.max(highest, Number(match[1])) : highest;
   }, 0);
   let nextCitizenId = finiteNumber(existing.nextCitizenId) && existing.nextCitizenId > 0
@@ -252,9 +252,11 @@ export function ensureWorldState(input: GameState): GameState {
     forest: ['protected', 'managed', 'intensive'].includes(String(rawPolicies.forest)) ? rawPolicies.forest as ForestPolicy : DEFAULT_POLICIES.forest,
     guard: ['none', 'patrol'].includes(String(rawPolicies.guard)) ? rawPolicies.guard as GuardPolicy : DEFAULT_POLICIES.guard,
   };
-  const researched = [...new Set((existing.researched as unknown[]).filter((id): id is ResearchDefinition['id'] => RESEARCH.some((entry) => entry.id === id)) )];
+  const researchedInput = Array.isArray(existing.researched) ? existing.researched as unknown[] : [];
+  const researched = [...new Set(researchedInput.filter((id): id is ResearchDefinition['id'] => RESEARCH.some((entry) => entry.id === id)))];
   const regionIds = REGIONS.map((region) => region.id);
-  const discoveredRegions = [...new Set((existing.discoveredRegions as unknown[]).filter((id): id is RegionId => regionIds.includes(id as RegionId)))];
+  const discoveredInput = Array.isArray(existing.discoveredRegions) ? existing.discoveredRegions as unknown[] : [];
+  const discoveredRegions = [...new Set(discoveredInput.filter((id): id is RegionId => regionIds.includes(id as RegionId)))];
   const projectIds = PROJECTS.map((project) => project.id);
   const rawStages = recordOf(existing.projectStages) ?? {};
   const projectStages = {} as Record<ProjectId, number>;
@@ -311,14 +313,14 @@ export function ensureWorldState(input: GameState): GameState {
         && ['active', 'success', 'partial', 'failed'].includes(String(item.status)) && finiteNumber(item.successChance);
     }).map((trip) => ({
       ...trip,
-      crewIds: Array.isArray(trip.crewIds) ? [...new Set(trip.crewIds.filter((id): id is string => typeof id === 'string' && citizens.some((citizen) => citizen.id === id)))].slice(0, 3) : [trip.scoutId],
+      crewIds: Array.isArray(trip.crewIds) ? [...new Set(trip.crewIds.filter((id): id is string => typeof id === 'string' && citizens.some((citizen) => citizen.id === id)))].slice(0, 3) : citizens.some((citizen) => citizen.id === trip.scoutId) ? [trip.scoutId] : [],
       foodSupply: finiteNumber(trip.foodSupply) ? clamp(trip.foodSupply, 0, 50) : 8,
       usedTools: typeof trip.usedTools === 'boolean' ? trip.usedTools : false,
       durationFactor: finiteNumber(trip.durationFactor) ? clamp(trip.durationFactor, 0.75, 1.5) : 1,
       successChance: clamp(trip.successChance, 0, 98),
     })).slice(-8),
     discoveredRegions,
-    chronicle: (existing.chronicle as unknown[]).filter((note): note is string => typeof note === 'string').slice(0, 12),
+    chronicle: (Array.isArray(existing.chronicle) ? existing.chronicle as unknown[] : defaults.chronicle).filter((note): note is string => typeof note === 'string').slice(0, 12),
     activeEvent: activeEvent as RealmEvent | null,
     nextEventAt: finiteNumber(existing.nextEventAt) && existing.nextEventAt >= 0 ? existing.nextEventAt : state.gameMinutes + 240,
     queuedEvent: typeof existing.queuedEvent === 'string' && validQueuedEvents.includes(existing.queuedEvent) ? existing.queuedEvent : null,
@@ -328,9 +330,9 @@ export function ensureWorldState(input: GameState): GameState {
     weather: existing.weather && ['clear', 'drought'].includes(existing.weather.id) && finiteNumber(existing.weather.endsAt)
       ? { id: existing.weather.id, endsAt: Math.max(0, existing.weather.endsAt) }
       : { id: 'clear', endsAt: 0 },
-    completedProjects: [...new Set((existing.completedProjects as unknown[]).filter((id): id is ProjectId => projectIds.includes(id as ProjectId)))],
+    completedProjects: [...new Set((Array.isArray(existing.completedProjects) ? existing.completedProjects as unknown[] : []).filter((id): id is ProjectId => projectIds.includes(id as ProjectId)))],
     factions,
-    tradeRoutes: [...new Set((existing.tradeRoutes as unknown[]).filter((id): id is string => baseFactions.some((faction) => faction.id === id)))],
+    tradeRoutes: [...new Set((Array.isArray(existing.tradeRoutes) ? existing.tradeRoutes as unknown[] : []).filter((id): id is string => baseFactions.some((faction) => faction.id === id)))],
   };
   // Drop orphan expeditions whose crew no longer exists and safely repair IDs for future arrivals.
   normalized.expeditions = normalized.expeditions.filter((trip) => trip.status !== 'active' || (trip.crewIds?.length ?? 0) > 0);
@@ -380,7 +382,8 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   if (job) {
     const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident' && getCitizenWorkplace(state, citizen)?.id === building.id);
     const workers = assigned.length;
-    const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / Math.max(1, assigned.length);
+    if (workers === 0) return 0;
+    const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / assigned.length;
     const readiness = assigned.reduce((total, citizen) => total + (citizen.energy + citizen.health + citizen.happiness) / 3, 0) / Math.max(1, assigned.length) / 100;
     multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
   }
@@ -597,12 +600,22 @@ export function advanceRealmMinute(input: GameState): GameState {
   let community = state.community ? { ...state.community } : undefined;
   const activeExpeditions = world.expeditions.filter((expedition) => expedition.status === 'active');
   const hasFoodRation = resources.food > 0.1;
-  const rationDemand = Math.max(0.01, state.population * 0.008);
+  const rationDemand = Math.max(0.01, state.population * 0.035 * getSeason(state.gameMinutes).foodConsumptionMultiplier * realmModifiers(state).foodConsumptionMultiplier);
+  const reserveTarget = Math.max(1, rationDemand * 60);
+  const breadStock = goods.bread;
   const breadRation = !hasFoodRation ? Math.min(goods.bread, rationDemand) : 0;
   goods.bread = Math.max(0, Math.round((goods.bread - breadRation) * 1000) / 1000);
-  const rationCoverage = hasFoodRation ? 1 : Math.min(1, breadRation / rationDemand);
+  const rationCoverage = hasFoodRation ? Math.min(1, resources.food / reserveTarget) : Math.min(1, breadStock / reserveTarget);
   citizens = citizens.map((citizen) => {
-    if (citizen.status === 'exploring') return { ...citizen, activity: 'exploring', energy: clamp(citizen.energy - 0.055), hunger: clamp(citizen.hunger + 0.05) };
+    if (citizen.status === 'exploring') {
+      const trip = activeExpeditions.find((expedition) => expedition.id === citizen.expeditionId);
+      const crewSize = Math.max(1, trip?.crewIds?.length ?? 1);
+      const duration = Math.max(1, (trip?.eta ?? state.gameMinutes + 1) - (trip?.startedAt ?? state.gameMinutes));
+      const supplyPerMinute = trip ? (trip.foodSupply ?? 8) / crewSize / duration : 0;
+      const travelCoverage = Math.min(1, supplyPerMinute / Math.max(0.01, rationDemand / Math.max(1, state.population)));
+      const hungerDelta = travelCoverage >= 1 ? -0.1 : 0.14 - travelCoverage * 0.24;
+      return { ...citizen, activity: 'exploring', energy: clamp(citizen.energy - 0.055), hunger: clamp(citizen.hunger + hungerDelta) };
+    }
     const workplace = getCitizenWorkplace(state, citizen);
     const hungerDelta = rationCoverage >= 1 ? -0.18 : 0.16 - 0.34 * rationCoverage;
     const hunger = clamp(citizen.hunger + hungerDelta);
@@ -626,18 +639,18 @@ export function advanceRealmMinute(input: GameState): GameState {
   const farmers = citizens.filter((citizen) => citizen.profession === 'farmer' && citizen.status === 'resident');
   const farmSeason = getSeason(state.gameMinutes);
   goods.grain += Math.min(farms.reduce((sum, farm) => sum + 0.085 * farm.level * worldBuildingMultiplier(state, farm), 0), farmers.length * 0.06) * farmSeason.farmMultiplier;
-  const mills = state.buildings.filter((building) => building.type === 'mill').length;
-  const millers = citizens.filter((citizen) => citizen.profession === 'miller' && citizen.status === 'resident').length;
-  const flourProduced = Math.min(goods.grain, Math.min(mills * 0.14, millers * 0.11));
+  const mills = state.buildings.filter((building) => building.type === 'mill');
+  const flourCapacity = mills.reduce((sum, mill) => sum + mill.level * 0.14 * worldBuildingMultiplier(state, mill), 0);
+  const flourProduced = Math.min(goods.grain, flourCapacity);
   goods.grain -= flourProduced; goods.flour += flourProduced;
-  const bakeries = state.buildings.filter((building) => building.type === 'bakery').length;
-  const bakers = citizens.filter((citizen) => citizen.profession === 'baker' && citizen.status === 'resident').length;
-  const breadProduced = Math.min(goods.flour, Math.min(bakeries * 0.14, bakers * 0.11));
+  const bakeries = state.buildings.filter((building) => building.type === 'bakery');
+  const breadCapacity = bakeries.reduce((sum, bakery) => sum + bakery.level * 0.14 * worldBuildingMultiplier(state, bakery), 0);
+  const breadProduced = Math.min(goods.flour, breadCapacity);
   goods.flour -= breadProduced; goods.bread += breadProduced;
   if (goods.bread > 0 && state.gameMinutes > 0 && state.gameMinutes % 18 === 0 && resources.food > 0.1) goods.bread = Math.max(0, goods.bread - state.population * 0.015);
-  const workshops = state.buildings.filter((building) => building.type === 'workshop').length;
-  const artisans = citizens.filter((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident').length;
-  if (workshops > 0 && artisans > 0 && state.gameMinutes % 45 === 0 && resources.wood >= 2 && resources.stone >= 1) {
+  const workshops = state.buildings.filter((building) => building.type === 'workshop');
+  const workshopProductivity = workshops.reduce((sum, workshop) => sum + workshop.level * worldBuildingMultiplier(state, workshop), 0);
+  if (workshopProductivity > 0.1 && state.gameMinutes % 45 === 0 && resources.wood >= 2 && resources.stone >= 1 && goods.tools < goodsCapacity(state)) {
     resources.wood -= 2; resources.stone -= 1; goods.tools += 1;
     notes.push('L’officina ha completato un nuovo attrezzo.');
   }
@@ -773,8 +786,8 @@ export function advanceRealmMinute(input: GameState): GameState {
     nextWorld = { ...nextWorld, forestHealth };
     const workshopsForMedicine = state.buildings.filter((building) => building.type === 'workshop').length;
     const schoolsForMedicine = state.buildings.filter((building) => building.type === 'school').length;
-    const artisansForMedicine = citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident');
-    const scholarsForMedicine = citizens.some((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident');
+    const artisansForMedicine = citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident' && getCitizenWorkplace(state, citizen)?.type === 'workshop');
+    const scholarsForMedicine = citizens.some((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident' && getCitizenWorkplace(state, citizen)?.type === 'school');
     if (workshopsForMedicine > 0 && schoolsForMedicine > 0 && artisansForMedicine && scholarsForMedicine && goods.grain >= 1 && goods.medicine < 20) {
       goods.grain -= 1; goods.medicine += 1;
       notes.push('Artigiani e studiosi hanno preparato un rimedio usando le scorte botaniche.');
