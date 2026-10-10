@@ -8,6 +8,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDefinition> = {
   sawmill: { type: 'sawmill', name: 'Segheria', shortName: 'Segheria', description: 'Trasforma il legname dei boschi in materiali da costruzione.', icon: '♧', cost: { wood: 14, stone: 5 }, unlockedAt: 6, production: { wood: 1.25 } },
   quarry: { type: 'quarry', name: 'Cava di pietra', shortName: 'Cava', description: 'Estrae pietra dalle alture rocciose vicine.', icon: '◆', cost: { wood: 11, stone: 8 }, unlockedAt: 6, production: { stone: .8 } },
   market: { type: 'market', name: 'Mercato del borgo', shortName: 'Mercato', description: 'Le botteghe e gli scambi portano nuove monete al regno.', icon: '◇', cost: { wood: 18, stone: 10 }, unlockedAt: 8, production: { coins: .65 } },
+  road: { type: 'road', name: 'Strada', shortName: 'Strada', description: 'Collega le botteghe: un edificio produttivo vicino a una strada lavora con più efficienza.', icon: '╱', cost: { wood: 2 }, unlockedAt: 0, production: {} },
   mill: { type: 'mill', name: 'Mulino', shortName: 'Mulino', description: 'Trasforma il grano in farina. Un mugnaio competente evita sprechi.', icon: '⚙', cost: { wood: 16, stone: 8 }, unlockedAt: 8, production: {} },
   bakery: { type: 'bakery', name: 'Panificio', shortName: 'Panificio', description: 'Trasforma la farina in pane, una riserva che sostiene il morale.', icon: '♨', cost: { wood: 18, stone: 10 }, unlockedAt: 10, production: {} },
   warehouse: { type: 'warehouse', name: 'Magazzino', shortName: 'Magazzino', description: 'Aumenta la capacità delle scorte alimentari e dei beni lavorati.', icon: '▦', cost: { wood: 16, stone: 8 }, unlockedAt: 8, production: {} },
@@ -15,7 +16,7 @@ export const BUILDINGS: Record<BuildingType, BuildingDefinition> = {
   watchtower: { type: 'watchtower', name: 'Torre di guardia', shortName: 'Torre', description: 'Le pattuglie tengono d’occhio le strade e riducono i rischi degli eventi.', icon: '♜', cost: { wood: 20, stone: 16, coins: 10 }, unlockedAt: 12, production: {} },
   workshop: { type: 'workshop', name: 'Officina', shortName: 'Officina', description: 'Gli artigiani riparano strumenti e producono attrezzi per le spedizioni.', icon: '⚒', cost: { wood: 16, stone: 12 }, unlockedAt: 10, production: {} },
 };
-export const BUILD_ORDER: BuildingType[] = ['house', 'farm', 'sawmill', 'quarry', 'market', 'mill', 'bakery', 'warehouse', 'school', 'workshop', 'watchtower'];
+export const BUILD_ORDER: BuildingType[] = ['house', 'farm', 'sawmill', 'quarry', 'market', 'road', 'mill', 'bakery', 'warehouse', 'school', 'workshop', 'watchtower'];
 export function formatCost(cost: Partial<Record<Resource, number>>): string {
   const order: Resource[] = ['wood', 'stone', 'food', 'coins'];
   const names: Record<Resource, string> = { wood: 'legname', stone: 'pietra', food: 'cibo', coins: 'monete' };
