@@ -451,7 +451,7 @@ function renderInspector(snapshot: GameSnapshot): void {
     addStat(stats, 'Livello', selected.level + ' / ' + MAX_BUILDING_LEVEL);
     if (definition.housing) addStat(stats, 'Capienza abitativa', '+' + definition.housing * selected.level);
 
-    const output = productionForBuilding(selected, generateTerrain(snapshot.state.seed));
+    const output = productionForBuilding(selected, generateTerrain(snapshot.state.seed), snapshot.state.gameMinutes, snapshot.state.community?.morale ?? 60);
     Object.entries(output).forEach(([resource, amount]) => {
       addStat(stats, RESOURCE_LABELS[resource as Resource] + ' / min', '+' + Number(amount).toLocaleString('it-IT', { maximumFractionDigits: 2 }));
     });
