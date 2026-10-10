@@ -227,7 +227,11 @@ export function resolveCitizenRequest(
   for (const [resource, amount] of Object.entries(selected.cost) as [Resource, number][]) resources[resource] -= amount;
   for (const [resource, amount] of Object.entries(selected.reward) as [Resource, number][]) resources[resource] += amount;
   const population = Math.max(0, state.population + (selected.populationDelta ?? 0));
-  const message = request.citizen + ': ' + selected.label + '. ' + selected.detail;
+  const signed = (value: number): string => value > 0 ? '+' + value : String(value);
+  const consequences = ['Umore ' + signed(selected.moodDelta), 'fiducia ' + signed(selected.trustDelta)];
+  if (selected.populationDelta) consequences.push('abitanti ' + signed(selected.populationDelta));
+  if (selected.housingDelta) consequences.push('posti abitativi ' + signed(selected.housingDelta));
+  const message = request.citizen + ': ' + selected.label + '. ' + selected.detail + ' (' + consequences.join(', ') + ').';
   const nextCommunity: CommunityState = {
     ...community,
     morale: clampCommunityValue(community.morale + selected.moodDelta),
