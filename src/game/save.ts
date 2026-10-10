@@ -1,5 +1,6 @@
 import {BUILDINGS,MAX_BUILDING_LEVEL,OFFLINE_CAP_MINUTES} from './definitions';
 import {advanceTime,createInitialState} from './engine';
+import {ensureCommunity} from './community';
 import {localDateKey} from './challenge';
 import type {Building,ChallengeSave,GameState} from './types';
 const KEY='microregno:kingdom:v1',CHALLENGE='microregno:challenge:';
@@ -10,8 +11,9 @@ return s.version===1&&typeof s.seed==='number'&&Number.isFinite(s.seed)&&typeof 
 function read<T>(key:string):T|null{try{if(typeof localStorage==='undefined')return null;const v=localStorage.getItem(key);return v?JSON.parse(v) as T:null;}catch{return null;}}
 function write(key:string,v:unknown):boolean{try{if(typeof localStorage==='undefined')return false;localStorage.setItem(key,JSON.stringify(v));return true;}catch{return false;}}
 export function loadKingdom():GameState{
-const v=read<unknown>(KEY);
-if(valid(v)){
+const stored=read<unknown>(KEY);
+if(valid(stored)){
+const v=ensureCommunity(stored);
 const types=['townHall','house','farm','sawmill','quarry','market'];
 const safe=(v.buildings as Building[]).filter(b=>!!b&&typeof b==='object'&&typeof b.id==='string'&&Number.isInteger(b.x)&&Number.isInteger(b.y)&&b.x>=0&&b.x<12&&b.y>=0&&b.y<12&&types.includes(b.type)&&Number.isInteger(b.level)&&b.level>=1&&b.level<=MAX_BUILDING_LEVEL);
 const unique=safe.filter((b,i,list)=>list.findIndex(other=>other.x===b.x&&other.y===b.y)===i);
@@ -35,6 +37,10 @@ let remaining=minutes;
 while(remaining>0){const chunk=Math.min(360,remaining);copy=advanceTime(copy,chunk);remaining-=chunk;}
 copy.lastSavedAt=now;
 return{state:copy,minutes};}
-export function loadChallengeSave(date=localDateKey()):ChallengeSave|null{const v=read<ChallengeSave>(CHALLENGE+date);return v&&v.date===date&&valid(v.state)?v:null;}
+export function loadChallengeSave(date=localDateKey()):ChallengeSave|null{
+const v=read<ChallengeSave>(CHALLENGE+date);
+if(!v||v.date!==date||!valid(v.state)||typeof v.completed!=='boolean'||!Number.isFinite(v.score)||!Number.isFinite(v.bestScore))return null;
+return {...v,state:ensureCommunity(v.state)};
+}
 export function saveChallenge(s:ChallengeSave):boolean{return write(CHALLENGE+s.date,s);}
 export function resetKingdom():void{try{if(typeof localStorage!=='undefined')localStorage.removeItem(KEY);}catch{/* Browser storage may be disabled. */}}
