@@ -253,7 +253,7 @@ function renderCitizenPanel(snapshot: GameSnapshot): void {
   $('community-morale').textContent = String(community.morale);
   $('community-trust').textContent = String(community.trust);
   $('community-fulfilled').textContent = String(community.fulfilledRequests);
-  $('community-morale').title = community.morale >= 75 ? 'La comunità è entusiasta: produzione +5%.' : community.morale <= 25 ? 'Il morale è basso: produzione −10%.' : community.morale < 20 ? 'Il morale è troppo basso: la popolazione non cresce.' : 'Il morale influenza la produzione e la crescita.';
+  $('community-morale').title = community.morale < 20 ? 'Il morale è troppo basso: la popolazione non cresce.' : community.morale >= 75 ? 'La comunità è entusiasta: produzione +5%.' : community.morale <= 25 ? 'Il morale è basso: produzione −10%.' : 'Il morale influenza la produzione e la crescita.';
   $('community-trust').title = community.trust >= 75 ? 'La comunità si fida: le monete generate dagli abitanti aumentano del 20%.' : 'Con fiducia alta gli abitanti generano più monete.';
   $('community-outcome').textContent = community.lastOutcome;
 
