@@ -9,6 +9,25 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Salvataggio locale, progressione offline limitata, regno persistente e sfida giornaliera.
 - Obiettivi, record locali, demolizione con rimborso parziale e interfaccia responsive.
 
+## Come si gioca
+
+Il primo obiettivo è portare il borgo a **8 abitanti**. La guida in gioco segue cinque passaggi:
+1. Costruisci una fattoria per produrre cibo.
+2. Costruisci una casa: aggiunge 6 posti abitativi.
+3. Mantieni almeno 18 unità di cibo e attendi che il villaggio raggiunga 6 abitanti.
+4. Costruisci una segheria vicino a un bosco per generare legname.
+5. Raggiungi 8 abitanti: a quel punto si sblocca il mercato.
+
+**Regole essenziali**
+- Seleziona un edificio nel pannello a destra, poi clicca una casella libera sulla mappa.
+- Verde = posizione valida; rosso = posizione non valida.
+- La segheria richiede un bosco vicino; la cava richiede roccia vicina.
+- Segheria e cava si sbloccano a 6 abitanti; il mercato a 8.
+- La popolazione cresce ogni 20 minuti di gioco se ci sono almeno 18 unità di cibo e posti abitativi liberi.
+- Il regno principale è persistente. La sfida giornaliera è opzionale e ha un salvataggio separato.
+
+La grafica degli edifici è inclusa localmente come SVG con dimensioni esplicite; non dipende da immagini caricate da siti terzi.
+
 ## Requisiti e avvio
 Serve Node.js 20+ e npm.
 
