@@ -32,7 +32,19 @@ const old=loadChallengeSave(this.challenge.date);
 saveChallenge({date:this.challenge.date,state:this.state,completed:this.completed,score:old?.score??0,bestScore:Math.max(old?.bestScore??0,this.best)});
 }
 }
-private tick():void{const oldPopulation=this.state.population,oldSeason=getSeason(this.state.gameMinutes).id;if(this.mode==='kingdom'){this.state=advanceTime(this.state,1,true);this.kingdom=this.state;if(Date.now()-this.savedAt>10000){const ok=saveKingdom(this.kingdom);this.savedAt=Date.now();window.dispatchEvent(new CustomEvent('microregno:save-status',{detail:ok?'Salvataggio locale attivo':'Salvataggio non disponibile in questo browser'}));}}else if(!this.completed){this.state=advanceTime(this.state,1,false);if(isChallengeComplete(this.state,this.challenge))this.complete();const old=loadChallengeSave(this.challenge.date);const v:ChallengeSave={date:this.challenge.date,state:this.state,completed:this.completed,score:this.completed?challengeScore(this.state):0,bestScore:Math.max(old?.bestScore??0,this.completed?challengeScore(this.state):0)};this.best=v.bestScore;saveChallenge(v);}if(this.mode==='kingdom')this.applyPopulationMilestones();const newSeason=getSeason(this.state.gameMinutes);if(oldSeason!==newSeason.id){this.redraw();this.notice('È arrivata '+newSeason.name.toLocaleLowerCase('it-IT')+'. '+newSeason.description);}else if(this.state.population!==oldPopulation)this.redraw();this.emit();}
+private tick():void{const oldPopulation=this.state.population,oldSeason=getSeason(this.state.gameMinutes).id;if(this.mode==='kingdom'){this.state=advanceTime(this.state,1,true);this.kingdom=this.state;if(Date.now()-this.savedAt>10000){const ok=saveKingdom(this.kingdom);this.savedAt=Date.now();window.dispatchEvent(new CustomEvent('microregno:save-status',{detail:ok?'Salvataggio locale attivo':'Salvataggio non disponibile in questo browser'}));}}else if(!this.completed){this.state=advanceTime(this.state,1,false);if(isChallengeComplete(this.state,this.challenge))this.complete();const old=loadChallengeSave(this.challenge.date);const v:ChallengeSave={date:this.challenge.date,state:this.state,completed:this.completed,score:this.completed?challengeScore(this.state):0,bestScore:Math.max(old?.bestScore??0,this.completed?challengeScore(this.state):0)};this.best=v.bestScore;saveChallenge(v);}if(this.mode==='kingdom')this.applyPopulationMilestones();const newSeason=getSeason(this.state.gameMinutes);if(oldSeason!==newSeason.id){
+this.redraw();
+const seasonMessage='È arrivata '+newSeason.name.toLocaleLowerCase('it-IT')+'. '+newSeason.description;
+if(this.mode==='kingdom'&&this.state.community){
+const community=this.state.community;
+this.state={...this.state,community:{...community,lastOutcome:seasonMessage,history:[seasonMessage,...community.history].slice(0,6)}};
+this.kingdom=this.state;
+const saved=saveKingdom(this.kingdom);
+this.savedAt=Date.now();
+window.dispatchEvent(new CustomEvent('microregno:save-status',{detail:saved?'Salvataggio locale attivo':'Salvataggio non disponibile in questo browser'}));
+}
+this.notice(seasonMessage);
+}else if(this.state.population!==oldPopulation)this.redraw();this.emit();}
 private applyPopulationMilestones():void{
 if(this.mode!=='kingdom')return;
 const result=awardPopulationMilestones(this.state);
