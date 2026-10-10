@@ -126,7 +126,7 @@ export function applyOfflineProgress(state: GameState, now = Date.now()): { stat
   let remaining = minutes;
   while (remaining > 0) {
     const chunk = Math.min(360, remaining);
-    copy = advanceTime(copy, chunk, true, true);
+    copy = advanceTime(copy, chunk, false, true);
     remaining -= chunk;
   }
   copy.lastSavedAt = now;
