@@ -586,7 +586,7 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
       (!hasMarket ? 'Costruisci un mercato per aprire le vendite.' : !hasMerchant ? 'Assegna un cittadino al mestiere Mercante per vendere le scorte.' : 'Le quotazioni cambiano ogni 120 minuti di gioco. Accumularne troppi riduce il prezzo; i beni rari possono valere di più.') +
       '</p>';
     const employment = '<div class="realm-card"><div class="realm-card-title"><h3>Filiere produttive</h3><span>BENI LAVORATI</span></div>' + goodsStrip + marketPanel +
-      '<p>Le fattorie generano grano; mugnai e fornai lo trasformano in farina e pane. L’officina consuma legname e pietra per produrre attrezzi. Magazzini aggiuntivi aumentano la capienza dei beni a ' +
+      '<p>Le fattorie generano grano; mugnai e fornai lo trasformano in farina e pane. L’officina consuma legname e pietra per produrre attrezzi. Magazzini aggiuntivi aumentano la capienza e riducono il deterioramento di pane, farina, grano e rimedi. La capienza dei beni è ' +
       (100 + state.buildings.filter((building) => building.type === 'warehouse').reduce((sum, building) => sum + 80 * building.level, 0)) + ' unità.</p>' +
       '<div class="realm-chain">' + ['farm', 'mill', 'bakery', 'workshop'].map((type) => {
         const count = state.buildings.filter((building) => building.type === type).length;
