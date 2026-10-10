@@ -14,6 +14,8 @@ export interface Citizen { id: string; name: string; age: number; profession: Pr
 export interface GoodsBag { grain: number; flour: number; bread: number; tools: number; medicine: number }
 export type TradableGood = keyof GoodsBag;
 export interface MarketState { prices: Record<TradableGood, number>; demand: Record<TradableGood, number>; cycle: number; nextShiftAt: number }
+export type WeatherId = 'clear' | 'drought';
+export interface WeatherState { id: WeatherId; endsAt: number }
 export type TaxPolicy = 'low' | 'balanced' | 'high';
 export type FoodPolicy = 'reserve' | 'balanced' | 'generous';
 export type ForestPolicy = 'protected' | 'managed' | 'intensive';
@@ -27,7 +29,7 @@ export interface RealmEventChoice { id: string; label: string; detail: string; c
 export interface RealmEvent { id: string; title: string; description: string; choices: RealmEventChoice[]; startedAt: number }
 export type ProjectId = 'aqueduct' | 'stone-bridge' | 'artisan-quarter' | 'grand-archive';
 export interface Faction { id: string; name: string; specialty: string; relation: number; lastContact: number; treaty: boolean }
-export interface WorldState { version: 1; nextCitizenId: number; citizens: Citizen[]; goods: GoodsBag; policies: RealmPolicies; researchPoints: number; activeResearch: ResearchId | null; researchProgress: number; researched: ResearchId[]; expeditions: Expedition[]; discoveredRegions: RegionId[]; chronicle: string[]; activeEvent: RealmEvent | null; nextEventAt: number; queuedEvent: string | null; projectStages: Record<ProjectId, number>; market: MarketState; forestHealth: number; completedProjects: ProjectId[]; factions: Faction[]; tradeRoutes: string[] }
+export interface WorldState { version: 1; nextCitizenId: number; citizens: Citizen[]; goods: GoodsBag; policies: RealmPolicies; researchPoints: number; activeResearch: ResearchId | null; researchProgress: number; researched: ResearchId[]; expeditions: Expedition[]; discoveredRegions: RegionId[]; chronicle: string[]; activeEvent: RealmEvent | null; nextEventAt: number; queuedEvent: string | null; projectStages: Record<ProjectId, number>; market: MarketState; forestHealth: number; weather: WeatherState; completedProjects: ProjectId[]; factions: Faction[]; tradeRoutes: string[] }
 export type RealmAction = | { type: 'assign'; citizenId: string; value: Profession } | { type: 'law'; id: 'tax' | 'food' | 'forest' | 'guard'; value: string } | { type: 'research'; id: ResearchId } | { type: 'expedition'; id: RegionId } | { type: 'project'; id: ProjectId } | { type: 'event'; id: string } | { type: 'diplomacy'; id: string; value: 'gift' | 'trade' | 'treaty' } | { type: 'tradeGoods'; good: TradableGood; amount: number };
 export interface Building { id: string; type: BuildingType; x: number; y: number; level: number }
 export interface GameState { version: 1; seed: number; resources: ResourceBag; population: number; gameMinutes: number; buildings: Building[]; lastSavedAt: number; milestones?: number[]; community?: CommunityState; world?: WorldState }
