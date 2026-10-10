@@ -4,7 +4,7 @@ export type Terrain='grass'|'forest'|'rock'|'water';
 export type GameMode='kingdom'|'challenge';
 export type ResourceBag=Record<Resource,number>;
 export interface Building{id:string;type:BuildingType;x:number;y:number;level:number}
-export interface GameState{version:1;seed:number;resources:ResourceBag;population:number;gameMinutes:number;buildings:Building[];lastSavedAt:number}
+export interface GameState{version:1;seed:number;resources:ResourceBag;population:number;gameMinutes:number;buildings:Building[];lastSavedAt:number;milestones?:number[]}
 export interface BuildingDefinition{type:BuildingType;name:string;shortName:string;description:string;icon:string;cost:Partial<ResourceBag>;unlockedAt:number;housing?:number;production?:Partial<ResourceBag>}
 export interface BuildCheck{ok:boolean;reason?:string}
 export interface DailyChallenge{date:string;seed:number;title:string;description:string;kind:'population'|'resources'|'buildings';target:number;buildingType?:BuildingType;reward:string}
