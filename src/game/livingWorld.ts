@@ -874,15 +874,18 @@ export function advanceRealmMinute(input: GameState): GameState {
       return shortage - workers * 3;
     };
     citizens = citizens.map((citizen) => {
-      if (citizen.age < 14 || citizen.status !== 'resident' || availableJobs.includes(citizen.profession)
+      if (citizen.age < 14 || citizen.status !== 'resident' || citizen.workplaceId
         || !citizen.traits.some((trait) => ['pratico', 'ambizioso', 'curioso', 'inventivo'].includes(trait))) return citizen;
       const target = [...availableJobs].sort((a, b) => jobNeed(b) - jobNeed(a)
         || citizens.filter((person) => person.profession === a).length - citizens.filter((person) => person.profession === b).length)[0];
-      return target ? {
+      if (!target || target === citizen.profession) return citizen;
+      const currentProfessionHasWorkplace = availableJobs.includes(citizen.profession);
+      if (currentProfessionHasWorkplace && jobNeed(target) < jobNeed(citizen.profession) + 18) return citizen;
+      return {
         ...citizen, profession: target, workplaceId: null,
         lastAction: 'Ha cambiato mestiere per rispondere ai bisogni del borgo: ' + PROFESSION_LABELS[target],
         personalHistory: rememberCitizen(citizen, 'Ha imparato il mestiere di ' + PROFESSION_LABELS[target] + ' per aiutare il borgo.'),
-      } : citizen;
+      };
     });
   }
   if (state.gameMinutes > 0 && state.gameMinutes % (1440 * 30) === 0) {
