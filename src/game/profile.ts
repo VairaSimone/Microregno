@@ -52,9 +52,12 @@ export function normalizePlayerProfile(value:unknown):PlayerProfile{
     &&typeof a.rewardId==='string'&&typeof a.rewardName==='string'&&typeof a.unlockedAt==='string'): [];
   const unlockedRewards=Array.isArray(raw.unlockedRewards)?raw.unlockedRewards.filter((id):id is string=>typeof id==='string'&&Object.hasOwn(BONUS,id)||id==='founder-title'):[];
   const lastCompletedDate=typeof raw.lastCompletedDate==='string'?raw.lastCompletedDate:null;
+  const totalCompleted=Number.isFinite(raw.totalCompleted)
+    ?Math.max(records.length,Math.min(Number.MAX_SAFE_INTEGER,Math.floor(raw.totalCompleted!)))
+    :records.length;
   return {
     version:1,records,medals,achievements,unlockedRewards:[...new Set(unlockedRewards)],
-    totalCompleted:records.length,
+    totalCompleted,
     currentStreak:Number.isFinite(raw.currentStreak)?Math.max(0,Math.min(500,Math.floor(raw.currentStreak!))):0,
     bestStreak:Number.isFinite(raw.bestStreak)?Math.max(0,Math.min(500,Math.floor(raw.bestStreak!))):0,
     lastCompletedDate,
@@ -109,7 +112,7 @@ export function recordChallengeVictory(original:PlayerProfile,challenge:DailyCha
     profile.records.sort((a,b)=>a.date.localeCompare(b.date));
     if(profile.records.length>500)profile.records=profile.records.slice(-500);
   }
-  profile.totalCompleted=profile.records.length;
+  if(!previous)profile.totalCompleted=Math.min(Number.MAX_SAFE_INTEGER,profile.totalCompleted+1);
   profile.allTimeBestScore=Math.max(profile.allTimeBestScore,bestScore);
   let medal=profile.medals.find(m=>m.id===challenge.id);
   if(medal){

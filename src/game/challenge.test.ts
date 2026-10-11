@@ -1,6 +1,7 @@
 import {describe,expect,it} from 'vitest';
 import {challengeScore,createChallengeState,createDailyChallenge,isChallengeComplete,localDateKey,medalTier} from './challenge';
 import {createInitialState} from './engine';
+import {getSeason} from './community';
 
 describe('daily challenge variety',()=>{
   it('creates the same fully-described challenge for a given local day',()=>{
@@ -43,6 +44,13 @@ describe('daily challenge variety',()=>{
     expect(isChallengeComplete(state,foodRequired,true)).toBe(false);
     state.resources.food=25;
     expect(isChallengeComplete(state,foodRequired,true)).toBe(true);
+  });
+  it('starts the dry-summer challenge during the summer season',()=>{
+    const drySummer=Array.from({length:500},(_,i)=>createDailyChallenge(new Date(2026,0,1+i)))
+      .find(challenge=>challenge.id.endsWith(':dry-summer'));
+    expect(drySummer).toBeDefined();
+    expect(getSeason(drySummer!.startGameMinutes??0).id).toBe('summer');
+    expect(drySummer!.eventAt).toBe(35);
   });
   it('scores a quick clear rather than penalizing a winter scenario for its starting clock',()=>{
     const c=createDailyChallenge(new Date(2026,9,11));

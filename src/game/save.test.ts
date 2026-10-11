@@ -64,6 +64,24 @@ describe('save resilience', () => {
     expect(loaded.resources.food).toBeGreaterThan(0);
   });
 
+  it('preserves progress when deaths reduce the population below five', () => {
+    const state = createInitialState(449);
+    const reducedPopulation = {
+      ...state,
+      population: 3,
+      gameMinutes: 654,
+      world: { ...state.world!, citizens: state.world!.citizens.slice(0, 3) },
+    } as GameState;
+    installStorage({ [KINGDOM_KEY]: JSON.stringify(reducedPopulation) });
+
+    const loaded = loadKingdom();
+
+    expect(loaded.seed).toBe(449);
+    expect(loaded.population).toBe(3);
+    expect(loaded.gameMinutes).toBe(654);
+    expect(loaded.world?.citizens).toHaveLength(3);
+  });
+
   it('falls back safely when the stored save has no valid town hall', () => {
     const state = createInitialState(333);
     const corrupted = { ...state, buildings: [null, { id: 'bad', type: 'townHall', x: 5, y: 6, level: 0 }] } as unknown as GameState;

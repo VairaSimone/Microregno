@@ -1,6 +1,6 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {createDailyChallenge} from './challenge';
-import {createPlayerProfile,loadPlayerProfile,recordChallengeVictory,savePlayerProfile,applyProfileBonuses,getAchievementProgress,getChallengeArchive} from './profile';
+import {createPlayerProfile,loadPlayerProfile,recordChallengeVictory,savePlayerProfile,applyProfileBonuses,getAchievementProgress,getChallengeArchive,normalizePlayerProfile} from './profile';
 import {createInitialState} from './engine';
 
 afterEach(()=>vi.unstubAllGlobals());
@@ -54,6 +54,30 @@ describe('permanent single-player rewards',()=>{
     expect(profile.medals).toEqual([]);
     expect(profile.totalCompleted).toBe(0);
     expect(profile.unlockedRewards).toEqual([]);
+  });
+  it('keeps lifetime victories when the visible archive reaches its 500-record cap',()=>{
+    const oldRecords=Array.from({length:500},(_,index)=>({
+      date:new Date(Date.UTC(2024,0,1+index)).toISOString().slice(0,10),
+      challengeId:'historic-'+index,
+      title:'Sfida archiviata',
+      category:'population' as const,
+      score:1000,
+      bestScore:1000,
+      completedAt:'2025-01-01T12:00:00.000Z',
+      medalId:'builder',
+      tier:'bronze' as const,
+      achievedInMinutes:10,
+    }));
+    let profile=normalizePlayerProfile({...createPlayerProfile(),records:oldRecords,totalCompleted:730});
+    expect(profile.records).toHaveLength(500);
+    expect(profile.totalCompleted).toBe(730);
+
+    const challenge=createDailyChallenge(new Date(2026,9,11));
+    profile=recordChallengeVictory(profile,{...challenge,id:'lifetime-new-win',date:'2026-10-11'},2000,20,new Date('2026-10-11T12:00:00.000Z')).profile;
+
+    expect(profile.records).toHaveLength(500);
+    expect(profile.totalCompleted).toBe(731);
+    expect(normalizePlayerProfile(profile).totalCompleted).toBe(731);
   });
   it('exposes the newest completed challenges as a local archive without mutating saved order',()=>{
     let profile=createPlayerProfile();
