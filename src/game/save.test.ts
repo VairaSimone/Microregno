@@ -136,6 +136,7 @@ describe('save resilience', () => {
 
   it('releases crew when an active expedition is malformed or has impossible timing', () => {
     const state = createInitialState(446);
+    state.progression!.unlockedEpochs = ['settlement', 'village', 'borough'];
     state.resources.food = 100;
     const launched = performRealmAction(state, { type: 'expedition', id: 'forest', scoutId: 'citizen-5', crewIds: ['citizen-5', 'citizen-1'], foodSupply: 11 });
     expect(launched.ok).toBe(true);
