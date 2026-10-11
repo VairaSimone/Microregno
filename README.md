@@ -20,7 +20,7 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Ciclo di vita: infanzia senza lavoro, nascite con genitori tracciati, malattie e recupero, invecchiamento, lutti e adattamento professionale alle carenze del borgo.
 - Filiere produttive: grano, farina, pane, strumenti e rimedi; mulino, panificio, officina e magazzino.
 - Mercato dinamico con prezzi aggiornati ogni 120 minuti di gioco, domanda variabile e vendita di beni lavorati in presenza di un mercante.
-- Rete stradale costruibile: gli edifici produttivi adiacenti a una strada lavorano con efficienza maggiore; le strade non richiedono miglioramenti di livello. Pane, farina, grano e rimedi deperiscono nel tempo; i magazzini riducono gli sprechi e aumentano la capienza.
+- Rete stradale costruibile: un tratto stradale concede bonus solo se le strade adiacenti sono collegate senza interruzioni al Municipio o al Mercato. Pane, farina, grano e rimedi deperiscono nel tempo; i magazzini riducono gli sprechi e aumentano la capienza.
 - Sala del Regno con leggi economiche, gestione delle dispense, politiche forestali e pattuglie.
 - Ricerca in sei percorsi, spedizioni esplorative, nuove regioni, reperti, rischi e ricompense.
 - Diplomazia con tre comunità vicine, accordi permanenti e rotte commerciali.
@@ -102,8 +102,16 @@ Il workflow di deploy è manuale per evitare tentativi di pubblicazione prima di
 - **public/assets/**: sprite SVG originali.
 
 ## Limiti
-I salvataggi e i record sono locali. Le stagioni si alternano rapidamente per rendere visibili i cambiamenti in una sessione breve. Storie, rapporti e ciclo di vita sono simulati con regole deterministiche e una cronaca limitata agli ultimi eventi personali; la navigazione resta locale alla mappa e non è ancora presente una simulazione urbana completa o un sistema di animazioni individuali avanzato.
+I salvataggi e i record sono locali. Le stagioni si alternano rapidamente per rendere visibili i cambiamenti in una sessione breve. Storie, rapporti, ciclo di vita e incidenti territoriali sono simulati con regole deterministiche e cronache limitate. Le mappe delle colonie sono griglie gestionali 5×5 con costruzione e produzione locale, ma non condividono ancora il sistema di movimento animato dei cittadini della mappa principale.
  Account, sincronizzazione, classifiche online e anti-cheat richiedono un backend e non sono inclusi in questa base. La licenza open source non è ancora stata scelta.
+
+## Frontiera e territori giocabili
+
+- Una spedizione riuscita apre una storia regionale con una scelta duratura: proteggere o sfruttare il bosco, mettere in sicurezza o scavare il passo, cooperare o imporre dazi al lago, aprire una dogana o fortificare il confine; le scoperte nelle rovine sbloccano una rete di archivi.
+- Dopo aver scoperto una regione e raggiunto l'epoca del Borgo, puoi fondare un avamposto pagando un costo specifico per il territorio. Ogni colonia ha una propria griglia costruibile 5×5 con l'avamposto iniziale, edifici, riserve e stabilità.
+- I campi boschivi, le cave di frontiera e le peschiere raccolgono legname, pietra e cibo da riserve locali finite. I posti commerciali producono monete e gli archivi generano conoscenza. Gli edifici sono vincolati al tipo di regione: una peschiera è adatta al lago, una cava alle montagne o alle rovine e un campo boschivo al bosco o al confine.
+- Ogni sei ore di gioco possono verificarsi incendi, frane, piene, crolli e incursioni. Gli incidenti abbassano stabilità, consumano risorse locali e dimezzano la produzione per tre ore; le torri di guardia, le leggi e le decisioni permanenti possono ridurre i rischi.
+- Selvalunga, Porto Salmastra e Rocciacupa hanno necessità e offerte commerciali differenti. Un trattato porta consegne dedicate di legname, provviste o pietra invece di sole monete.
 
 ## Cittadini e ciclo di vita
 
