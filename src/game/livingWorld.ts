@@ -968,10 +968,15 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     }
     if (choice.populationDelta && choice.populationDelta < 0) citizens = citizens.slice(0, Math.max(0, citizens.length + choice.populationDelta));
     const eventQueue = [...(world.eventQueue ?? (world.queuedEvent ? [world.queuedEvent] : []))];
+    const alreadyQueued = eventQueue.length > 0;
     if (choice.chain && !eventQueue.includes(choice.chain)) eventQueue.push(choice.chain);
     const queued = eventQueue.slice(0, 16);
     const queuedEvent = queued[0] ?? null;
-    const nextEventAt = queued.length ? Math.min(world.nextEventAt, state.gameMinutes + 75) : state.gameMinutes + 300;
+    const nextEventAt = alreadyQueued
+      ? Math.min(world.nextEventAt, state.gameMinutes + 75)
+      : choice.chain
+        ? state.gameMinutes + 75
+        : state.gameMinutes + 300;
     world = { ...world, citizens, goods, activeEvent: null, eventQueue: queued, queuedEvent, nextEventAt, researchPoints: world.researchPoints + (choice.researchDelta ?? 0), weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather };
     community = applyCommunityEffects(community, choice.moodDelta ?? 0, choice.trustDelta ?? 0);
     return finish(event.title + ' — ' + choice.label + '. ' + choice.detail);
