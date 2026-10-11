@@ -831,6 +831,11 @@ export function advanceRealmMinute(input: GameState): GameState {
   let citizens = world.citizens.map((citizen) => ({ ...citizen, skills: { ...citizen.skills }, traits: [...citizen.traits], relationships: { ...citizen.relationships } }));
   const notes: string[] = [];
   let community = state.community ? { ...state.community } : undefined;
+  let frontierTerritories = world.frontierTerritories.map((territory) => ({
+    ...territory, stock: { ...territory.stock }, structures: territory.structures.map((structure) => ({ ...structure })),
+    activeIncident: territory.activeIncident ? { ...territory.activeIncident } : null,
+  }));
+  let frontierResearch = 0;
   const activeExpeditions = world.expeditions.filter((expedition) => expedition.status === 'active');
   const hasFoodRation = resources.food > 0.1;
   const rationDemand = Math.max(0.01, state.population * 0.008);
@@ -1088,8 +1093,99 @@ export function advanceRealmMinute(input: GameState): GameState {
     }
   }
 
+  frontierTerritories = frontierTerritories.map((territory) => territory.activeIncident && territory.activeIncident.endsAt <= state.gameMinutes
+    ? { ...territory, activeIncident: null }
+    : territory);
+
+  if (state.gameMinutes > 0 && state.gameMinutes % 60 === 0 && frontierTerritories.length) {
+    frontierTerritories = frontierTerritories.map((territory) => {
+      const profile = FRONTIER_PROFILES[territory.region];
+      const stock = { ...territory.stock };
+      const towers = territory.structures.filter((structure) => structure.type === 'watchtower').reduce((sum, structure) => sum + structure.level, 0);
+      let stability = clamp(territory.stability + 0.25 + towers * 0.7 + (territory.region === 'lake' && world.frontierPerks.includes('lake-cooperative') ? 0.3 : 0));
+      const incidentPenalty = territory.activeIncident && territory.activeIncident.endsAt > state.gameMinutes ? territory.activeIncident.outputPenalty : 1;
+      const factor = Math.max(0.35, Math.min(1, 0.45 + stability / 180)) * incidentPenalty;
+      for (const structure of territory.structures) {
+        const definition = FRONTIER_STRUCTURES[structure.type];
+        if (structure.type === 'watchtower') continue;
+        let output = definition.amount * structure.level;
+        if (structure.type === 'outpost') {
+          const localResource = profile.reserveResource;
+          const harvested = Math.min(stock[localResource], Math.max(1, Math.floor(factor)));
+          stock[localResource] -= harvested;
+          resources[localResource] += harvested;
+          continue;
+        }
+        if (structure.type === 'lumberCamp' && world.frontierPerks.includes('forest-contract')) output *= 1.3;
+        if (structure.type === 'quarry' && world.frontierPerks.includes('mountain-charter')) output *= 1.25;
+        if (structure.type === 'fishery' && world.frontierPerks.includes('lake-cooperative')) output *= 1.25;
+        if (structure.type === 'tradingPost' && world.frontierPerks.includes('lake-tolls') && territory.region === 'lake') output += 2;
+        if (structure.type === 'tradingPost' && world.frontierPerks.includes('border-customs') && territory.region === 'borderlands') output += 3;
+        if (structure.type === 'archive' && world.frontierPerks.includes('archive-network')) output += 2;
+        const amount = Math.max(1, Math.floor(output * factor));
+        if (definition.output === 'research') {
+          frontierResearch += amount;
+        } else if (definition.output === 'coins') {
+          resources.coins += amount;
+        } else if (definition.output && definition.output !== 'stability') {
+          const key = definition.output;
+          const harvested = Math.min(stock[key], amount);
+          stock[key] -= harvested;
+          resources[key] += harvested;
+        }
+      }
+      return { ...territory, stock, stability };
+    });
+  }
+
+  if (state.gameMinutes > 0 && state.gameMinutes % 360 === 0) {
+    frontierTerritories = frontierTerritories.map((territory) => {
+      const profile = FRONTIER_PROFILES[territory.region];
+      const stock = { ...territory.stock };
+      if (territory.region === 'forest' && world.frontierPerks.includes('forest-reserve')) {
+        stock.wood = Math.min(profile.stock.wood, stock.wood + 6);
+      }
+      const active = territory.activeIncident && territory.activeIncident.endsAt > state.gameMinutes;
+      if (active || state.gameMinutes - territory.lastIncidentAt < 360) return { ...territory, stock };
+      const towers = territory.structures.filter((structure) => structure.type === 'watchtower').reduce((sum, structure) => sum + structure.level, 0);
+      let risk = profile.risk + (100 - territory.stability) * 0.22 - towers * 11 - (world.policies.guard === 'patrol' ? 6 : 0);
+      if (territory.region === 'forest' && world.frontierPerks.includes('forest-reserve')) risk -= 6;
+      if (territory.region === 'forest' && world.frontierPerks.includes('forest-contract')) risk += 5;
+      if (territory.region === 'mountains' && world.frontierPerks.includes('mountain-shelters')) risk -= 8;
+      if (territory.region === 'borderlands' && world.frontierPerks.includes('border-watch')) risk -= 12;
+      risk = Math.max(3, Math.min(55, risk));
+      const regionHash = territory.region.split('').reduce((sum, character) => sum + character.charCodeAt(0), 0);
+      const roll = Math.abs(state.seed * 19 + state.gameMinutes * 7 + regionHash * 13) % 100;
+      if (roll >= risk) return { ...territory, stock };
+      const incidentProfile = FRONTIER_INCIDENTS[territory.region];
+      const lossResource = incidentProfile.loss;
+      const lost = Math.min(stock[lossResource], Math.ceil(stock[lossResource] * (territory.region === 'borderlands' ? 0.18 : 0.12)));
+      stock[lossResource] -= lost;
+      const incident: FrontierIncident = {
+        kind: incidentProfile.kind, title: incidentProfile.title, startedAt: state.gameMinutes,
+        endsAt: state.gameMinutes + 180, outputPenalty: 0.5,
+      };
+      notes.push(incident.title + ' a ' + territory.name + ': la stabilità cala e la produzione sarà dimezzata per tre ore di gioco.');
+      return { ...territory, stock, stability: clamp(territory.stability - 10), activeIncident: incident, lastIncidentAt: state.gameMinutes };
+    });
+  }
+
+  if (state.gameMinutes > 0 && state.gameMinutes % 60 === 0) {
+    for (const factionId of world.tradeRoutes) {
+      if (factionId === 'selvalunga') resources.wood += 2;
+      else if (factionId === 'salmastra') { resources.food += 3; resources.coins += 0.75; }
+      else if (factionId === 'rocciacupa') { resources.stone += 2; resources.coins += 0.5; }
+    }
+    if (world.tradeRoutes.length && state.gameMinutes % 360 === 0) {
+      notes.push('Le rotte diplomatiche hanno consegnato merci secondo gli accordi: legname da Selvalunga, provviste da Salmastra e pietra da Rocciacupa.');
+    }
+  }
+
   const assignedScholars = schoolScholarCount(state, citizens);
-  let nextWorld: WorldState = { ...world, nextCitizenId, citizens, goods, researchPoints: world.researchPoints + 0.025 + assignedScholars * 0.09 };
+  let nextWorld: WorldState = {
+    ...world, nextCitizenId, citizens, goods, frontierTerritories,
+    researchPoints: world.researchPoints + 0.025 + assignedScholars * 0.09 + frontierResearch,
+  };
   if (state.gameMinutes >= nextWorld.market.nextShiftAt) {
     nextWorld = { ...nextWorld, market: refreshMarket(state.seed, state.gameMinutes, nextWorld.market, goods, nextWorld.weather.id === 'drought' && state.gameMinutes < nextWorld.weather.endsAt, nextWorld.activeEvent?.id ?? null) };
     notes.push('La domanda del mercato è cambiata: le quotazioni di grano, pane e beni lavorati sono aggiornate.');
