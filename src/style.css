@@ -1182,6 +1182,21 @@ dialog p strong { color: #38583b; }
 .challenge-achievement-track { display: block; height: 4px; overflow: hidden; border-radius: 99px; background: #e6eadf; }
 .challenge-achievement-track i { display: block; height: 100%; border-radius: inherit; background: #9cba83; transition: width .18s ease; }
 .challenge-achievement-row.unlocked .challenge-achievement-track i { background: #6d9b61; }
+.challenge-archive { margin-top: 13px; padding-top: 12px; border-top: 1px solid #e7e9df; }
+.challenge-archive-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+.challenge-archive-head h4 { margin: 0; color: #61745a; font-size: 10px; }
+.challenge-archive-head span { color: #899581; font-size: 9px; text-align: right; }
+.challenge-record-list { display: flex; flex-direction: column; gap: 6px; }
+.challenge-record-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border: 1px solid #e3e7dc; border-radius: 9px; background: #fafbf6; }
+.challenge-record-row.gold { border-color: #e2d398; background: #fffbec; }
+.challenge-record-row.silver { border-color: #d2dbd4; background: #f7f9f6; }
+.challenge-record-row.bronze { border-color: #e8d9ca; background: #fff9f4; }
+.challenge-record-copy { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
+.challenge-record-copy strong { color: #405a42; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
+.challenge-record-copy small { color: #89917f; font-size: 9px; line-height: 1.4; }
+.challenge-record-score { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 3px; }
+.challenge-record-score strong { color: #3e6347; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.challenge-record-score small { color: #8b815e; font-size: 8px; white-space: nowrap; }
 @media (min-width: 761px) {
   .challenge-collection-grid { grid-template-columns: 1fr; }
 }
