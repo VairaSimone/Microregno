@@ -14,6 +14,15 @@ const WORKPLACE_PROFESSION: Partial<Record<BuildingType, Profession>> = {
 };
 
 const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
+const CHALLENGE_REWARDS = [
+  { id: 'founder-title', name: 'Pioniere di Brumadoro', detail: 'Titolo storico permanente del profilo locale.', icon: '✦', status: 'TITOLO' },
+  { id: 'granary-blessing', name: 'Benedizione della dispensa', detail: '+6 cibo all’inizio di ogni nuova sfida.', icon: '♧', status: 'ATTIVA' },
+  { id: 'forester-mark', name: 'Sigillo del boscaiolo', detail: '+6 legname all’inizio di ogni nuova sfida.', icon: '♢', status: 'ATTIVA' },
+  { id: 'stonekeeper-mark', name: 'Sigillo della cava', detail: '+6 pietra all’inizio di ogni nuova sfida.', icon: '◆', status: 'ATTIVA' },
+  { id: 'royal-favor', name: 'Favore reale', detail: '+4 monete all’inizio di ogni nuova sfida.', icon: '♛', status: 'ATTIVA' },
+  { id: 'golden-banner', name: 'Stendardo dorato', detail: '+3 monete all’inizio di ogni nuova sfida.', icon: '⚑', status: 'ATTIVA' },
+  { id: 'crown-signet', name: 'Sigillo della Corona', detail: '+5 cibo all’inizio di ogni nuova sfida.', icon: '♕', status: 'ATTIVA' },
+] as const;
 const TUTORIAL_SEEN_KEY = 'microregno:tutorial-seen:v1';
 let renderedRequestId: string | null | undefined;
 let showAllBuildOptions = false;
@@ -458,6 +467,38 @@ function renderChallengeRewards(snapshot: GameSnapshot): void {
       copy.append(title, detail);
       row.append(icon, copy);
       medalsHost.append(row);
+    });
+  }
+
+  const rewardHost = $('challenge-rewards');
+  rewardHost.innerHTML = '';
+  const earnedRewards = CHALLENGE_REWARDS.filter(reward => profile.unlockedRewards.includes(reward.id));
+  $('challenge-reward-count').textContent = earnedRewards.length + ' / ' + CHALLENGE_REWARDS.length + ' sbloccate';
+  if (!earnedRewards.length) {
+    const empty = document.createElement('p');
+    empty.className = 'challenge-collection-empty';
+    empty.textContent = 'Completa le sfide e i traguardi: i bonus sbloccati resteranno nel tuo profilo locale.';
+    rewardHost.append(empty);
+  } else {
+    earnedRewards.forEach(reward => {
+      const card = document.createElement('article');
+      card.className = 'challenge-reward-card' + (reward.id === 'founder-title' ? ' title' : '');
+      const icon = document.createElement('span');
+      icon.className = 'challenge-reward-icon';
+      icon.textContent = reward.icon;
+      icon.setAttribute('aria-hidden', 'true');
+      const copy = document.createElement('span');
+      copy.className = 'challenge-reward-copy';
+      const title = document.createElement('strong');
+      title.textContent = reward.name;
+      const detail = document.createElement('small');
+      detail.textContent = reward.detail;
+      copy.append(title, detail);
+      const status = document.createElement('span');
+      status.className = 'challenge-reward-status';
+      status.textContent = reward.status;
+      card.append(icon, copy, status);
+      rewardHost.append(card);
     });
   }
 
