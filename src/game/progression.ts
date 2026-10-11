@@ -1,4 +1,3 @@
-import { BUILDINGS } from './definitions';
 import type { BuildingType, EpochId, GameState, KingdomProgression } from './types';
 
 export interface EpochDefinition {
@@ -59,7 +58,6 @@ const BUILDING_EPOCH: Partial<Record<BuildingType, EpochId>> = {
   university: 'city',
 };
 
-const epochIndex = (id: EpochId): number => EPOCH_ORDER.indexOf(id);
 const countBuildings = (state: GameState, type: BuildingType): number =>
   state.buildings.filter((building) => building.type === type).length;
 const levelTwoCount = (state: GameState): number =>
