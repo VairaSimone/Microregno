@@ -13,7 +13,7 @@ function publicAssetBase():string{const page=new URL(window.location.href);const
 export class KingdomScene extends Phaser.Scene{
 private state!:GameState;private kingdom!:GameState;private mode:GameMode='kingdom';private challenge!:DailyChallenge;private terrain!:Terrain[][];
 private board!:Phaser.GameObjects.Graphics;private hover!:Phaser.GameObjects.Graphics;private objects:Phaser.GameObjects.GameObject[]=[];
-private buildType:BuildingType|null=null;private selectedId:string|null=null;private villagerTweens=new Map<Phaser.GameObjects.Container,Phaser.Tweens.Tween>();private completed=false;private best=0;private savedAt=0;private ox=512;private oy=88;private profile:PlayerProfile=loadPlayerProfile();private challengeEventTriggered=false;private dragState:{button:number;startX:number;startY:number;lastX:number;lastY:number;startRotation:number;moved:boolean}|null=null;private cameraTouched=false;private rotationSensitivity=.006;
+private buildType:BuildingType|null=null;private selectedId:string|null=null;private villagerTweens=new Map<Phaser.GameObjects.Container,Phaser.Tweens.Tween>();private completed=false;private best=0;private savedAt=0;private ox=512;private oy=88;private profile:PlayerProfile=loadPlayerProfile();private challengeEventTriggered=false;private dragState:{button:number;startX:number;startY:number;lastX:number;lastY:number;startRotation:number;moved:boolean}|null=null;private cameraTouched=false;private rotationSensitivity=.006;private cameraRotation=0;
 constructor(){super('KingdomScene');}
 preload():void{this.load.setPath(publicAssetBase());this.load.on('loaderror',(file:{key:string})=>{window.dispatchEvent(new CustomEvent('microregno:notice',{detail:'Grafica non caricata: '+file.key+'. Controlla la cartella public/assets.'}));});[['town-hall','town-hall.svg'],['house','house.svg'],['farm','farm.svg'],['sawmill','sawmill.svg'],['quarry','quarry.svg'],['market','market.svg'],['road','road.svg'],['mill','mill.svg'],['bakery','bakery.svg'],['warehouse','warehouse.svg'],['school','school.svg'],['watchtower','watchtower.svg'],['workshop','workshop.svg'],['university','university.svg'],['tree','tree.svg'],['rock','rock.svg'],['leaf','leaf.svg']].forEach(([k,p])=>this.load.image(k!,p!));}
 create():void{
@@ -38,7 +38,7 @@ create():void{
   this.input.on('pointerdown',(p:Phaser.Input.Pointer)=>{
     if(p.button!==0&&p.button!==2)return;
     const camera=this.cameras.main;
-    this.dragState={button:p.button,startX:p.x,startY:p.y,lastX:p.x,lastY:p.y,startRotation:camera.rotation,moved:false};
+    this.dragState={button:p.button,startX:p.x,startY:p.y,lastX:p.x,lastY:p.y,startRotation:this.cameraRotation,moved:false};
     document.body.classList.add('camera-dragging');
   });
   this.input.on('pointermove',(p:Phaser.Input.Pointer)=>{
@@ -47,12 +47,12 @@ create():void{
       const dx=p.x-drag.lastX,dy=p.y-drag.lastY;
       if(Math.abs(p.x-drag.startX)+Math.abs(p.y-drag.startY)>5)drag.moved=true;
       if(drag.moved&&drag.button===0){
-        const camera=this.cameras.main,cos=Math.cos(camera.rotation),sin=Math.sin(camera.rotation);
+        const camera=this.cameras.main,cos=Math.cos(this.cameraRotation),sin=Math.sin(this.cameraRotation);
         camera.scrollX-=(dx*cos+dy*sin)/camera.zoom;
         camera.scrollY-=(-dx*sin+dy*cos)/camera.zoom;
         this.cameraTouched=true;
       }else if(drag.moved&&drag.button===2){
-        this.cameras.main.rotation=drag.startRotation+(p.x-drag.startX)*this.rotationSensitivity;
+        this.cameraRotation=drag.startRotation+(p.x-drag.startX)*this.rotationSensitivity;this.cameras.main.setRotation(this.cameraRotation);
         this.cameraTouched=true;
       }
       drag.lastX=p.x;drag.lastY=p.y;
@@ -98,7 +98,7 @@ private resizeWorld(width:number,height:number,initial=false):void{
 }
 private centerCamera(resetOrientation=true):void{
   const width=this.scale.width||1280,height=this.scale.height||720;
-  if(resetOrientation){this.cameras.main.rotation=0;this.cameraTouched=false;this.cameras.main.setZoom(this.fitZoom(width,height));}
+  if(resetOrientation){this.cameraRotation=0;this.cameras.main.setRotation(0);this.cameraTouched=false;this.cameras.main.setZoom(this.fitZoom(width,height));}
   this.cameras.main.centerOn(this.ox,this.oy+(BOARD_SIZE-1)*TILE_HEIGHT/2);
 }
 
@@ -114,8 +114,8 @@ window.addEventListener('microregno:reset',(()=>{resetKingdom();this.kingdom=cre
 window.addEventListener('microregno:center',(()=>{this.centerCamera(true);this.redraw();}) as EventListener);
 window.addEventListener('microregno:camera',((e:CustomEvent<{type:string;value?:number}>)=>{
   const action=e.detail,camera=this.cameras.main;
-  if(action.type==='rotate-left'){camera.rotation-=Math.PI/4;this.cameraTouched=true;}
-  else if(action.type==='rotate-right'){camera.rotation+=Math.PI/4;this.cameraTouched=true;}
+  if(action.type==='rotate-left'){this.cameraRotation-=Math.PI/4;camera.setRotation(this.cameraRotation);this.cameraTouched=true;}
+  else if(action.type==='rotate-right'){this.cameraRotation+=Math.PI/4;camera.setRotation(this.cameraRotation);this.cameraTouched=true;}
   else if(action.type==='zoom-in'){camera.setZoom(Phaser.Math.Clamp(camera.zoom*1.15,.55,2.4));this.cameraTouched=true;}
   else if(action.type==='zoom-out'){camera.setZoom(Phaser.Math.Clamp(camera.zoom/1.15,.55,2.4));this.cameraTouched=true;}
   else if(action.type==='center')this.centerCamera(true);
