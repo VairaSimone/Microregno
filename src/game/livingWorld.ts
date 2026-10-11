@@ -69,6 +69,7 @@ function refreshMarket(seed: number, gameMinutes: number, market: MarketState, g
   return { prices, demand, cycle, nextShiftAt: gameMinutes + 120 };
 }
 const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', forest: 'managed', guard: 'none' };
+const EVENT_IDS = ['drought', 'caravan', 'wanderer', 'wolves', 'fair', 'caravan-rescue', 'drought-recovery', 'ruins-found', 'archive-clue'];
 
 function clamp(value: number, low = 0, high = 100): number {
   return Math.max(low, Math.min(high, Math.round(value * 100) / 100));
@@ -147,7 +148,7 @@ export function createWorldState(seed: number, population = 5, gameMinutes = 0):
     version: 1, nextCitizenId: citizens.length + 1, citizens, goods: { ...DEFAULT_GOODS },
     policies: { ...DEFAULT_POLICIES }, researchPoints: 25, activeResearch: null, researchProgress: 0,
     researched: [], expeditions: [], discoveredRegions: [], chronicle: ['È nato un nuovo Consiglio del Regno. I cittadini ora hanno bisogni, mestieri e ambizioni.'],
-    activeEvent: null, nextEventAt: gameMinutes + 240, queuedEvent: null,
+    activeEvent: null, nextEventAt: gameMinutes + 240, queuedEvent: null, eventQueue: [],
     projectStages: { aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 },
     market: createMarketState(gameMinutes), forestHealth: 100, weather: { id: 'clear', endsAt: 0 },
     completedProjects: [], factions, tradeRoutes: [],
@@ -274,6 +275,10 @@ export function ensureWorldState(state: GameState): GameState {
     const assignedWorkplace = state.buildings.some((building) => building.id === citizen.workplaceId && BUILDING_JOB[building.type] === citizen.profession) ? citizen.workplaceId : null;
     return { ...citizen, homeId: selected?.id ?? null, workplaceId: assignedWorkplace, activity: citizen.status === 'exploring' ? 'exploring' : citizen.activity, familyId: citizen.familyId || 'family-' + (Math.floor(index / 2) + 1) };
   });
+  const eventQueue = [...new Set([
+    ...(typeof existing.queuedEvent === 'string' ? [existing.queuedEvent] : []),
+    ...(Array.isArray(existing.eventQueue) ? existing.eventQueue : []),
+  ].filter((id): id is string => typeof id === 'string' && EVENT_IDS.includes(id)))].slice(0, 16);
   const world: WorldState = {
     ...existing,
     nextCitizenId,
@@ -298,9 +303,10 @@ export function ensureWorldState(state: GameState): GameState {
     expeditions: sanitizedExpeditions.slice(-8),
     discoveredRegions: [...new Set(existing.discoveredRegions.filter((id): id is RegionId => REGIONS.some((region) => region.id === id)))],
     chronicle: existing.chronicle.filter((entry): entry is string => typeof entry === 'string').slice(0, 12),
-    activeEvent: existing.activeEvent && typeof existing.activeEvent.id === 'string' && typeof existing.activeEvent.title === 'string' && typeof existing.activeEvent.description === 'string' && Number.isFinite(existing.activeEvent.startedAt) && existing.activeEvent.startedAt >= 0 && Array.isArray(existing.activeEvent.choices) && existing.activeEvent.choices.length > 0 && existing.activeEvent.choices.length <= 8 && existing.activeEvent.choices.every(validEventChoice) ? existing.activeEvent : null,
+    activeEvent: existing.activeEvent && typeof existing.activeEvent.id === 'string' && EVENT_IDS.includes(existing.activeEvent.id) && typeof existing.activeEvent.title === 'string' && typeof existing.activeEvent.description === 'string' && Number.isFinite(existing.activeEvent.startedAt) && existing.activeEvent.startedAt >= 0 && Array.isArray(existing.activeEvent.choices) && existing.activeEvent.choices.length > 0 && existing.activeEvent.choices.length <= 8 && existing.activeEvent.choices.every(validEventChoice) ? existing.activeEvent : null,
     nextEventAt: Number.isFinite(existing.nextEventAt) ? existing.nextEventAt : state.gameMinutes + 240,
-    queuedEvent: existing.queuedEvent ?? null,
+    eventQueue,
+    queuedEvent: eventQueue[0] ?? null,
     projectStages: {
       aqueduct: Number.isFinite(existing.projectStages.aqueduct) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages.aqueduct))) : 0,
       'stone-bridge': Number.isFinite(existing.projectStages['stone-bridge']) ? Math.max(0, Math.min(3, Math.floor(existing.projectStages['stone-bridge']))) : 0,
@@ -743,7 +749,12 @@ export function advanceRealmMinute(input: GameState): GameState {
       nextWorld = { ...nextWorld, discoveredRegions: [...new Set([...nextWorld.discoveredRegions, expedition.region])], researchPoints: nextWorld.researchPoints + reward.research };
       expedition = { ...expedition, status: 'success', outcome: reward.note };
       notes.push(reward.note);
-      if (expedition.region === 'ancient-ruins') nextWorld = { ...nextWorld, queuedEvent: 'ruins-found', nextEventAt: state.gameMinutes + 45 };
+      if (expedition.region === 'ancient-ruins') {
+        const eventQueue = [...(nextWorld.eventQueue ?? (nextWorld.queuedEvent ? [nextWorld.queuedEvent] : []))];
+        if (!eventQueue.includes('ruins-found')) eventQueue.push('ruins-found');
+        const queued = eventQueue.slice(0, 16);
+        nextWorld = { ...nextWorld, eventQueue: queued, queuedEvent: queued[0] ?? null, nextEventAt: Math.min(nextWorld.nextEventAt, state.gameMinutes + 45) };
+      }
       if (expedition.region === 'borderlands') {
         const factions = nextWorld.factions.map((faction, factionIndex) => factionIndex === 0 ? { ...faction, relation: clamp(faction.relation + 8) } : faction);
         nextWorld = { ...nextWorld, factions };
@@ -802,9 +813,12 @@ export function advanceRealmMinute(input: GameState): GameState {
     notes.push('La siccità è terminata: i raccolti possono riprendersi.');
   }
   if (!nextWorld.activeEvent && now >= nextWorld.nextEventAt) {
-    const id = nextWorld.queuedEvent ?? chooseDynamicEvent({ ...state, resources, world: nextWorld });
+    const queue = nextWorld.eventQueue ?? (nextWorld.queuedEvent ? [nextWorld.queuedEvent] : []);
+    const queuedId = queue[0];
+    const id = queuedId ?? nextWorld.queuedEvent ?? chooseDynamicEvent({ ...state, resources, world: nextWorld });
     const created = eventTemplate(id, now, state.seed);
-    nextWorld = { ...nextWorld, activeEvent: created, queuedEvent: null, nextEventAt: now + 360 };
+    const remainingQueue = queuedId ? queue.slice(1) : queue;
+    nextWorld = { ...nextWorld, activeEvent: created, eventQueue: remainingQueue, queuedEvent: remainingQueue[0] ?? null, nextEventAt: now + 360 };
     if (created.id === 'drought') nextWorld = { ...nextWorld, weather: { id: 'drought', endsAt: now + 180 } };
     notes.push('Nuovo avvenimento: ' + created.title + '.');
   }
@@ -953,13 +967,12 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
         : citizen);
     }
     if (choice.populationDelta && choice.populationDelta < 0) citizens = citizens.slice(0, Math.max(0, citizens.length + choice.populationDelta));
-    const queuedEvent = choice.chain ?? world.queuedEvent ?? null;
-    const nextEventAt = choice.chain
-      ? state.gameMinutes + 75
-      : world.queuedEvent
-        ? Math.min(world.nextEventAt, state.gameMinutes + 75)
-        : state.gameMinutes + 300;
-    world = { ...world, citizens, goods, activeEvent: null, queuedEvent, nextEventAt, researchPoints: world.researchPoints + (choice.researchDelta ?? 0), weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather };
+    const eventQueue = [...(world.eventQueue ?? (world.queuedEvent ? [world.queuedEvent] : []))];
+    if (choice.chain && !eventQueue.includes(choice.chain)) eventQueue.push(choice.chain);
+    const queued = eventQueue.slice(0, 16);
+    const queuedEvent = queued[0] ?? null;
+    const nextEventAt = queued.length ? Math.min(world.nextEventAt, state.gameMinutes + 75) : state.gameMinutes + 300;
+    world = { ...world, citizens, goods, activeEvent: null, eventQueue: queued, queuedEvent, nextEventAt, researchPoints: world.researchPoints + (choice.researchDelta ?? 0), weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather };
     community = applyCommunityEffects(community, choice.moodDelta ?? 0, choice.trustDelta ?? 0);
     return finish(event.title + ' — ' + choice.label + '. ' + choice.detail);
   }
