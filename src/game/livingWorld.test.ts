@@ -306,6 +306,24 @@ describe('living world simulation', () => {
     expect(result.state.world!.nextEventAt).toBe(45);
   });
 
+  it('queues a new event chain behind an already queued story', () => {
+    const state = createInitialState();
+    state.world!.queuedEvent = 'ruins-found';
+    state.world!.activeEvent = {
+      id: 'temporary-event',
+      title: 'Un evento in corso',
+      description: 'Una decisione semplice.',
+      startedAt: 0,
+      choices: [{ id: 'continue', label: 'Continua', detail: 'Avvia una seconda storia.', chain: 'drought-recovery' }],
+    };
+
+    const result = performRealmAction(state, { type: 'event', id: 'continue' });
+
+    expect(result.ok).toBe(true);
+    expect(result.state.world!.eventQueue).toEqual(['ruins-found', 'drought-recovery']);
+    expect(result.state.world!.queuedEvent).toBe('ruins-found');
+  });
+
   it('keeps population and citizen count synchronized for multi-person events', () => {
     const state = createInitialState();
     state.buildings.push(
