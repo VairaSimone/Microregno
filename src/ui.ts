@@ -279,9 +279,13 @@ function renderBuildList(snapshot: GameSnapshot): void {
       ? 'Catalogo completo: gli edifici bloccati indicano quanti abitanti servono per sbloccarli.'
       : population < 6
         ? 'Per iniziare bastano Fattoria e Casa: prima assicura il cibo, poi aumenta i posti abitativi.'
-        : population < 8
-          ? 'Ora puoi costruire una Segheria vicino agli alberi e una Cava vicino alle rocce.'
-          : 'Gli edifici avanzati si sbloccano con la popolazione. Usa il catalogo completo per consultarli tutti.';
+        : !isEpochUnlocked(snapshot.state, 'village')
+          ? 'Raggiungi 8 abitanti, con una Fattoria e una Casa, per fondare il Villaggio e sbloccare le prime botteghe.'
+          : !isEpochUnlocked(snapshot.state, 'borough')
+            ? 'Il Villaggio è nato: prepara il Borgo con 12 abitanti, un Mercato e un edificio al livello 2.'
+            : !isEpochUnlocked(snapshot.state, 'city')
+              ? 'Il Borgo apre ricerca, diplomazia e spedizioni: completa le prove per fondare la Città.'
+              : 'Prepara la Carta della Corona: grandi opere, alleanze, regioni e Università Reale.';
 
   $('map-instruction').textContent = snapshot.selectedBuildType
     ? 'Costruisci: ' + BUILDINGS[snapshot.selectedBuildType].name + ' · scegli una casella d’erba libera.'
@@ -414,21 +418,7 @@ function renderEpochPanel(snapshot: GameSnapshot): void {
       ? 'L’ultima impresa è la Carta della Corona: dimostra che la Città sa sostenere popolazione, opere pubbliche, rotte e conoscenza.'
       : EPOCHS[current].summary;
 
-  const requirements = complete || current === 'city'
-    ? getCharterRequirements(state)
-    : getEpochRequirements(state, EPOCH_ORDER[currentIndex + 1]!);
-  requirements.forEach((requirement) => {
-    const row = document.createElement('div');
-    row.className = 'epoch-check' + (requirement.done ? ' done' : '');
-    const marker = document.createElement('span');
-    marker.textContent = requirement.done ? '✓' : '·';
-    const label = document.createElement('span');
-    label.textContent = requirement.label;
-    const value = document.createElement('small');
-    value.textContent = requirement.value;
-    row.append(marker, label, value);
-    checklist.append(row);
-  });
+  // Detailed requirements are shown once in the objective list below.
 
   const story = state.progression?.history[0] ?? EPOCHS.settlement.story;
   $('epoch-story').textContent = complete
