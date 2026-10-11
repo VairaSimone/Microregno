@@ -39,7 +39,7 @@ this.savedAt=Date.now();
 this.reportSaveStatus(saved,'kingdom');
 }else{
 const old=loadChallengeSave(this.challenge.date);
-this.reportSaveStatus(saveChallenge({date:this.challenge.date,state:this.state,completed:this.completed,score:old?.score??0,bestScore:Math.max(old?.bestScore??0,this.best)}),'challenge');
+this.reportSaveStatus(saveChallenge({date:this.challenge.date,state:this.state,completed:this.completed,score:old?.score??0,bestScore:Math.max(old?.bestScore??0,this.best),eventTriggered:this.challengeEventTriggered}),'challenge');
 }
 }
 private announceProgression(previous:GameState,next:GameState):void{
