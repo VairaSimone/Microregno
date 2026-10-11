@@ -660,12 +660,28 @@ function eventTemplate(id: string, gameMinutes: number, seed = 2310, actor?: Cit
     { id: 'save-rain', label: 'Conserva le riserve', detail: 'Ricevi meno cibo, ma prepari il magazzino.', reward: { food: 9, wood: 3 }, moodDelta: 2, trustDelta: 2 },
   ]);
   if (id === 'ruins-found') return event(id, 'Le rovine parlano', 'Gli esploratori hanno portato tavolette con simboli antichi. Il Consiglio può finanziare lo studio o sigillare il sito.', [
-    { id: 'study-tablets', label: 'Studia le tavolette', detail: 'Spendi materiali per guadagnare conoscenza e monete.', cost: { wood: 6, stone: 5 }, reward: { coins: 12 }, researchDelta: 18, chain: 'archive-clue' },
+    { id: 'study-tablets', label: 'Studia le tavolette', detail: 'Spendi materiali per guadagnare conoscenza e monete. I testi resteranno consultabili nel territorio.', cost: { wood: 6, stone: 5 }, reward: { coins: 12 }, researchDelta: 18, chain: 'archive-clue', frontierPerk: 'archive-network' },
     { id: 'seal-site', label: 'Proteggi le rovine', detail: 'Nessun costo e una comunità più fiduciosa.', trustDelta: 6, moodDelta: 2 },
   ]);
   if (id === 'archive-clue') return event(id, 'Una mappa dimenticata', 'La ricerca rivela una strada antica verso le terre di confine. Una nuova via commerciale potrebbe cambiare il regno.', [
     { id: 'fund-map', label: 'Finanzia la spedizione', detail: 'Spendi monete per aprire una nuova rotta.', cost: { coins: 10 }, reward: { coins: 4, stone: 4 }, researchDelta: 10, trustDelta: 4 },
     { id: 'keep-secret', label: 'Tieni il segreto', detail: 'Conserva i materiali e migliora la sicurezza.', reward: { wood: 3 }, moodDelta: 1, trustDelta: -1 },
+  ]);
+  if (id === 'forest-expedition') return event(id, 'Il patto della radura', 'La squadra ha trovato un bosco antico. I taglialegna locali chiedono se il regno proteggerà la radura o firmerà un contratto di raccolta intensiva.', [
+    { id: 'protect-grove', label: 'Proteggi la radura', detail: 'Le riserve forestali cresceranno più lentamente, ma la colonia sarà meno esposta agli incendi.', moodDelta: 4, trustDelta: 5, frontierPerk: 'forest-reserve' },
+    { id: 'commercial-grove', label: 'Firma il contratto forestale', detail: 'I campi boschivi produrranno più legname, a costo di un rischio ambientale maggiore.', reward: { wood: 8 }, moodDelta: -2, trustDelta: -2, frontierPerk: 'forest-contract' },
+  ]);
+  if (id === 'mountain-expedition') return event(id, 'I diritti del passo', 'I minatori hanno trovato un valico sicuro e una vena di pietra. Il Consiglio può privilegiare sicurezza o estrazione.', [
+    { id: 'secure-pass', label: 'Metti in sicurezza il passo', detail: 'Una rete di ripari ridurrà gli effetti delle frane.', moodDelta: 3, trustDelta: 5, frontierPerk: 'mountain-shelters' },
+    { id: 'grant-mining-charter', label: 'Concedi la licenza mineraria', detail: 'Le cave di frontiera estrarranno più pietra dalle riserve conosciute.', reward: { stone: 8 }, moodDelta: -1, trustDelta: 1, frontierPerk: 'mountain-charter' },
+  ]);
+  if (id === 'lake-expedition') return event(id, 'Gli abitanti del lago', 'I pescatori del Lago velato conoscono i canali, ma non si fidano ancora del Consiglio. Puoi condividere i vantaggi o imporre dazi al traghetto.', [
+    { id: 'lake-cooperative', label: 'Accordo con i pescatori', detail: 'Le peschiere renderanno di più e il territorio recupererà più rapidamente.', moodDelta: 5, trustDelta: 5, frontierPerk: 'lake-cooperative' },
+    { id: 'lake-tolls', label: 'Imponi un dazio al traghetto', detail: 'I posti commerciali al lago guadagneranno più monete, ma la cooperazione sarà fragile.', reward: { coins: 7 }, moodDelta: -2, trustDelta: -3, frontierPerk: 'lake-tolls' },
+  ]);
+  if (id === 'border-expedition') return event(id, 'Una frontiera senza legge', 'Oltre il confine si incontrano mercanti, famiglie in transito e predoni. Il Consiglio deve scegliere tra commerciare apertamente o fortificare la strada.', [
+    { id: 'border-customs', label: 'Apri una dogana', detail: 'I posti commerciali produrranno più monete e renderanno stabile lo scambio con Porto Salmastra.', moodDelta: 3, trustDelta: 4, frontierPerk: 'border-customs' },
+    { id: 'border-watch', label: 'Fortifica il confine', detail: 'Le torri ridurranno il rischio delle incursioni e aumenteranno la stabilità locale.', cost: { wood: 5, stone: 4 }, moodDelta: 2, trustDelta: 3, frontierPerk: 'border-watch' },
   ]);
   const choiceSets: RealmEvent[] = [
     event('drought', 'Settimane senza pioggia', 'La terra è secca e i contadini temono un raccolto scarso. Il Consiglio deve scegliere fra investire, comprare scorte o razionare.', [
