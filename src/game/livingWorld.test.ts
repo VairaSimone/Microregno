@@ -331,7 +331,7 @@ describe('living world simulation', () => {
       { id: 'arrival-house-2', type: 'house', x: 7, y: 7, level: 1 },
     );
     state.world!.activeEvent = {
-      id: 'multiple-arrivals',
+      id: 'caravan',
       title: 'Nuovi arrivati',
       description: 'Due persone cercano casa.',
       startedAt: 0,
