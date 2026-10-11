@@ -34,6 +34,7 @@ Il mistero della campana viene raccontato attraverso le sei epoche, gli eventi c
 - Rete stradale costruibile: un tratto stradale concede bonus solo se le strade adiacenti sono collegate senza interruzioni al Municipio o al Mercato. Pane, farina, grano e rimedi deperiscono nel tempo; i magazzini riducono gli sprechi e aumentano la capienza.
 - Sala del Regno con leggi economiche, gestione delle dispense, politiche forestali e pattuglie.
 - Ricerca in sei percorsi, spedizioni esplorative, nuove regioni, reperti, rischi e ricompense.
+- Cinque archi narrativi regionali ramificati: le spedizioni aprono decisioni, le scelte avviano capitoli successivi e le conseguenze modificano risorse, ricerca, umore, fiducia e benefici permanenti della frontiera. La cronaca conserva gli esiti, così ogni regno può seguire un percorso diverso.
 - Diplomazia con tre comunità vicine, accordi permanenti e rotte commerciali.
 - Quattro grandi progetti a tre fasi e avvenimenti concatenati con conseguenze su risorse e comunità.
 - Mappa della frontiera con regioni scoperte, spedizioni possibili e territori ancora coperti dalla nebbia; eventi climatici temporanei, inclusa la siccità che rallenta i raccolti e avvia storie di recupero.
