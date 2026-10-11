@@ -19,7 +19,7 @@ function valid(value: unknown): value is GameState {
   const resources = state.resources as Record<string, unknown> | undefined;
   return state.version === 1
     && typeof state.seed === 'number' && Number.isFinite(state.seed)
-    && typeof state.population === 'number' && Number.isFinite(state.population) && state.population >= 0
+    && typeof state.population === 'number' && Number.isFinite(state.population) && state.population >= 5
     && typeof state.gameMinutes === 'number' && Number.isFinite(state.gameMinutes) && state.gameMinutes >= 0
     && Array.isArray(state.buildings)
     && !!resources
@@ -128,6 +128,20 @@ export function applyOfflineProgress(state: GameState, now = Date.now()): { stat
     const chunk = Math.min(360, remaining);
     copy = advanceTime(copy, chunk, false, true);
     remaining -= chunk;
+  }
+
+  // Community requests use game time too, but offline time must not consume their response window.
+  if (copy.community && minutes > 0) {
+    copy = {
+      ...copy,
+      community: {
+        ...copy.community,
+        nextRequestAt: copy.community.nextRequestAt + minutes,
+        activeRequest: copy.community.activeRequest
+          ? { ...copy.community.activeRequest, deadline: copy.community.activeRequest.deadline + minutes }
+          : null,
+      },
+    };
   }
   copy.lastSavedAt = now;
   return { state: copy, minutes };

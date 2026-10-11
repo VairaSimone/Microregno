@@ -3,9 +3,23 @@ import {advanceTime,awardPopulationMilestones,buildAt,canBuild,createInitialStat
 import {createDailyChallenge,challengeProgress,isChallengeComplete} from './challenge';
 import {applyOfflineProgress} from './save';
 import {getSeason,resolveCitizenRequest} from './community';
-import {worldBuildingMultiplier} from './livingWorld';
+import {ensureWorldState,worldBuildingMultiplier} from './livingWorld';
 
 describe('simulazione Microregno',()=>{
+  it('non rimpiazza subito un abitante che abbandona il borgo',()=>{
+    const s=createInitialState(),house=buildAt(s,generateTerrain(s.seed),6,6,'house');
+    const populated=ensureWorldState({
+      ...house.state,
+      population:6,
+      resources:{...house.state.resources,food:200},
+    });
+    populated.gameMinutes=119;
+    populated.world!.citizens.forEach((citizen)=>{citizen.happiness=5;});
+    const afterDeparture=advanceTime(populated,1);
+    expect(afterDeparture.gameMinutes).toBe(120);
+    expect(afterDeparture.population).toBe(5);
+    expect(afterDeparture.world!.citizens).toHaveLength(5);
+  });
   it('genera un terreno deterministico per seed',()=>{
     expect(generateTerrain(1234)).toEqual(generateTerrain(1234));
     expect(generateTerrain(1234)).not.toEqual(generateTerrain(1235));
@@ -140,6 +154,7 @@ describe('simulazione Microregno',()=>{
     expect(housingCapacity(result.state)).toBe(7);
     expect(result.state.resources.wood).toBe(34);
     expect(result.state.population).toBe(6);
+    expect(result.state.world?.citizens).toHaveLength(6);
   });
   it('non fa crescere la popolazione quando il morale è sotto 20',()=>{
     const s=createInitialState(),house=buildAt(s,generateTerrain(s.seed),6,6,'house');
@@ -148,14 +163,17 @@ describe('simulazione Microregno',()=>{
     house.state.community!.morale=19;
     expect(advanceTime(house.state,20).population).toBe(5);
   });
-  it('non penalizza le richieste durante il tempo offline',()=>{
+  it('sospende la scadenza delle richieste durante il tempo offline',()=>{
     const s=createInitialState();
     s.lastSavedAt=1_000;
     const offline=applyOfflineProgress(s,181_000);
     expect(offline.minutes).toBe(180);
     expect(offline.state.community?.ignoredRequests).toBe(0);
     expect(offline.state.community?.morale).toBeGreaterThanOrEqual(60);
-    expect(advanceTime(offline.state,1,true).community?.ignoredRequests).toBe(1);
+    expect(offline.state.community?.activeRequest?.deadline).toBeGreaterThan(offline.state.gameMinutes);
+    const returned=advanceTime(offline.state,1,true);
+    expect(returned.community?.ignoredRequests).toBe(0);
+    expect(returned.community?.activeRequest).not.toBeNull();
   });
   it('genera la stessa sfida per una stessa data',()=>{
     const date=new Date(2026,9,10,12),challenge=createDailyChallenge(date);

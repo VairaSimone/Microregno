@@ -287,6 +287,88 @@ describe('living world simulation', () => {
     expect(Number.isFinite(world.researchPoints) && world.researchPoints >= 0).toBe(true);
   });
 
+  it('preserves a queued story when the current event has no follow-up', () => {
+    const state = createInitialState();
+    state.world!.activeEvent = {
+      id: 'caravan',
+      title: 'Un evento in corso',
+      description: 'Una decisione semplice.',
+      startedAt: 0,
+      choices: [{ id: 'continue', label: 'Continua', detail: 'Nessun costo.' }],
+    };
+    state.world!.queuedEvent = 'ruins-found';
+    state.world!.nextEventAt = 45;
+
+    const result = performRealmAction(state, { type: 'event', id: 'continue' });
+
+    expect(result.ok).toBe(true);
+    expect(result.state.world!.queuedEvent).toBe('ruins-found');
+    expect(result.state.world!.nextEventAt).toBe(45);
+  });
+
+  it('does not let an event reduce the population below the playable minimum', () => {
+    const state = createInitialState();
+    state.world!.activeEvent = {
+      id: 'caravan',
+      title: 'Una partenza',
+      description: 'Una persona lascia il borgo.',
+      startedAt: 0,
+      choices: [{ id: 'departure', label: 'Accetta', detail: 'Il borgo perde un abitante.', populationDelta: -1 }],
+    };
+
+    const result = performRealmAction(state, { type: 'event', id: 'departure' });
+
+    expect(result.ok).toBe(true);
+    expect(result.state.population).toBe(5);
+    expect(result.state.world!.citizens).toHaveLength(5);
+  });
+
+  it('queues a new event chain behind an already queued story', () => {
+    const state = createInitialState();
+    state.world!.queuedEvent = 'ruins-found';
+    state.world!.activeEvent = {
+      id: 'caravan',
+      title: 'Un evento in corso',
+      description: 'Una decisione semplice.',
+      startedAt: 0,
+      choices: [{ id: 'continue', label: 'Continua', detail: 'Avvia una seconda storia.', chain: 'drought-recovery' }],
+    };
+
+    const result = performRealmAction(state, { type: 'event', id: 'continue' });
+
+    expect(result.ok).toBe(true);
+    expect(result.state.world!.eventQueue).toEqual(['ruins-found', 'drought-recovery']);
+    expect(result.state.world!.queuedEvent).toBe('ruins-found');
+  });
+
+  it('keeps population and citizen count synchronized for multi-person events', () => {
+    const state = createInitialState();
+    state.buildings.push(
+      { id: 'arrival-house-1', type: 'house', x: 4, y: 4, level: 1 },
+      { id: 'arrival-house-2', type: 'house', x: 7, y: 7, level: 1 },
+    );
+    state.world!.activeEvent = {
+      id: 'caravan',
+      title: 'Nuovi arrivati',
+      description: 'Due persone cercano casa.',
+      startedAt: 0,
+      choices: [{
+        id: 'welcome-both',
+        label: 'Accoglili',
+        detail: 'Entrano due nuovi abitanti.',
+        populationDelta: 2,
+        profession: 'scout',
+      }],
+    };
+
+    const result = performRealmAction(state, { type: 'event', id: 'welcome-both' });
+
+    expect(result.ok).toBe(true);
+    expect(result.state.population).toBe(7);
+    expect(result.state.world!.citizens).toHaveLength(7);
+    expect(result.state.world!.citizens.slice(-2).every((citizen) => citizen.profession === 'scout')).toBe(true);
+  });
+
   it('requires discoveries or cartography before entering distant regions', () => {
     const state = createInitialState();
     expect(canExploreRegion(state.world!, 'forest')).toBe(true);

@@ -1,4 +1,5 @@
 import { BUILDINGS } from './definitions';
+import { ensureWorldState } from './livingWorld';
 import type { Building, CommunityState, CitizenRequest, CitizenRequestOption, GameState, Resource, ResourceBag, SeasonInfo } from './types';
 
 export const SEASONS: SeasonInfo[] = [
@@ -246,10 +247,11 @@ export function resolveCitizenRequest(
   const resources: ResourceBag = { ...state.resources };
   for (const [resource, amount] of Object.entries(selected.cost) as [Resource, number][]) resources[resource] -= amount;
   for (const [resource, amount] of Object.entries(selected.reward) as [Resource, number][]) resources[resource] += amount;
-  const population = Math.max(0, state.population + (selected.populationDelta ?? 0));
+  const population = Math.max(5, state.population + (selected.populationDelta ?? 0));
+  const appliedPopulationDelta = population - state.population;
   const signed = (value: number): string => value > 0 ? '+' + value : String(value);
   const consequences = ['Umore ' + signed(selected.moodDelta), 'fiducia ' + signed(selected.trustDelta)];
-  if (selected.populationDelta) consequences.push('abitanti ' + signed(selected.populationDelta));
+  if (appliedPopulationDelta) consequences.push('abitanti ' + signed(appliedPopulationDelta));
   if (selected.housingDelta) consequences.push('posti abitativi ' + signed(selected.housingDelta));
   const message = request.citizen + ': ' + selected.label + '. ' + selected.detail + ' (' + consequences.join(', ') + ').';
   const nextCommunity: CommunityState = {
@@ -263,8 +265,9 @@ export function resolveCitizenRequest(
     lastOutcome: message,
     history: [message, ...community.history].slice(0, 6),
   };
+  const nextState = { ...state, population, resources, community: nextCommunity };
   return {
-    state: { ...state, population, resources, community: nextCommunity },
+    state: appliedPopulationDelta ? ensureWorldState(nextState) : nextState,
     ok: true,
     message: 'Il borgo ricorderà questa scelta. ' + message,
   };
