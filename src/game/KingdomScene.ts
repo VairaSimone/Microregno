@@ -37,7 +37,6 @@ create():void{
   this.input.mouse?.disableContextMenu();
   this.input.on('pointerdown',(p:Phaser.Input.Pointer)=>{
     if(p.button!==0&&p.button!==2)return;
-    const camera=this.cameras.main;
     this.dragState={button:p.button,startX:p.x,startY:p.y,lastX:p.x,lastY:p.y,startRotation:this.cameraRotation,moved:false};
     document.body.classList.add('camera-dragging');
   });
