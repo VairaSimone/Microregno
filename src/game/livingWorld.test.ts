@@ -290,7 +290,7 @@ describe('living world simulation', () => {
   it('preserves a queued story when the current event has no follow-up', () => {
     const state = createInitialState();
     state.world!.activeEvent = {
-      id: 'temporary-event',
+      id: 'caravan',
       title: 'Un evento in corso',
       description: 'Una decisione semplice.',
       startedAt: 0,
@@ -310,7 +310,7 @@ describe('living world simulation', () => {
     const state = createInitialState();
     state.world!.queuedEvent = 'ruins-found';
     state.world!.activeEvent = {
-      id: 'temporary-event',
+      id: 'caravan',
       title: 'Un evento in corso',
       description: 'Una decisione semplice.',
       startedAt: 0,
