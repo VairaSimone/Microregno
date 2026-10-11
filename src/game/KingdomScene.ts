@@ -462,6 +462,7 @@ private drawBuildingTierDetails(p:{x:number;y:number},building:GameState['buildi
     }
   }
   this.objects.push(g);
+  this.drawBuildingSpecialDetails(p,building,depth,width,height,phase);
   if(['university','observatory'].includes(building.type)&&level>=3){
     const ringY=p.y-height*.54;
     const ring=this.add.ellipse(p.x,ringY,32+level*4,7+level,0xffffff,0).setStrokeStyle(1.3,level>=5?0xf4d98a:0x9fd6dc,phase==='night'?.92:.7).setDepth(depth+2);
@@ -473,6 +474,154 @@ private drawBuildingTierDetails(p:{x:number;y:number},building:GameState['buildi
       if(!this.reduceMotion)this.visualTweens.push(this.tweens.add({targets:second,scaleX:.82,scaleY:1.25,duration:3400,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
     }
   }
+}
+private drawBuildingSpecialDetails(p:{x:number;y:number},building:GameState['buildings'][number],depth:number,width:number,height:number,phase:'day'|'twilight'|'night'):void{
+  const g=this.add.graphics().setDepth(depth+2);
+  const lvl=building.level;
+  const warm=phase==='night'||phase==='twilight'?0xffcf78:0xe4bc69;
+  const wood=phase==='night'?0x8ba1a5:0x785238;
+  const leaf=phase==='night'?0x71918a:0x4f884e;
+  switch(building.type){
+    case 'townHall':
+      for(let side of [-1,1]){
+        const x=p.x+side*width*.2,y=p.y-height*.2;
+        g.lineStyle(lvl>=4?2:1.1,lvl>=4?0xf1d48c:0x9d8a5e,.9);
+        g.lineBetween(x-2,y-5,x-2,y+7);g.lineBetween(x+2,y-5,x+2,y+7);
+        g.lineBetween(x-4,y-5,x+4,y-5);g.lineBetween(x-4,y+7,x+4,y+7);
+      }
+      if(lvl>=3){g.fillStyle(warm,.85);g.fillCircle(p.x,p.y-height*.43,3);}
+      break;
+    case 'farm':
+      for(let i=0;i<7;i++){
+        const x=p.x-width*.28+i*width*.092;
+        const y=p.y+height*.08+(i%2)*1.5;
+        g.lineStyle(1.4,lvl>=4?0xb99748:leaf,.9);
+        g.lineBetween(x,y+2,x+1,y-5);
+        g.lineBetween(x+1,y-1,x-2,y-4);g.lineBetween(x+1,y,x+4,y-4);
+        if(lvl>=3&&i%2===0){g.lineStyle(1,0xd8b86b,.92);g.lineBetween(x+1,y-5,x+2,y-8);}
+      }
+      break;
+    case 'sawmill':
+      for(let i=0;i<3;i++){
+        const x=p.x+width*.19,y=p.y+height*.03-i*3.3;
+        g.fillStyle(wood,.98);g.fillRoundedRect(x-6,y-2.1,12,4.2,2);
+        g.lineStyle(1,0xc69a64,.9);g.strokeCircle(x+5,y,1.8);
+      }
+      if(lvl>=4){g.lineStyle(1.2,0xe8d59d,.85);g.lineBetween(p.x-width*.23,p.y-height*.12,p.x-width*.13,p.y-height*.18);}
+      break;
+    case 'quarry':
+      for(let i=0;i<3;i++){
+        const x=p.x-width*.23+i*6,y=p.y+height*.05-(i%2)*3;
+        g.fillStyle(i===1?0xc0c9bc:0x899b94,.98);
+        g.fillPoints([new Phaser.Geom.Point(x-4,y+3),new Phaser.Geom.Point(x-2,y-2),new Phaser.Geom.Point(x+1,y-4),new Phaser.Geom.Point(x+5,y+1),new Phaser.Geom.Point(x+3,y+4)],true);
+        g.lineStyle(.8,0xe3e8d9,.85);g.lineBetween(x-2,y-1,x+1,y-3);
+      }
+      if(lvl>=3){g.lineStyle(1.4,0xd3d9c9,.9);g.lineBetween(p.x+width*.18,p.y-height*.09,p.x+width*.27,p.y-height*.22);g.lineBetween(p.x+width*.24,p.y-height*.27,p.x+width*.3,p.y-height*.2);}
+      break;
+    case 'mill':{
+      const wheelX=p.x+width*.26,wheelY=p.y-height*.08;
+      const wheel=this.add.container(wheelX,wheelY).setDepth(depth+3);
+      const wg=this.add.graphics();
+      wg.lineStyle(lvl>=4?2.3:1.5,wood,.95);wg.strokeCircle(0,0,20);
+      wg.lineStyle(1.15,lvl>=4?0xdcbf73:0x9b7a50,.95);
+      for(let spoke=0;spoke<8;spoke++){
+        const a=spoke*Math.PI/4;
+        wg.lineBetween(Math.cos(a)*2,Math.sin(a)*2,Math.cos(a)*9.5,Math.sin(a)*9.5);
+        wg.lineBetween(Math.cos(a)*9.5,Math.sin(a)*9.5,Math.cos(a)*18,Math.sin(a)*18);
+      }
+      wg.fillStyle(0x9b764b,1);wg.fillCircle(0,0,3);
+      wheel.add(wg);this.objects.push(wheel);
+      if(lvl>=3&&!this.reduceMotion)this.visualTweens.push(this.tweens.add({targets:wheel,rotation:Math.PI*2,duration:3600,repeat:-1,ease:'Linear'}));
+      break;
+    }
+    case 'bakery':
+      g.fillStyle(0x704530,.98);g.fillRoundedRect(p.x+width*.16,p.y-height*.08,9,12,2);
+      g.fillStyle(phase==='night'?0xffa53f:0xd9793b,.95);g.fillEllipse(p.x+width*.2,p.y-height*.02,7,6);
+      g.fillStyle(0xffe79a,.9);g.fillCircle(p.x+width*.2,p.y-height*.06,2.2);
+      if(lvl>=3){g.fillStyle(0xe4b75d,.95);g.fillEllipse(p.x-width*.18,p.y+height*.02,7,3.5);g.fillEllipse(p.x-width*.1,p.y+height*.04,6,3);}
+      break;
+    case 'warehouse':
+      for(let i=0;i<2;i++){
+        const x=p.x+width*.18+i*8,y=p.y+height*.04-i*2;
+        g.fillStyle(i===0?0x9d7548:0x79553a,.98);g.fillRoundedRect(x-5,y-4,9,8,1);
+        g.lineStyle(.8,0xe3c88d,.8);g.lineBetween(x-4,y-1,x+3,y-1);g.lineBetween(x-1,y-3,x-1,y+3);
+      }
+      if(lvl>=4){g.lineStyle(1.3,0xf0d690,.95);g.strokeRect(p.x-width*.22,p.y-height*.12,width*.12,7);}
+      break;
+    case 'school':
+      g.fillStyle(0xe5d6ab,.98);
+      g.fillPoints([new Phaser.Geom.Point(p.x-7,p.y-height*.16),new Phaser.Geom.Point(p.x,p.y-height*.11),new Phaser.Geom.Point(p.x,p.y-height*.04),new Phaser.Geom.Point(p.x-7,p.y-height*.09)],true);
+      g.fillPoints([new Phaser.Geom.Point(p.x,p.y-height*.11),new Phaser.Geom.Point(p.x+7,p.y-height*.16),new Phaser.Geom.Point(p.x+7,p.y-height*.09),new Phaser.Geom.Point(p.x,p.y-height*.04)],true);
+      g.lineStyle(.8,0x8a6c44,.8);g.lineBetween(p.x,p.y-height*.11,p.x,p.y-height*.04);
+      if(lvl>=4){g.fillStyle(0x88b8bf,.95);g.fillRoundedRect(p.x-width*.23,p.y-height*.24,4,9,1);}
+      break;
+    case 'watchtower':
+      g.lineStyle(1.5,wood,.95);g.lineBetween(p.x+width*.18,p.y-height*.36,p.x+width*.18,p.y-height*.2);
+      g.fillStyle(warm,.98);g.fillPoints([new Phaser.Geom.Point(p.x+width*.18,p.y-height*.38),new Phaser.Geom.Point(p.x+width*.26,p.y-height*.32),new Phaser.Geom.Point(p.x+width*.18,p.y-height*.26)],true);
+      if(lvl>=3){g.fillStyle(0x456d4b,.96);g.fillPoints([new Phaser.Geom.Point(p.x-width*.24,p.y-height*.57),new Phaser.Geom.Point(p.x-width*.12,p.y-height*.54),new Phaser.Geom.Point(p.x-width*.24,p.y-height*.5)],true);}
+      break;
+    case 'orchard':
+      for(let i=0;i<5;i++){
+        const x=p.x-width*.23+(i*width*.105),y=p.y-height*.18+(i%2)*6;
+        g.fillStyle(i%2===0?0xb64e3a:0xd6a94f,.98);g.fillCircle(x,y,2.1);
+        g.lineStyle(.7,0x5a7f43,.98);g.lineBetween(x,y-2,x+1,y-4);
+      }
+      if(lvl>=4){g.lineStyle(1.3,0xe3cb82,.8);g.lineBetween(p.x-width*.28,p.y+height*.08,p.x+width*.25,p.y+height*.08);}
+      break;
+    case 'fishingHut':
+      g.lineStyle(1.1,phase==='night'?0x8fb9c5:0x628f99,.95);
+      for(let i=0;i<4;i++){const x=p.x+width*.18+i*2.5;g.lineBetween(x,p.y-height*.08,x+4,p.y+height*.02);}
+      for(let i=0;i<3;i++){const y=p.y-height*.07+i*3.2;g.lineBetween(p.x+width*.18,y,p.x+width*.29,y+4);}
+      g.fillStyle(0xd2ad60,.95);g.fillEllipse(p.x+width*.22,p.y+height*.06,8,4);
+      g.fillStyle(0x5e8884,.95);g.fillTriangle(p.x+width*.17,p.y+height*.06,p.x+width*.25,p.y+height*.035,p.x+width*.25,p.y+height*.085);
+      break;
+    case 'herbGarden':
+      for(let i=0;i<5;i++){
+        const x=p.x-width*.2+i*width*.1,y=p.y+height*.04-(i%3)*2;
+        g.lineStyle(1.2,0x5e8a4b,.95);g.lineBetween(x,y+3,x+1,y-4);
+        g.fillStyle(i%2===0?0x8fbb68:0x6c9f59,.98);
+        g.fillEllipse(x-2,y-2,4,2.2);g.fillEllipse(x+3,y-3,4,2.2);
+        if(lvl>=4&&i%2===0){g.fillStyle(0xe5c7de,.95);g.fillCircle(x+1,y-5,1.3);}
+      }
+      break;
+    case 'inn':{
+      const sx=p.x+width*.24,sy=p.y-height*.18;
+      g.lineStyle(1.2,wood,.95);g.lineBetween(sx,sy-5,sx,sy+6);
+      g.fillStyle(0x8e4633,.98);g.fillRoundedRect(sx-6,sy-5,12,8,1);
+      g.lineStyle(.8,0xf0d68e,.95);g.strokeRect(sx-4,sy-3,8,4);
+      g.fillStyle(warm,.98);g.fillCircle(p.x-width*.23,p.y-height*.19,2.8);
+      break;
+    }
+    case 'ironworks':
+      g.fillStyle(0x543b30,.98);g.fillRoundedRect(p.x+width*.16,p.y-height*.1,10,13,2);
+      g.fillStyle(phase==='night'?0xff873c:0xc86435,.96);g.fillEllipse(p.x+width*.21,p.y-height*.035,8,6);
+      g.fillStyle(0xffd376,.98);g.fillCircle(p.x+width*.21,p.y-height*.08,2);
+      if(lvl>=3&&phase!=='day'){
+        for(let i=0;i<3;i++){
+          const spark=this.add.ellipse(p.x+width*.21+i*3,p.y-height*.14-i*2,1.8,2.6,0xffd774,.95).setDepth(depth+8);
+          this.objects.push(spark);
+          if(!this.reduceMotion)this.visualTweens.push(this.tweens.add({targets:spark,x:spark.x+4,y:spark.y-8,alpha:0,duration:680+i*160,delay:i*190,repeat:-1,ease:'Sine.in'}));
+        }
+      }
+      break;
+    case 'workshop':
+      g.lineStyle(1.2,0x9b754b,.96);g.strokeCircle(p.x+width*.22,p.y-height*.08,6);
+      g.lineStyle(1,0xe4c982,.9);
+      for(let i=0;i<4;i++){const a=i*Math.PI/2;g.lineBetween(p.x+width*.22+Math.cos(a)*3,p.y-height*.08+Math.sin(a)*3,p.x+width*.22+Math.cos(a)*6,p.y-height*.08+Math.sin(a)*6);}
+      break;
+    case 'market':
+      g.fillStyle(warm,.9);g.fillCircle(p.x,p.y-height*.24,3);
+      break;
+    case 'university':
+      g.fillStyle(0x9bc9d4,.95);g.fillRoundedRect(p.x-width*.22,p.y-height*.15,4.5,7,1);
+      g.fillStyle(0xf1d88f,.95);g.fillCircle(p.x+width*.21,p.y-height*.2,2.6);
+      break;
+    case 'observatory':
+      g.fillStyle(phase==='night'?0xffe4a1:0xc5e6e0,.95);g.fillCircle(p.x,p.y-height*.57,3);
+      g.lineStyle(1,0xd8c67e,.8);g.lineBetween(p.x-width*.2,p.y-height*.46,p.x+width*.2,p.y-height*.46);
+      break;
+  }
+  this.objects.push(g);
 }
 private drawChimneySmoke(p:{x:number;y:number},building:GameState['buildings'][number],depth:number,width:number,height:number,hash:number):void{
   const phase=this.lightingPhaseFor(this.state.gameMinutes);
