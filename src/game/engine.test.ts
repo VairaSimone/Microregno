@@ -154,6 +154,7 @@ describe('simulazione Microregno',()=>{
     expect(housingCapacity(result.state)).toBe(7);
     expect(result.state.resources.wood).toBe(34);
     expect(result.state.population).toBe(6);
+    expect(result.state.world?.citizens).toHaveLength(6);
   });
   it('non fa crescere la popolazione quando il morale è sotto 20',()=>{
     const s=createInitialState(),house=buildAt(s,generateTerrain(s.seed),6,6,'house');
