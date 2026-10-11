@@ -19,7 +19,7 @@ function valid(value: unknown): value is GameState {
   const resources = state.resources as Record<string, unknown> | undefined;
   return state.version === 1
     && typeof state.seed === 'number' && Number.isFinite(state.seed)
-    && typeof state.population === 'number' && Number.isFinite(state.population) && state.population >= 0
+    && typeof state.population === 'number' && Number.isFinite(state.population) && state.population >= 5
     && typeof state.gameMinutes === 'number' && Number.isFinite(state.gameMinutes) && state.gameMinutes >= 0
     && Array.isArray(state.buildings)
     && !!resources
