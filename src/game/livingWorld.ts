@@ -100,7 +100,7 @@ function validEventChoice(value: unknown): value is RealmEventChoice {
     && finiteOptional(choice.moodDelta) && finiteOptional(choice.trustDelta)
     && finiteOptional(choice.researchDelta) && (choice.researchDelta === undefined || choice.researchDelta >= 0)
     && finiteOptional(choice.populationDelta) && (choice.populationDelta === undefined || (Number.isInteger(choice.populationDelta) && Math.abs(choice.populationDelta) <= 100))
-    && (choice.chain === undefined || typeof choice.chain === 'string')
+    && (choice.chain === undefined || (typeof choice.chain === 'string' && EVENT_IDS.includes(choice.chain)))
     && (choice.profession === undefined || PROFESSIONS.includes(choice.profession));
 }
 
