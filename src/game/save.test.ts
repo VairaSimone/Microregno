@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from './engine';
 import { ensureWorldState, performRealmAction } from './livingWorld';
-import { loadKingdom, resetKingdom, saveKingdom } from './save';
+import { loadChallengeSave, loadKingdom, resetKingdom, saveKingdom } from './save';
 import type { GameState } from './types';
 
 const KINGDOM_KEY = 'microregno:kingdom:v1';
@@ -152,6 +152,19 @@ describe('save resilience', () => {
 
     expect(repaired.world!.expeditions).toHaveLength(0);
     expect(repaired.world!.citizens.every((citizen) => citizen.status === 'resident' && citizen.expeditionId === null)).toBe(true);
+  });
+
+  it('does not reuse progress from another daily challenge definition', () => {
+    const state = createInitialState(448);
+    const date = '2026-10-11';
+    installStorage({
+      ['microregno:challenge:' + date]: JSON.stringify({
+        date, challengeId: 'old-mission', state, completed: true, score: 3200, bestScore: 3200,
+      }),
+    });
+
+    expect(loadChallengeSave(date, 'new-mission')).toBeNull();
+    expect(loadChallengeSave(date, 'old-mission')?.completed).toBe(true);
   });
 
   it('reports a failed local save instead of throwing when browser storage is blocked', () => {
