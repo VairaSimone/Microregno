@@ -131,7 +131,7 @@ function refreshMarket(seed: number, gameMinutes: number, market: MarketState, g
   return { prices, demand, cycle, nextShiftAt: gameMinutes + 120 };
 }
 const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', forest: 'managed', guard: 'none' };
-const EVENT_IDS = ['drought', 'caravan', 'wanderer', 'wolves', 'fair', 'caravan-rescue', 'drought-recovery', 'ruins-found', 'archive-clue', 'forest-expedition', 'mountain-expedition', 'lake-expedition', 'border-expedition'];
+const EVENT_IDS = ['drought', 'caravan', 'wanderer', 'wolves', 'fair', 'caravan-rescue', 'drought-recovery', 'ruins-found', 'archive-clue', 'forest-expedition', 'mountain-expedition', 'lake-expedition', 'border-expedition', 'forest-guardian-legacy', 'forest-timber-charter', 'mountain-shelter-oath', 'mountain-deep-vein', 'lake-open-water', 'lake-toll-revolt', 'ruins-sealed-oath', 'archive-map-vow', 'archive-secret-letters', 'border-open-gates', 'border-safe-roads'];
 
 function RESOURCE_NAME(resource: Resource): string {
   return resource === 'wood' ? 'legname' : resource === 'stone' ? 'pietra' : resource === 'food' ? 'cibo' : 'monete';
@@ -665,28 +665,72 @@ function eventTemplate(id: string, gameMinutes: number, seed = 2310, actor?: Cit
     { id: 'save-rain', label: 'Conserva le riserve', detail: 'Ricevi meno cibo, ma prepari il magazzino.', reward: { food: 9, wood: 3 }, moodDelta: 2, trustDelta: 2 },
   ]);
   if (id === 'ruins-found') return event(id, 'Le pietre ricordano', 'Gli esploratori hanno riportato tavolette con il sigillo incompleto della Corona. Il Consiglio può finanziare lo studio o proteggere il sito finché gli studiosi non siano pronti.', [
-    { id: 'study-tablets', label: 'Studia le tavolette', detail: 'Spendi materiali per guadagnare conoscenza e monete. I testi resteranno consultabili nel territorio.', cost: { wood: 6, stone: 5 }, reward: { coins: 12 }, researchDelta: 18, chain: 'archive-clue', frontierPerk: 'archive-network' },
-    { id: 'seal-site', label: 'Proteggi le rovine', detail: 'Nessun costo e una comunità più fiduciosa.', trustDelta: 6, moodDelta: 2 },
+    { id: 'study-tablets', label: 'Studia le tavolette', detail: 'Spendi materiali per guadagnare conoscenza e monete. I testi resteranno consultabili nel territorio e condurranno a una seconda scoperta.', cost: { wood: 6, stone: 5 }, reward: { coins: 12 }, researchDelta: 18, chain: 'archive-clue', frontierPerk: 'archive-network' },
+    { id: 'seal-site', label: 'Proteggi le rovine', detail: 'Nessun costo e una comunità più fiduciosa. Il sito resterà chiuso finché non sarà possibile proteggerlo davvero.', trustDelta: 6, moodDelta: 2, chain: 'ruins-sealed-oath' },
   ]);
   if (id === 'archive-clue') return event(id, 'La carta che non indica un trono', 'Gli scribi scoprono che la mappa non conduce a un palazzo, ma a cinque comunità. Un nuovo percorso commerciale potrebbe riunirle senza sottometterle.', [
-    { id: 'fund-map', label: 'Finanzia la spedizione', detail: 'Spendi monete per aprire una nuova rotta.', cost: { coins: 10 }, reward: { coins: 4, stone: 4 }, researchDelta: 10, trustDelta: 4 },
-    { id: 'keep-secret', label: 'Tieni il segreto', detail: 'Conserva i materiali e migliora la sicurezza.', reward: { wood: 3 }, moodDelta: 1, trustDelta: -1 },
+    { id: 'fund-map', label: 'Finanzia la spedizione', detail: 'Spendi monete per aprire una nuova rotta e rendere pubblica la scoperta.', cost: { coins: 10 }, reward: { coins: 4, stone: 4 }, researchDelta: 10, trustDelta: 4, chain: 'archive-map-vow' },
+    { id: 'keep-secret', label: 'Tieni il segreto', detail: 'Conservi i materiali, ma la fiducia nelle intenzioni del Consiglio si incrina.', reward: { wood: 3 }, moodDelta: 1, trustDelta: -1, chain: 'archive-secret-letters' },
   ]);
   if (id === 'forest-expedition') return event(id, 'Il giuramento delle radici', 'La squadra ha raggiunto il Bosco delle Radici e trovato il primo segno della campana. I guardiani chiedono se Brumadoro manterrà i boschi vivi o consumerà in fretta ciò che resta.', [
-    { id: 'protect-grove', label: 'Proteggi la radura', detail: 'Le riserve forestali cresceranno più lentamente, ma la colonia sarà meno esposta agli incendi.', moodDelta: 4, trustDelta: 5, frontierPerk: 'forest-reserve' },
-    { id: 'commercial-grove', label: 'Firma il contratto forestale', detail: 'I campi boschivi produrranno più legname, a costo di un rischio ambientale maggiore.', reward: { wood: 8 }, moodDelta: -2, trustDelta: -2, frontierPerk: 'forest-contract' },
+    { id: 'protect-grove', label: 'Proteggi la radura', detail: 'Le riserve forestali cresceranno più lentamente, ma la colonia sarà meno esposta agli incendi. I custodi ti inviteranno a conoscere il loro segreto.', moodDelta: 4, trustDelta: 5, frontierPerk: 'forest-reserve', chain: 'forest-guardian-legacy' },
+    { id: 'commercial-grove', label: 'Firma il contratto forestale', detail: 'I campi boschivi produrranno più legname, a costo di un rischio ambientale maggiore. I guardiani pretenderanno una risposta quando vedranno i primi alberi cadere.', reward: { wood: 8 }, moodDelta: -2, trustDelta: -2, frontierPerk: 'forest-contract', chain: 'forest-timber-charter' },
   ]);
   if (id === 'mountain-expedition') return event(id, 'La porta di pietra', 'Sotto il Passo delle Rocce, i minatori hanno trovato pietre con lo stesso marchio del bronzo. La via può essere protetta per i viaggiatori o sfruttata per arricchire le cave.', [
-    { id: 'secure-pass', label: 'Metti in sicurezza il passo', detail: 'Una rete di ripari ridurrà gli effetti delle frane.', moodDelta: 3, trustDelta: 5, frontierPerk: 'mountain-shelters' },
-    { id: 'grant-mining-charter', label: 'Concedi la licenza mineraria', detail: 'Le cave di frontiera estrarranno più pietra dalle riserve conosciute.', reward: { stone: 8 }, moodDelta: -1, trustDelta: 1, frontierPerk: 'mountain-charter' },
+    { id: 'secure-pass', label: 'Metti in sicurezza il passo', detail: 'Una rete di ripari ridurrà gli effetti delle frane. Gli abitanti vogliono però sapere chi pagherà per mantenerla.', moodDelta: 3, trustDelta: 5, frontierPerk: 'mountain-shelters', chain: 'mountain-shelter-oath' },
+    { id: 'grant-mining-charter', label: 'Concedi la licenza mineraria', detail: 'Le cave di frontiera estrarranno più pietra, ma le famiglie chiedono garanzie contro i crolli.', reward: { stone: 8 }, moodDelta: -1, trustDelta: 1, frontierPerk: 'mountain-charter', chain: 'mountain-deep-vein' },
   ]);
   if (id === 'lake-expedition') return event(id, 'Il riflesso della seconda luce', 'I pescatori del Lago degli Specchi conoscono il secondo segno della costellazione. Chiedono se il Consiglio vuole collaborare oppure tassare una strada d’acqua che appartiene a tutti.', [
-    { id: 'lake-cooperative', label: 'Accordo con i pescatori', detail: 'Le peschiere renderanno di più e il territorio recupererà più rapidamente.', moodDelta: 5, trustDelta: 5, frontierPerk: 'lake-cooperative' },
-    { id: 'lake-tolls', label: 'Imponi un dazio al traghetto', detail: 'I posti commerciali al lago guadagneranno più monete, ma la cooperazione sarà fragile.', reward: { coins: 7 }, moodDelta: -2, trustDelta: -3, frontierPerk: 'lake-tolls' },
+    { id: 'lake-cooperative', label: 'Accordo con i pescatori', detail: 'Le peschiere renderanno di più e il territorio recupererà più rapidamente. I pescatori vogliono condividere anche una leggenda che non hanno mai raccontato agli stranieri.', moodDelta: 5, trustDelta: 5, frontierPerk: 'lake-cooperative', chain: 'lake-open-water' },
+    { id: 'lake-tolls', label: 'Imponi un dazio al traghetto', detail: 'I posti commerciali al lago guadagneranno più monete, ma la cooperazione sarà fragile e i villaggi potrebbero protestare.', reward: { coins: 7 }, moodDelta: -2, trustDelta: -3, frontierPerk: 'lake-tolls', chain: 'lake-toll-revolt' },
   ]);
   if (id === 'border-expedition') return event(id, 'Il confine delle promesse', 'Oltre le Terre di Confine si incontrano mercanti, famiglie senza patria e predoni. Il Consiglio deve scegliere se costruire fiducia attraverso gli scambi o difendere la strada senza chiuderla al mondo.', [
-    { id: 'border-customs', label: 'Apri una dogana', detail: 'I posti commerciali produrranno più monete e renderanno stabile lo scambio con Porto Salmastra.', moodDelta: 3, trustDelta: 4, frontierPerk: 'border-customs' },
-    { id: 'border-watch', label: 'Fortifica il confine', detail: 'Le torri ridurranno il rischio delle incursioni e aumenteranno la stabilità locale.', cost: { wood: 5, stone: 4 }, moodDelta: 2, trustDelta: 3, frontierPerk: 'border-watch' },
+    { id: 'border-customs', label: 'Apri una dogana', detail: 'I posti commerciali produrranno più monete e renderanno stabile lo scambio con Porto Salmastra. I viaggiatori chiedono se anche le famiglie senza denaro potranno passare.', moodDelta: 3, trustDelta: 4, frontierPerk: 'border-customs', chain: 'border-open-gates' },
+    { id: 'border-watch', label: 'Fortifica il confine', detail: 'Le torri ridurranno il rischio delle incursioni e aumenteranno la stabilità locale. Le sentinelle chiedono risorse per proteggere anche chi viaggia in pace.', cost: { wood: 5, stone: 4 }, moodDelta: 2, trustDelta: 3, frontierPerk: 'border-watch', chain: 'border-safe-roads' },
+  ]);
+  if (id === 'forest-guardian-legacy') return event(id, 'Il vivaio delle cinque radici', 'I custodi mostrano a Bricco un vivaio nato sopra le vecchie condotte. Una radura protetta non basta: serve scegliere se investire nella rinascita del bosco o studiare i sentieri che univano le cinque valli.', [
+    { id: 'fund-seedbank', label: 'Fondi il vivaio comune', detail: 'Spendi legname e cibo per rafforzare la fiducia dei custodi e ottenere conoscenze naturali.', cost: { wood: 5, food: 3 }, moodDelta: 5, trustDelta: 5, researchDelta: 5 },
+    { id: 'map-old-trails', label: 'Mappa i sentieri antichi', detail: 'Raccogli informazioni utili agli esploratori e qualche materiale recuperato lungo la strada.', reward: { wood: 4, coins: 2 }, moodDelta: 2, trustDelta: 3, researchDelta: 8 },
+  ]);
+  if (id === 'forest-timber-charter') return event(id, 'Il prezzo del legname', 'Il primo carico ha riempito i magazzini, ma nel bosco si apre una radura troppo grande. I mercanti propongono di reinvestire i guadagni per ripiantare, oppure di vendere subito finché la domanda è alta.', [
+    { id: 'replant-profits', label: 'Reinvesti nei nuovi alberi', detail: 'Spendi monete e legname per recuperare fiducia e ripristinare una parte delle riserve forestali.', cost: { wood: 4, coins: 5 }, reward: { food: 3 }, moodDelta: 4, trustDelta: 5, frontierPerk: 'forest-reserve' },
+    { id: 'sell-while-high', label: 'Vendi finché conviene', detail: 'Ottieni materiali subito, ma i custodi registrano la decisione nella loro cronaca.', reward: { wood: 10, coins: 4 }, moodDelta: -4, trustDelta: -4 },
+  ]);
+  if (id === 'mountain-shelter-oath') return event(id, 'L’ospitalità della pietra', 'I rifugi resistono alla prima tormenta. I minatori propongono di usare le gallerie sicure per proteggere i viaggiatori o di cartografare i passaggi per attirare nuovi commercianti.', [
+    { id: 'maintain-shelters', label: 'Mantieni i rifugi aperti', detail: 'Investi materiali per consolidare la protezione e rafforzare il patto con le famiglie del Passo.', cost: { wood: 4, stone: 3 }, moodDelta: 4, trustDelta: 5, frontierPerk: 'mountain-shelters' },
+    { id: 'chart-safe-route', label: 'Mappa la via sicura', detail: 'Le mappe portano nuove conoscenze e monete, senza costi immediati.', reward: { coins: 5, stone: 3 }, researchDelta: 8, moodDelta: 2, trustDelta: 3 },
+  ]);
+  if (id === 'mountain-deep-vein') return event(id, 'La vena profonda', 'La licenza mineraria ha portato pietra, ma un tremore ha ricordato a tutti il rischio delle gallerie. Puoi rinforzare i sostegni o accelerare l’estrazione prima che la vena si esaurisca.', [
+    { id: 'reinforce-mines', label: 'Rinforza le gallerie', detail: 'Consuma risorse per rendere la frontiera più sicura e ricostruire fiducia.', cost: { wood: 6, stone: 2 }, moodDelta: 3, trustDelta: 5, frontierPerk: 'mountain-shelters' },
+    { id: 'deepen-extraction', label: 'Apri un nuovo filone', detail: 'Ottieni subito pietra e monete, ma le famiglie restano preoccupate.', reward: { stone: 10, coins: 4 }, moodDelta: -3, trustDelta: -2 },
+  ]);
+  if (id === 'lake-open-water') return event(id, 'La canzone delle acque aperte', 'I pescatori rivelano che la seconda stella era un segnale per condividere il pescato con i villaggi isolati. Il Consiglio può sostenere una peschiera comune o finanziare una nuova carta nautica.', [
+    { id: 'shared-fishery', label: 'Sostieni la peschiera comune', detail: 'Spendi legname per aumentare la cooperazione e ricevere una fornitura di cibo.', cost: { wood: 5 }, reward: { food: 8 }, moodDelta: 4, trustDelta: 6, frontierPerk: 'lake-cooperative' },
+    { id: 'chart-mirror-lake', label: 'Disegna la carta del lago', detail: 'I rilevamenti fruttano conoscenza e monete, utili alle prossime spedizioni.', reward: { coins: 4 }, researchDelta: 7, moodDelta: 2, trustDelta: 3 },
+  ]);
+  if (id === 'lake-toll-revolt') return event(id, 'Il prezzo del passaggio', 'Il dazio ha riempito la cassa, ma piccoli pescatori e famiglie non riescono più a usare il traghetto. Il Consiglio può ridurre la tariffa o mantenerla per finanziare la capitale.', [
+    { id: 'lower-ferry-toll', label: 'Riduci il dazio', detail: 'Restituisci parte delle entrate e ricuci i rapporti con i villaggi del lago.', cost: { coins: 7 }, moodDelta: 5, trustDelta: 6, frontierPerk: 'lake-cooperative' },
+    { id: 'keep-ferry-toll', label: 'Mantieni il pedaggio', detail: 'La cassa riceve altre monete, ma cresce il malcontento.', reward: { coins: 9 }, moodDelta: -6, trustDelta: -6 },
+  ]);
+  if (id === 'ruins-sealed-oath') return event(id, 'Il silenzio delle rovine', 'Le rovine sono state protette, ma una famiglia di custodi teme che il silenzio faccia sparire le iscrizioni per sempre. Si può allestire un presidio leggero o attendere studiosi preparati.', [
+    { id: 'guarded-archive', label: 'Crea un presidio di studiosi', detail: 'Spendi materiali per avviare lo studio senza riaprire tutto il sito.', cost: { wood: 4, stone: 4 }, researchDelta: 7, trustDelta: 5, moodDelta: 2, frontierPerk: 'archive-network' },
+    { id: 'wait-for-scholars', label: 'Aspetta l’Università', detail: 'Conservi le scorte e ottieni un piccolo contributo da chi sostiene la tutela.', reward: { coins: 3 }, trustDelta: 4, moodDelta: 2 },
+  ]);
+  if (id === 'archive-map-vow') return event(id, 'Una mappa da condividere', 'La nuova carta rivela che le Cinque Luci non indicavano un centro di potere, ma un percorso di mutuo soccorso. Ora il Consiglio deve decidere chi potrà consultarla.', [
+    { id: 'publish-star-map', label: 'Rendi pubblica la mappa', detail: 'Sostieni la trasparenza: ottieni conoscenza e maggiore fiducia, spendendo parte della riserva.', cost: { coins: 6 }, reward: { stone: 4 }, researchDelta: 12, trustDelta: 8, moodDelta: 5 },
+    { id: 'reserve-star-map', label: 'Riserva la mappa al Consiglio', detail: 'Recuperi monete per i lavori, ma alcune comunità dubitano delle tue intenzioni.', reward: { coins: 10 }, researchDelta: 4, trustDelta: -2 },
+  ]);
+  if (id === 'archive-secret-letters') return event(id, 'Le lettere sotto il sigillo', 'Fra le carte riservate Bricco trova lettere che dimostrano come, in passato, una parte della storia sia stata nascosta per proteggere il trono. Il Consiglio può riparare l’archivio e pubblicarle o mantenere il silenzio.', [
+    { id: 'restore-letters', label: 'Restaura e pubblica le lettere', detail: 'Spendi legname e restituisci alla comunità una parte della verità.', cost: { wood: 5 }, reward: { coins: 4 }, researchDelta: 10, trustDelta: 5, moodDelta: 3 },
+    { id: 'bury-letters', label: 'Lascia le lettere sigillate', detail: 'Conservi risorse e qualche moneta, ma la fiducia diminuisce.', reward: { coins: 8 }, moodDelta: 1, trustDelta: -4 },
+  ]);
+  if (id === 'border-open-gates') return event(id, 'Le porte senza stemma', 'Le nuove regole hanno attirato mercanti, artigiani e famiglie in viaggio. Non tutti possono pagare la tariffa: il Consiglio deve decidere se aiutare chi arriva o dare priorità alle entrate.', [
+    { id: 'welcome-travelers', label: 'Aiuta le famiglie in viaggio', detail: 'Spendi cibo per accogliere i nuovi arrivati e guadagnare fiducia.', cost: { food: 6 }, reward: { coins: 5 }, moodDelta: 5, trustDelta: 7 },
+    { id: 'prioritize-revenue', label: 'Dai priorità alla dogana', detail: 'Ottieni monete per finanziare l’espansione, ma l’accoglienza resta più fredda.', reward: { coins: 10 }, moodDelta: -2, trustDelta: 1 },
+  ]);
+  if (id === 'border-safe-roads') return event(id, 'La strada che protegge', 'Le sentinelle hanno respinto un’incursione, ma hanno anche scortato una carovana di famiglie. La protezione può restare soltanto militare oppure diventare un servizio per chi attraversa il confine.', [
+    { id: 'patrol-caravans', label: 'Scorta le carovane', detail: 'Spendi monete per mantenere le pattuglie e aumentare la sicurezza.', cost: { coins: 6 }, moodDelta: 4, trustDelta: 5, frontierPerk: 'border-watch' },
+    { id: 'shelter-caravans', label: 'Apri rifugi per i viaggiatori', detail: 'Spendi materiali e provviste per rendere il confine più accogliente.', cost: { wood: 5, food: 4 }, moodDelta: 5, trustDelta: 7, frontierPerk: 'border-customs' },
   ]);
   const choiceSets: RealmEvent[] = [
     event('drought', 'Il cielo si è dimenticato della valle', 'Da settimane le nuvole ignorano Brumadoro. I vecchi sostengono che la campana suonasse per chiamare le valli in soccorso durante la siccità. Il Consiglio deve scegliere fra investire, comprare scorte o razionare.', [
