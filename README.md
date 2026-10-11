@@ -7,7 +7,10 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Sprite SVG originali per municipio, case, fattoria, segheria, cava, mercato, sei nuovi edifici civici e produttivi, strade, alberi e rocce.
 - Economia, popolazione, costi, vincoli del terreno, bonus ambientali e sblocco del mercato.
 - Edifici migliorabili fino al livello 3: aumentano produzione o capienza e richiedono investimenti di risorse.
-- Traguardi di popolazione a 8, 12, 18 e 24 abitanti con ricompense una tantum in monete; gli obiettivi si aggiornano man mano che il borgo cresce.
+- Campagna in quattro epoche (Insediamento, Villaggio, Borgo e Città): sblocchi persistenti, requisiti diversi, ricompense e cronaca della crescita.
+- Carta della Corona come obiettivo finale: popolazione, edifici di livello 3, grandi opere, regioni esplorate, accordi diplomatici e Università Reale.
+- Università Reale sbloccata nella Città: aumenta la velocità di avanzamento della ricerca.
+- Traguardi di popolazione a 8, 12, 18 e 24 abitanti con ricompense una tantum in monete; gli obiettivi si aggiornano secondo l’epoca.
 - Piccoli abitanti animati percorrono il centro del villaggio e gli edifici migliorati mostrano il loro livello sulla mappa.
 - Salvataggio locale, progressione offline limitata, regno persistente e sfida giornaliera.
 - Richieste dei cittadini con scelte a tempo, conseguenze su umore e fiducia, cronaca persistente e scadenze.
@@ -28,15 +31,18 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 Il primo obiettivo è portare il borgo a **8 abitanti**. La guida in gioco segue cinque passaggi:
 1. Costruisci una fattoria per produrre cibo.
 2. Costruisci una casa: aggiunge 6 posti abitativi.
-3. Mantieni almeno 18 unità di cibo e attendi che il villaggio raggiunga 6 abitanti.
-4. Costruisci una segheria vicino a un bosco per generare legname.
-5. Raggiungi 8 abitanti: a quel punto si sblocca il mercato.
+3. Mantieni le dispense rifornite e raggiungi 8 abitanti: con Fattoria e Casa nascerà il Villaggio.
+4. Nel Villaggio, costruisci una segheria vicino a un bosco e organizza le prime botteghe.
+5. Apri il Mercato, migliora un edificio al livello 2 e porta il regno a 12 abitanti per fondare il Borgo.
 
 **Regole essenziali**
 - Seleziona un edificio nel pannello a destra, poi clicca una casella libera sulla mappa.
 - Verde = posizione valida; rosso = posizione non valida.
 - La segheria richiede un bosco vicino; la cava richiede roccia vicina.
-- Segheria e cava si sbloccano a 6 abitanti; il mercato a 8.
+- Il Villaggio si fonda a 8 abitanti se hai almeno una Fattoria e una Casa: sblocca Segheria, Cava, Mercato, Strade, Mulino e Magazzino.
+- Il Borgo si fonda a 12 abitanti con un Mercato e un edificio migliorato: sblocca scuola, ricerca, spedizioni, diplomazia e grandi opere.
+- La Città richiede 18 abitanti, una scuola, due ricerche, un progetto completato, due regioni scoperte e un edificio di livello 3; sblocca l’Università Reale.
+- Per firmare la Carta della Corona servono 24 abitanti, due edifici al livello 3, tre grandi opere, due accordi diplomatici, tre regioni scoperte, un’Università Reale e 100 monete.
 - Il municipio ospita i 5 abitanti iniziali; costruisci una casa o migliora il municipio per aumentare la capienza.
 - La popolazione cresce ogni 20 minuti di gioco se ci sono almeno 18 unità di cibo e posti abitativi liberi.
 - Fattorie vicine all'acqua e segherie vicine ai boschi producono di più; le statistiche mostrano i bonus reali.
@@ -60,6 +66,8 @@ Apri **Sala del Regno** nella barra superiore per passare fra cinque sezioni:
 - **Ricerca**: avvia una sola ricerca alla volta. I punti conoscenza arrivano lentamente e aumentano con la scuola e gli studiosi. Irrigazione, utensili, commercio, istruzione, cartografia e silvicoltura offrono benefici permanenti.
 - **Progetti & Eventi**: finanzia tre fasi per acquedotto, ponte, quartiere artigiano e grande archivio. Gli eventi emergono durante la partita; alcune decisioni avviano una seconda storia dopo un intervallo.
 
+Gli accordi diplomatici si gestiscono nella sezione Esplorazione dal Borgo in poi. Le epoche sono conservate nel salvataggio e i regni salvati prima dell’aggiornamento vengono migrati automaticamente. Il finale di campagna arriva con la Carta della Corona: dopo averla firmata puoi continuare a giocare in modalità libera. L’Università Reale, sbloccata nell’epoca della Città, accelera la ricerca.
+
 Gli accordi diplomatici si gestiscono nella sezione Esplorazione. Doni e scambi aumentano le relazioni; a 55 punti può essere firmato un trattato, che genera entrate ricorrenti. Tutti i cittadini, scorte, progressi di ricerca, spedizioni, leggi, eventi, progetti e relazioni sono inclusi nel salvataggio locale. I salvataggi precedenti vengono migrati automaticamente alla prima apertura.
 
 ## Requisiti e avvio
@@ -82,6 +90,7 @@ Il workflow di deploy è manuale per evitare tentativi di pubblicazione prima di
 
 ## Struttura
 - **src/game/engine.ts**: costruzioni, produzione, popolazione e terreno.
+- **src/game/progression.ts**: epoche, requisiti, ricompense e Carta della Corona.
 - **src/game/KingdomScene.ts**: rendering e input Phaser.
 - **src/game/challenge.ts**: sfide giornaliere.
 - **src/game/community.ts**: richieste dei cittadini, scelte, conseguenze e stagioni.
