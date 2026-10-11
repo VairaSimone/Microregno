@@ -484,6 +484,31 @@ export function getCitizenWorkplace(state: GameState, citizen: Citizen): Buildin
   return compatible[(Math.max(1, numericId) - 1) % compatible.length] ?? null;
 }
 
+/** True only when a building touches a continuous road route reaching the Town Hall or Market. */
+export function isRoadConnectedToHub(state: GameState, building: Building): boolean {
+  if (building.type === 'road') return false;
+  const roads = state.buildings.filter((entry) => entry.type === 'road');
+  if (!roads.length) return false;
+  const key = (x: number, y: number) => x + ',' + y;
+  const roadByKey = new Map(roads.map((road) => [key(road.x, road.y), road]));
+  const adjacent = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
+  const hubs = state.buildings.filter((entry) => entry.type === 'townHall' || entry.type === 'market');
+  const queue = roads.filter((road) => hubs.some((hub) => adjacent(road, hub)));
+  const connected = new Set(queue.map((road) => key(road.x, road.y)));
+  for (let index = 0; index < queue.length; index++) {
+    const road = queue[index]!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const roadKey = key(road.x + dx!, road.y + dy!);
+      const next = roadByKey.get(roadKey);
+      if (next && !connected.has(roadKey)) {
+        connected.add(roadKey);
+        queue.push(next);
+      }
+    }
+  }
+  return roads.some((road) => connected.has(key(road.x, road.y)) && adjacent(road, building));
+}
+
 export function getCitizenActivity(state: GameState, citizen: Citizen): import('./types').CitizenActivity {
   if (citizen.status === 'exploring') return 'exploring';
   if (citizen.hunger > 75 || (state.resources.food < 0.1 && (state.world?.goods.bread ?? 0) < 0.1)) return 'eating';
@@ -530,7 +555,7 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   }
   if (world.researched.includes('tools') && ['farm', 'sawmill', 'quarry', 'market'].includes(building.type)) multiplier *= 1.12;
   if (world.goods.tools >= 1 && ['farm', 'sawmill', 'quarry', 'mill', 'bakery', 'workshop'].includes(building.type)) multiplier *= 1.12;
-  if (building.type !== 'road' && state.buildings.some((entry) => entry.type === 'road' && Math.abs(entry.x - building.x) + Math.abs(entry.y - building.y) <= 1)) multiplier *= 1.08;
+  if (isRoadConnectedToHub(state, building)) multiplier *= 1.12;
   if (world.completedProjects.includes('artisan-quarter')) multiplier *= 1.08;
   if (building.type === 'farm' && world.researched.includes('irrigation')) multiplier *= 1.15;
   if (building.type === 'farm' && world.weather.id === 'drought' && state.gameMinutes < world.weather.endsAt) multiplier *= 0.68;
@@ -1181,11 +1206,40 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     ok: true, message,
   });
 
-  if ((action.type === 'research' || action.type === 'expedition' || action.type === 'project' || action.type === 'diplomacy')
+  if ((action.type === 'research' || action.type === 'expedition' || action.type === 'project' || action.type === 'diplomacy' || action.type === 'colonize' || action.type === 'frontierBuild')
     && !isEpochUnlocked(state, 'borough')) {
     return fail('Queste decisioni si aprono nell’epoca del Borgo. Raggiungi 12 abitanti, apri un mercato e migliora un edificio.');
   }
 
+  if (action.type === 'colonize') {
+    if (!canColonizeRegion(state, action.id)) {
+      if (!world.discoveredRegions.includes(action.id)) return fail('Prima devi esplorare con successo questo territorio. Le mappe non bastano: serve una spedizione di rientro.');
+      if (world.frontierTerritories.some((territory) => territory.region === action.id)) return fail('In questo territorio esiste già un avamposto.');
+      return fail('Fondare un avamposto richiede l’epoca del Borgo e una regione libera.');
+    }
+    const cost = frontierFoundingCost(action.id);
+    if (!hasCost(resources, cost)) return fail('Materiali insufficienti per fondare l’avamposto: ' + Object.entries(cost).map(([key, amount]) => amount + ' ' + (key === 'wood' ? 'legname' : key === 'stone' ? 'pietra' : key === 'food' ? 'cibo' : 'monete')).join(', ') + '.');
+    resources = pay(resources, cost);
+    const territory = createFrontierTerritory(action.id, state.gameMinutes);
+    world = { ...world, frontierTerritories: [...world.frontierTerritories, territory] };
+    return finish('Avamposto fondato nel territorio: ' + territory.name + '. Ora puoi costruire sul suo terreno 5×5 e amministrarne le riserve locali.');
+  }
+  if (action.type === 'frontierBuild') {
+    const territory = world.frontierTerritories.find((entry) => entry.region === action.region);
+    if (!territory) return fail('Prima fonda un avamposto nel territorio.');
+    if (!Number.isInteger(action.x) || !Number.isInteger(action.y) || action.x < 0 || action.y < 0 || action.x >= FRONTIER_GRID_SIZE || action.y >= FRONTIER_GRID_SIZE) return fail('Casella di frontiera non valida.');
+    if (territory.structures.some((entry) => entry.x === action.x && entry.y === action.y)) return fail('La casella è già occupata da una struttura.');
+    if (!FRONTIER_STRUCTURES[action.structure] || !frontierStructureAllowed(action.region, action.structure)) return fail('Questa struttura non è adatta al territorio scelto.');
+    const definition = FRONTIER_STRUCTURES[action.structure];
+    if (!hasCost(resources, definition.cost)) return fail('Materiali insufficienti per costruire ' + definition.name + '.');
+    resources = pay(resources, definition.cost);
+    const structure: FrontierStructure = {
+      id: 'frontier-' + action.region + '-' + action.structure + '-' + state.gameMinutes + '-' + action.x + '-' + action.y,
+      type: action.structure, x: action.x, y: action.y, level: 1,
+    };
+    world = { ...world, frontierTerritories: world.frontierTerritories.map((entry) => entry.region === action.region ? { ...entry, structures: [...entry.structures, structure] } : entry) };
+    return finish(definition.name + ' costruito in ' + territory.name + '. La produzione dipende dalle riserve e dalla stabilità locale.');
+  }
   if (action.type === 'assign') {
     const citizen = world.citizens.find((entry) => entry.id === action.citizenId);
     if (!citizen) return fail('Questo cittadino non esiste più.');
