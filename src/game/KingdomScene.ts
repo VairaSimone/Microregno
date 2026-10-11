@@ -12,7 +12,7 @@ const SPRITES:Record<BuildingType,string>={townHall:'town-hall',house:'house',fa
 function publicAssetBase():string{const page=new URL(window.location.href);const finalSegment=page.pathname.split('/').pop()??'';if(!page.pathname.endsWith('/')&&!finalSegment.includes('.'))page.pathname+='/';return new URL('assets/',page).toString();}
 export class KingdomScene extends Phaser.Scene{
 private state!:GameState;private kingdom!:GameState;private mode:GameMode='kingdom';private challenge!:DailyChallenge;private terrain!:Terrain[][];
-private ambience!:Phaser.GameObjects.Graphics;private board!:Phaser.GameObjects.Graphics;private groundDetail!:Phaser.GameObjects.Graphics;private hover!:Phaser.GameObjects.Graphics;private objects:Phaser.GameObjects.GameObject[]=[];
+private ambience!:Phaser.GameObjects.Graphics;private board!:Phaser.GameObjects.Graphics;private groundDetail!:Phaser.GameObjects.Graphics;private hover!:Phaser.GameObjects.Graphics;private objects:Phaser.GameObjects.GameObject[]=[];private visualTweens:Phaser.Tweens.Tween[]=[];private currentLightingPhase='';
 private buildType:BuildingType|null=null;private selectedId:string|null=null;private villagerTweens=new Map<Phaser.GameObjects.Container,Phaser.Tweens.Tween>();private completed=false;private best=0;private savedAt=0;private ox=512;private oy=88;private profile:PlayerProfile=loadPlayerProfile();private challengeEventTriggered=false;private dragState:{button:number;startX:number;startY:number;lastX:number;lastY:number;startRotation:number;moved:boolean}|null=null;private cameraTouched=false;private rotationSensitivity=.006;private cameraRotation=0;
 constructor(){super('KingdomScene');}
 preload():void{this.load.setPath(publicAssetBase());this.load.on('loaderror',(file:{key:string})=>{window.dispatchEvent(new CustomEvent('microregno:notice',{detail:'Grafica non caricata: '+file.key+'. Controlla la cartella public/assets.'}));});[['town-hall','town-hall.svg'],['house','house.svg'],['farm','farm.svg'],['sawmill','sawmill.svg'],['quarry','quarry.svg'],['market','market.svg'],['road','road.svg'],['mill','mill.svg'],['bakery','bakery.svg'],['warehouse','warehouse.svg'],['school','school.svg'],['watchtower','watchtower.svg'],['workshop','workshop.svg'],['university','university.svg'],['orchard','orchard.svg'],['fishingHut','fishingHut.svg'],['herbGarden','herbGarden.svg'],['inn','inn.svg'],['ironworks','ironworks.svg'],['observatory','observatory.svg'],['tree','tree.svg'],['rock','rock.svg'],['leaf','leaf.svg']].forEach(([k,p])=>this.load.image(k!,p!));}
@@ -88,13 +88,35 @@ private fitZoom(width:number,height:number):number{
   const worldHeight=(BOARD_SIZE-1)*TILE_HEIGHT+120;
   return Phaser.Math.Clamp(Math.min((width-26)/worldWidth,(height-28)/worldHeight,1.8),.55,1.8);
 }
+private lightingPhaseFor(gameMinutes:number):'day'|'twilight'|'night'{
+  const hour=(gameMinutes%1440)/60;
+  if(hour<5||hour>=21)return 'night';
+  if(hour<7||hour>=18)return 'twilight';
+  return 'day';
+}
+private blendColor(source:number,target:number,amount:number):number{
+  const t=Phaser.Math.Clamp(amount,0,1);
+  const mix=(shift:number)=>Math.round(((source>>shift)&255)*(1-t)+((target>>shift)&255)*t);
+  return (mix(16)<<16)|(mix(8)<<8)|mix(0);
+}
 private drawAmbience(width:number,height:number):void{
   if(!this.ambience)return;
   const g=this.ambience;
+  const phase=this.state?this.lightingPhaseFor(this.state.gameMinutes):'day';
   g.clear();
-  g.fillGradientStyle(0xe9f0d2,0xd8e9d6,0xc5dfd7,0x9fc5b5,1);
-  g.fillRect(-2,-2,width+4,height+4);
-  g.fillStyle(0x729b7b,.13);
+  if(phase==='night'){
+    g.fillGradientStyle(0x203449,0x2b4856,0x1a3a42,0x244b4d,1);
+    g.fillRect(-2,-2,width+4,height+4);
+    g.fillStyle(0x1b3445,.45);
+  }else if(phase==='twilight'){
+    g.fillGradientStyle(0xf1d7a3,0xe8d5b0,0x99c9c1,0x7baea2,1);
+    g.fillRect(-2,-2,width+4,height+4);
+    g.fillStyle(0x617d72,.14);
+  }else{
+    g.fillGradientStyle(0xe9f0d2,0xd8e9d6,0xc5dfd7,0x9fc5b5,1);
+    g.fillRect(-2,-2,width+4,height+4);
+    g.fillStyle(0x729b7b,.13);
+  }
   g.fillPoints([
     new Phaser.Geom.Point(-40,height*.64),new Phaser.Geom.Point(width*.12,height*.54),
     new Phaser.Geom.Point(width*.24,height*.6),new Phaser.Geom.Point(width*.39,height*.47),
@@ -102,7 +124,7 @@ private drawAmbience(width:number,height:number):void{
     new Phaser.Geom.Point(width*.91,height*.58),new Phaser.Geom.Point(width+40,height*.53),
     new Phaser.Geom.Point(width+40,height+30),new Phaser.Geom.Point(-40,height+30)
   ],true);
-  g.fillStyle(0x527f6a,.1);
+  g.fillStyle(phase==='night'?0x172f3a:phase==='twilight'?0x527e76:0x527f6a,phase==='night'?.22:.1);
   g.fillPoints([
     new Phaser.Geom.Point(-40,height*.8),new Phaser.Geom.Point(width*.18,height*.7),
     new Phaser.Geom.Point(width*.36,height*.77),new Phaser.Geom.Point(width*.61,height*.68),
@@ -110,12 +132,24 @@ private drawAmbience(width:number,height:number):void{
     new Phaser.Geom.Point(width+40,height+30),new Phaser.Geom.Point(-40,height+30)
   ],true);
   const radius=Math.max(80,Math.min(width,height)*.19);
-  g.fillStyle(0xffe8a7,.07);g.fillCircle(width*.79,height*.22,radius*1.35);
-  g.fillStyle(0xfff1c4,.13);g.fillCircle(width*.79,height*.22,radius);
-  g.lineStyle(1,0xf5f2cf,.17);
-  for(let i=0;i<9;i++){
-    const x=width*(.08+i*.105),y=height*(.15+(i%3)*.13);
-    g.lineBetween(x,y,x+14+(i%4)*3,y-3);
+  if(phase==='night'){
+    g.fillStyle(0xd8e8ee,.1);g.fillCircle(width*.79,height*.22,radius*1.18);
+    g.fillStyle(0xe8eee2,.92);g.fillCircle(width*.79,height*.22,radius*.48);
+    g.fillStyle(0x2b4856,1);g.fillCircle(width*.82,height*.19,radius*.42);
+    g.fillStyle(0xf5efcf,.75);
+    for(let i=0;i<26;i++){
+      const x=width*((i*37%97)+1)/100;
+      const y=height*((i*23%41)+5)/100;
+      g.fillCircle(x,y,i%6===0?1.6:.85);
+    }
+  }else{
+    g.fillStyle(0xffe8a7,phase==='twilight'?.045:.07);g.fillCircle(width*.79,height*.22,radius*1.35);
+    g.fillStyle(phase==='twilight'?0xffd0a0:0xfff1c4,phase==='twilight'?.12:.13);g.fillCircle(width*.79,height*.22,radius);
+    g.lineStyle(1,phase==='twilight'?0xffe0b4:0xf5f2cf,phase==='twilight'?.12:.17);
+    for(let i=0;i<9;i++){
+      const x=width*(.08+i*.105),y=height*(.15+(i%3)*.13);
+      g.lineBetween(x,y,x+14+(i%4)*3,y-3);
+    }
   }
 }
 private resizeWorld(width:number,height:number,initial=false):void{
@@ -186,7 +220,7 @@ this.savedAt=Date.now();
 this.reportSaveStatus(saved,'kingdom');
 }
 this.notice(seasonMessage);
-}else if(this.state.population!==oldPopulation||oldExploring!==(this.state.world?.citizens??[]).filter(c=>c.status==='exploring').map(c=>c.id).sort().join(','))this.redraw();this.emit();}
+}else if(this.state.population!==oldPopulation||oldExploring!==(this.state.world?.citizens??[]).filter(c=>c.status==='exploring').map(c=>c.id).sort().join(','))this.redraw();if(this.lightingPhaseFor(this.state.gameMinutes)!==this.currentLightingPhase)this.redraw();this.emit();}
 private resolveChallengeEvent():void{if(this.mode!=='challenge'||this.challengeEventTriggered||this.challenge.eventAt===undefined||this.state.gameMinutes-(this.challenge.startGameMinutes??0)<this.challenge.eventAt)return;this.challengeEventTriggered=true;const delta=this.challenge.eventDelta??{};const resources={...this.state.resources};for(const key of ['wood','stone','food','coins'] as const){const change=delta[key]??0;resources[key]=Math.max(0,Math.min(9999,resources[key]+change));}let world=this.state.world;if(this.challenge.scenario==='drought'&&world)world={...world,weather:{id:'clear',endsAt:0}};this.state={...this.state,resources,world};this.notice((this.challenge.eventTitle??'Evento speciale')+': '+(this.challenge.eventDescription??'Il mondo cambia le sue condizioni.')+' Effetti: '+Object.entries(delta).map(([key,value])=>(Number(value)>0?'+':'')+value+' '+({wood:'legname',stone:'pietra',food:'cibo',coins:'monete'} as Record<string,string>)[key]).join(', ')+'.');}
 private applyPopulationMilestones():void{
 if(this.mode!=='kingdom')return;
@@ -208,11 +242,16 @@ private drawHover(px:number,py:number):void{const t=this.toTile(px,py);this.hove
 private redraw():void{
   if(!this.board)return;
   this.villagerTweens.forEach(t=>t.stop());this.villagerTweens.clear();
+  this.visualTweens.forEach(t=>t.stop());this.visualTweens=[];
   this.board.clear();this.groundDetail.clear();
+  this.currentLightingPhase=this.lightingPhaseFor(this.state.gameMinutes);
+  this.drawAmbience(this.scale.width||1280,this.scale.height||720);
   this.objects.forEach(o=>o.destroy());this.objects=[];
   const tiles:{x:number;y:number}[]=[];
   for(let sum=0;sum<BOARD_SIZE*2-1;sum++)for(let y=0;y<BOARD_SIZE;y++){const x=sum-y;if(x>=0&&x<BOARD_SIZE)tiles.push({x,y});}
   const season=getSeason(this.state.gameMinutes);
+  const phase=this.lightingPhaseFor(this.state.gameMinutes);
+  const isNight=phase==='night';
   const seed=this.state.seed>>>0;
   // Each tile casts a small offset shadow, giving the map a raised, handcrafted diorama feel.
   tiles.forEach(({x,y})=>{
@@ -241,6 +280,8 @@ private redraw():void{
         :[0x8cb77b,0x95bd84,0x83ae74,0xa1c18a,0x8bb779];
       fill=seasonal[variation]!;edge=0x5e8056;highlight=0xe3efc0;
     }
+    if(phase==='night'){fill=this.blendColor(fill,0x2d455b,.43);edge=this.blendColor(edge,0x172d3e,.34);highlight=this.blendColor(highlight,0x8fa8bb,.38);}
+    else if(phase==='twilight'){fill=this.blendColor(fill,0xd38c61,.13);edge=this.blendColor(edge,0x715c57,.12);highlight=this.blendColor(highlight,0xffe1b0,.18);}
     const points=this.diamond(p.x,p.y);
     this.board.fillStyle(fill,1);this.board.fillPoints(points,true);
     this.board.fillStyle(highlight,t==='water'?.13:.12);
@@ -265,7 +306,12 @@ private redraw():void{
         const shift=(hash%7)-3;
         this.groundDetail.lineBetween(p.x-12+shift,p.y-5,p.x-3+shift,p.y-5);
         this.groundDetail.lineBetween(p.x+3-shift*.4,p.y+2,p.x+11-shift*.4,p.y+2);
-        if(hash%4===0)this.groundDetail.fillStyle(0xf2f4d7,.35),this.groundDetail.fillCircle(p.x+8,p.y-7,1.2);
+        if(hash%4===0)this.groundDetail.fillStyle(0xf2f4d7,isNight?.2:.35),this.groundDetail.fillCircle(p.x+8,p.y-7,1.2);
+      }
+      if(hash%3===0){
+        const shimmer=this.add.ellipse(p.x+(hash%11)-5,p.y-5,8,1.5,isNight?0x9bbacb:0xf2ffec,isNight?.28:.58).setDepth((x+y)*10+5);
+        this.objects.push(shimmer);
+        this.visualTweens.push(this.tweens.add({targets:shimmer,x:shimmer.x+13,alpha:0,scaleX:1.8,duration:1900+(hash%5)*190,delay:hash%640,repeat:-1,ease:'Sine.inOut'}));
       }
       return;
     }
@@ -299,10 +345,18 @@ private redraw():void{
         this.groundDetail.fillCircle(p.x+((hash>>>2)%19)-9,p.y+((hash>>>8)%11)-5,.7);
       }
       if(hash%9===0){
-        this.groundDetail.fillStyle(0x4d7149,.35);
+        this.groundDetail.fillStyle(phase==='night'?0x3d6670:0x4d7149,phase==='night'?.2:.35);
         this.groundDetail.fillEllipse(p.x-7,p.y+7,5,2);
-        this.groundDetail.fillStyle(0xc4d49a,.4);
+        this.groundDetail.fillStyle(phase==='night'?0x93b8c1:0xc4d49a,phase==='night'?.25:.4);
         this.groundDetail.fillEllipse(p.x-6,p.y+6,2,1);
+      }
+      const nearCivicSquare=this.state.buildings.some(hub=>(hub.type==='townHall'||hub.type==='market')&&Math.abs(hub.x-x)+Math.abs(hub.y-y)<=2);
+      if(nearCivicSquare&&hash%2===0){
+        const stone=phase==='night'?0x788c95:phase==='twilight'?0xd8c6a0:0xd8d0ae;
+        this.groundDetail.fillStyle(stone,phase==='night'?.18:.28);
+        this.groundDetail.fillEllipse(p.x+((hash>>>3)%11)-5,p.y+((hash>>>7)%7)-1,7,2.4);
+        this.groundDetail.lineStyle(.8,phase==='night'?0x81929d:0xf7ebce,phase==='night'?.16:.48);
+        this.groundDetail.lineBetween(p.x-5,p.y+3,p.x+2,p.y+5);
       }
     }else if(t==='rock'){
       this.groundDetail.lineStyle(1.1,0xe0e5d8,.65);
@@ -323,13 +377,19 @@ private redraw():void{
     const p=this.toScreen(x,y),t=this.terrain[y]![x]!;
     const hash=Math.abs((x*13+y*7+seed)%11);
     if(t==='forest'){
-      const treeTint=season.id==='autumn'?0xc99a54:season.id==='winter'?0xaab8aa:season.id==='summer'?0x97b875:0xffffff;
+      let treeTint=season.id==='autumn'?0xc99a54:season.id==='winter'?0xaab8aa:season.id==='summer'?0x97b875:0xffffff;
+      if(phase==='night')treeTint=this.blendColor(treeTint,0x314c63,.52);else if(phase==='twilight')treeTint=this.blendColor(treeTint,0x9c755e,.2);
       const scale=.91+(hash%5)*.035;
       const o=this.add.image(p.x,p.y-22,'tree').setDisplaySize(61*scale,76*scale).setTint(treeTint).setOrigin(.5,.83).setRotation(((hash%7)-3)*.018).setDepth((x+y)*10+3);
       this.objects.push(o);
+      if(hash%3===0){
+        const sway=this.tweens.add({targets:o,rotation:o.rotation+(hash%2?.027:-.027),y:o.y-1.4,duration:2100+(hash%5)*220,delay:hash%370,yoyo:true,repeat:-1,ease:'Sine.inOut'});
+        this.visualTweens.push(sway);
+      }
     }else if(t==='rock'){
       const scale=.9+(hash%5)*.04;
-      const o=this.add.image(p.x,p.y-3,'rock').setDisplaySize(48*scale,42*scale).setOrigin(.5,.76).setRotation(((hash%5)-2)*.025).setDepth((x+y)*10+3);
+      const rockTint=phase==='night'?0x8a9db0:phase==='twilight'?0xffe0c4:0xffffff;
+      const o=this.add.image(p.x,p.y-3,'rock').setDisplaySize(48*scale,42*scale).setTint(rockTint).setOrigin(.5,.76).setRotation(((hash%5)-2)*.025).setDepth((x+y)*10+3);
       this.objects.push(o);
     }
     const b=this.state.buildings.find(v=>v.x===x&&v.y===y);
@@ -343,8 +403,13 @@ private redraw():void{
         this.objects.push(ring);
       }
       const sizeFactor=b.type==='road'?1:1.035;
-      const o=this.add.image(p.x,p.y+1,SPRITES[b.type]).setDisplaySize(z[0]*sizeFactor,z[1]*sizeFactor).setOrigin(.5,.83).setDepth(depth).setAlpha(b.construction?.kind==='build'?.62:1);
+      const spriteTint=phase==='night'?0xa6b8c7:phase==='twilight'?0xffe4c5:0xffffff;
+      const o=this.add.image(p.x,p.y+1,SPRITES[b.type]).setDisplaySize(z[0]*sizeFactor,z[1]*sizeFactor).setOrigin(.5,.83).setDepth(depth).setTint(spriteTint).setAlpha(b.construction?.kind==='build'?.62:1);
       this.objects.push(o);
+      if(b.type!=='road'&&b.level>1)this.drawBuildingTierDetails(p,b,depth,z[0],z[1],phase);
+      if(b.type==='market')this.drawMarketStalls(p,depth,phase);
+      if(['house','townHall','bakery','inn','ironworks'].includes(b.type)&&b.construction?.kind!=='build')this.drawChimneySmoke(p,b,depth,z[0],z[1],hash);
+      if(['townHall','house','market','bakery','inn','watchtower','university','observatory'].includes(b.type)&&phase!=='day'&&b.construction?.kind!=='build')this.drawBuildingLights(p,b,depth,z[0],z[1],phase,hash);
       if(b.construction){
         const label=this.add.text(p.x,p.y-53,b.construction.kind==='build'?'CANTIERE':'UPGRADE',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#fffbe8',backgroundColor:'#795b2b',padding:{x:4,y:3}}).setOrigin(.5).setDepth(depth+4);
         this.objects.push(label);
@@ -358,6 +423,104 @@ private redraw():void{
     }
   });
   this.drawVillagers();this.hover.clear();
+}
+private drawBuildingTierDetails(p:{x:number;y:number},building:GameState['buildings'][number],depth:number,width:number,height:number,phase:'day'|'twilight'|'night'):void{
+  const g=this.add.graphics().setDepth(depth+1);
+  const level=building.level;
+  const metal=level>=4?0xe5c16b:0xb9904d;
+  const trim=phase==='night'?0xb1c8cc:metal;
+  const roofY=p.y-height*.58,baseY=p.y+height*.04;
+  g.lineStyle(level>=4?2.1:1.35,trim,phase==='night'?.78:.9);
+  g.lineBetween(p.x-width*.23,baseY,p.x+width*.23,baseY);
+  g.lineStyle(1.25,level>=4?0xf2df9c:0x805d3a,.75);
+  g.lineBetween(p.x-width*.19,roofY+5,p.x,roofY-2);
+  g.lineBetween(p.x,roofY-2,p.x+width*.19,roofY+5);
+  if(level>=3&&building.type!=='farm'&&building.type!=='road'){
+    const wx=p.x+(building.type==='observatory'?width*.22:width*.19);
+    const wy=p.y-height*.34;
+    const glow=phase==='night'||phase==='twilight'?0xffc86f:0x9dc9c1;
+    g.fillStyle(glow,phase==='night'?.95:phase==='twilight'?.72:.55);
+    g.fillRoundedRect(wx-2.1,wy-4,4.2,8,1);
+    g.lineStyle(.8,0xf8ebc7,.85);g.lineBetween(wx,wy-3,wx,wy+3);
+  }
+  if(level>=4&&building.type!=='road'){
+    const flagX=p.x+width*.24,flagY=p.y-height*.69;
+    g.lineStyle(1.6,0x72533a,.96);g.lineBetween(flagX,flagY-5,flagX,flagY+14);
+    g.fillStyle(level>=5?0x8e3f36:0x356949,.98);
+    g.fillPoints([new Phaser.Geom.Point(flagX,flagY-4),new Phaser.Geom.Point(flagX+13,flagY),new Phaser.Geom.Point(flagX,flagY+5)],true);
+    g.lineStyle(.8,0xf0d58b,.9);g.lineBetween(flagX+1,flagY-2,flagX+8,flagY);
+  }
+  if(level>=5){
+    const crestX=p.x,crestY=p.y-height*.75;
+    g.fillStyle(0xf3d17c,.98);g.fillCircle(crestX,crestY,4.1);
+    g.lineStyle(1.35,0xffefb2,.95);
+    for(let n=0;n<4;n++){
+      const angle=n*Math.PI/2;
+      g.lineBetween(crestX+Math.cos(angle)*4.5,crestY+Math.sin(angle)*4.5,crestX+Math.cos(angle)*7.2,crestY+Math.sin(angle)*7.2);
+    }
+  }
+  this.objects.push(g);
+  if(['university','observatory'].includes(building.type)&&level>=3){
+    const ringY=p.y-height*.54;
+    const ring=this.add.ellipse(p.x,ringY,32+level*4,7+level,0xffffff,0).setStrokeStyle(1.3,level>=5?0xf4d98a:0x9fd6dc,phase==='night'?.92:.7).setDepth(depth+2);
+    this.objects.push(ring);
+    this.visualTweens.push(this.tweens.add({targets:ring,scaleX:1.1,scaleY:.82,duration:2600+building.level*220,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
+    if(level>=5){
+      const second=this.add.ellipse(p.x,ringY,42,8,0xffffff,0).setStrokeStyle(1,0xf3d58a,.65).setDepth(depth+2);
+      this.objects.push(second);
+      this.visualTweens.push(this.tweens.add({targets:second,scaleX:.82,scaleY:1.25,duration:3400,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
+    }
+  }
+}
+private drawChimneySmoke(p:{x:number;y:number},building:GameState['buildings'][number],depth:number,width:number,height:number,hash:number):void{
+  const phase=this.lightingPhaseFor(this.state.gameMinutes);
+  const offset=building.type==='townHall'?.08:.17;
+  const chimneyX=p.x+width*offset,chimneyY=p.y-height*.72;
+  const puffs=building.type==='house'?1:2;
+  for(let i=0;i<puffs;i++){
+    const puff=this.add.ellipse(chimneyX+i*2,chimneyY-i*5,4.5+i,6+i,phase==='night'?0xb6c5d0:0xe1e7dc,phase==='night'?.2:.24).setDepth(depth+9);
+    this.objects.push(puff);
+    this.visualTweens.push(this.tweens.add({
+      targets:puff,x:puff.x+3+i*2,y:puff.y-18-i*3,alpha:0,scaleX:1.65,scaleY:1.7,
+      duration:2200+i*460,delay:(hash%7)*115+i*520,repeat:-1,ease:'Sine.inOut'
+    }));
+  }
+}
+private drawBuildingLights(p:{x:number;y:number},building:GameState['buildings'][number],depth:number,width:number,height:number,phase:'twilight'|'night',hash:number):void{
+  const lx=p.x+width*.17,ly=p.y-height*.34;
+  const outer=this.add.circle(lx,ly,10.5,0xffbc55,phase==='night'?.15:.09).setDepth(depth+2);
+  const inner=this.add.circle(lx,ly,3.4,0xffebad,phase==='night'?.7:.48).setDepth(depth+3);
+  this.objects.push(outer,inner);
+  this.visualTweens.push(this.tweens.add({targets:outer,alpha:phase==='night'?.25:.14,scaleX:1.22,scaleY:1.22,duration:1200+(hash%4)*180,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
+  if(building.type==='townHall'||building.type==='market'||building.type==='observatory'){
+    this.visualTweens.push(this.tweens.add({targets:inner,alpha:phase==='night'?.95:.7,scaleX:1.25,scaleY:1.25,duration:1650,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
+  }
+}
+private drawMarketStalls(p:{x:number;y:number},depth:number,phase:'day'|'twilight'|'night'):void{
+  const g=this.add.graphics().setDepth(depth+2);
+  for(const side of [-1,1]){
+    const x=p.x+side*31,y=p.y+7;
+    g.fillStyle(0x314932,.22);g.fillEllipse(x,y+5,24,7);
+    g.lineStyle(1.35,0x76513a,.98);
+    g.lineBetween(x-8,y-8,x-8,y+5);g.lineBetween(x+8,y-8,x+8,y+5);
+    g.fillStyle(0xf2d18b,.98);
+    g.fillPoints([new Phaser.Geom.Point(x-12,y-8),new Phaser.Geom.Point(x,y-16),new Phaser.Geom.Point(x+12,y-8)],true);
+    g.fillStyle(side<0?0x9d463a:0x3f8050,.98);
+    g.fillPoints([new Phaser.Geom.Point(x-12,y-8),new Phaser.Geom.Point(x,y-2),new Phaser.Geom.Point(x+12,y-8),new Phaser.Geom.Point(x+7,y-5),new Phaser.Geom.Point(x,y-10),new Phaser.Geom.Point(x-7,y-5)],true);
+    g.lineStyle(.8,0xffe7bb,.9);g.lineBetween(x-12,y-8,x,y-2);g.lineBetween(x,y-2,x+12,y-8);
+    g.fillStyle(0x8b5b38,.96);g.fillRoundedRect(x-9,y-2,18,6,1);
+    g.fillStyle(phase==='night'?0xffd477:0x9ebc63,.98);
+    g.fillCircle(x-4,y-4,2);g.fillCircle(x+1,y-4.5,2.2);g.fillCircle(x+5,y-3.5,1.8);
+    g.fillStyle(0xe7c779,.98);g.fillCircle(x+3,y-11,1.4);
+  }
+  for(const side of [-1,1]){
+    const x=p.x+side*31,y=p.y+9;
+    g.fillStyle(0x3c4a36,.22);g.fillEllipse(x,y+1,7,3);
+    g.fillStyle(side<0?0x8c5b43:0x456a87,.98);g.fillEllipse(x,y-6,4.5,7);
+    g.fillStyle(0xf0c79a,.98);g.fillCircle(x,y-12,2.7);
+    g.fillStyle(0x5a4332,.98);g.fillEllipse(x,y-14,5,2);
+  }
+  this.objects.push(g);
 }
 private walkableTile(x:number,y:number):boolean{
 return x>=0&&y>=0&&x<BOARD_SIZE&&y<BOARD_SIZE&&this.terrain[y]![x]==='grass'&&!this.state.buildings.some(b=>b.x===x&&b.y===y);
