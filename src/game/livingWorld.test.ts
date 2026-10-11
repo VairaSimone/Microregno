@@ -510,6 +510,24 @@ describe('living world simulation', () => {
     expect(after.world!.researchPoints - before).toBeCloseTo(0.025);
   });
 
+  it('makes sick residents rest and pauses their workplace production', () => {
+    const state = createInitialState(8774);
+    state.gameMinutes = 100;
+    const farm: Building = { id: 'sick-farm', type: 'farm', x: 4, y: 4, level: 1 };
+    state.buildings.push(farm);
+    const patient = state.world!.citizens[0]!;
+    for (const citizen of state.world!.citizens) {
+      if (citizen.id !== patient.id) citizen.profession = 'merchant';
+    }
+    patient.profession = 'farmer';
+    patient.workplaceId = farm.id;
+    patient.hunger = 10;
+    patient.illness = { id: 'cold', severity: 1, since: 0 };
+    expect(worldBuildingMultiplier(state, farm)).toBe(0);
+    const after = advanceRealmMinute(state);
+    expect(after.world!.citizens.find((citizen) => citizen.id === patient.id)!.activity).toBe('resting');
+  });
+
   it('ages residents and records an elder’s passing in the chronicle', () => {
     const state = createInitialState(8771);
     state.gameMinutes = 1440 * 30;
