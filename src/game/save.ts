@@ -129,6 +129,20 @@ export function applyOfflineProgress(state: GameState, now = Date.now()): { stat
     copy = advanceTime(copy, chunk, false, true);
     remaining -= chunk;
   }
+
+  // Community requests use game time too, but offline time must not consume their response window.
+  if (copy.community && minutes > 0) {
+    copy = {
+      ...copy,
+      community: {
+        ...copy.community,
+        nextRequestAt: copy.community.nextRequestAt + minutes,
+        activeRequest: copy.community.activeRequest
+          ? { ...copy.community.activeRequest, deadline: copy.community.activeRequest.deadline + minutes }
+          : null,
+      },
+    };
+  }
   copy.lastSavedAt = now;
   return { state: copy, minutes };
 }
