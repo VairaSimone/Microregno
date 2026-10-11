@@ -16,6 +16,8 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Richieste dei cittadini con scelte a tempo, conseguenze su umore e fiducia, cronaca persistente e scadenze.
 - Quattro stagioni con effetti reali su raccolti, consumo di cibo, produzione e colore del territorio.
 - Cittadini persistenti con nomi, tratti, bisogni, salute, energia, umore, competenze e mestieri assegnabili.
+- Storie individuali: richieste ed eventi legati a residenti reali, ricordi personali, amicizie e rivalità con effetti sul benessere e sulla produttività.
+- Ciclo di vita: infanzia senza lavoro, nascite con genitori tracciati, malattie e recupero, invecchiamento, lutti e adattamento professionale alle carenze del borgo.
 - Filiere produttive: grano, farina, pane, strumenti e rimedi; mulino, panificio, officina e magazzino.
 - Mercato dinamico con prezzi aggiornati ogni 120 minuti di gioco, domanda variabile e vendita di beni lavorati in presenza di un mercante.
 - Rete stradale costruibile: gli edifici produttivi adiacenti a una strada lavorano con efficienza maggiore; le strade non richiedono miglioramenti di livello. Pane, farina, grano e rimedi deperiscono nel tempo; i magazzini riducono gli sprechi e aumentano la capienza.
@@ -100,8 +102,19 @@ Il workflow di deploy è manuale per evitare tentativi di pubblicazione prima di
 - **public/assets/**: sprite SVG originali.
 
 ## Limiti
-I salvataggi e i record sono locali. Le stagioni si alternano rapidamente per rendere visibili i cambiamenti in una sessione breve. I cittadini hanno bisogni, attività giornaliere e percorsi locali verso casa, lavoro o piazza, ma la navigazione è limitata alla mappa attuale: non sono ancora presenti una simulazione urbana completa, routine lavorative dettagliate per ogni edificio o un sistema di animazioni individuali avanzato.
+I salvataggi e i record sono locali. Le stagioni si alternano rapidamente per rendere visibili i cambiamenti in una sessione breve. Storie, rapporti e ciclo di vita sono simulati con regole deterministiche e una cronaca limitata agli ultimi eventi personali; la navigazione resta locale alla mappa e non è ancora presente una simulazione urbana completa o un sistema di animazioni individuali avanzato.
  Account, sincronizzazione, classifiche online e anti-cheat richiedono un backend e non sono inclusi in questa base. La licenza open source non è ancora stata scelta.
+
+## Cittadini e ciclo di vita
+
+- Le richieste della comunità sono collegate a residenti reali, mostrando il loro nome e mestiere attuale. Accogliere o ignorare una richiesta aggiorna il benessere e la memoria personale del richiedente; le liti possono modificare i rapporti fra persone specifiche.
+- Gli avvenimenti del regno hanno un partecipante scelto tra i residenti. Le scelte del Consiglio vengono ricordate da quella persona, collegando cronaca collettiva e storie individuali.
+- I tratti agiscono sul comportamento: Pratico, Ambizioso e Inventivo migliorano la resa lavorativa; Ambizioso accelera l'apprendimento ma consuma più energia; Curioso impara più in fretta in Scuola/Università; Socievole e Generoso rafforzano i rapporti; Prudente riduce il rischio di malattia; Paziente recupera più velocemente.
+- Le relazioni crescono o peggiorano in base a famiglia, lavoro, carattere e scorte. Le nuove amicizie e rivalità vengono registrate nella storia individuale; gruppi affiatati collaborano meglio e le rivalità al lavoro riducono la produttività.
+- Ogni 360 minuti di gioco viene valutato il rischio di malattia. La febbre è più debilitante del raffreddore; un rimedio cura la malattia e restituisce 22 punti salute, mentre il recupero naturale richiede circa 180 minuti per i cittadini pazienti e 240 per gli altri se la salute resta sopra 25.
+- L'età aumenta di un anno ogni 30 giorni di gioco. I bambini sotto i 14 anni non vengono assegnati al lavoro. Le nascite avvengono quando una famiglia ha adulti, scorte, alloggi e umore sufficienti; i figli registrano i genitori e possono ereditare i loro tratti. Dai 95 anni una salute molto bassa può causare la morte, mentre a 105 anni la vita si conclude; il regno non rimuove l'ultimo residente. I familiari superstiti ricordano la perdita e ne risentono.
+- Ogni sette giorni di gioco, gli abitanti adattabili possono cambiare mestiere se il loro lavoro non ha una postazione. La scelta dà priorità alle carenze di cibo, legname, pietra, trasformazione, commercio o ricerca.
+- La ricerca conta soltanto studiosi adulti assegnati esplicitamente alla Scuola o all'Università. Il mestiere da solo non basta: gli studiosi senza postazione non generano punti né velocizzano gli studi.
 
 ## Economia delle scorte e commercio
 
