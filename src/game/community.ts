@@ -33,7 +33,7 @@ function option(
 }
 
 function capacityOf(buildings: Building[]): number {
-  return buildings.reduce((total, building) => total + (BUILDINGS[building.type].housing ?? 0) * building.level, 0);
+  return buildings.reduce((total, building) => total + (building.construction?.kind === 'build' ? 0 : (BUILDINGS[building.type].housing ?? 0) * building.level), 0);
 }
 
 const REQUEST_ROLE_LABELS: Record<Profession, string> = {

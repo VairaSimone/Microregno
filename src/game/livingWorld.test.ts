@@ -118,10 +118,16 @@ describe('living world simulation', () => {
     expect(started.state.world?.researchPoints).toBe(22);
   });
 
-  it('keeps research locked until its building prerequisite exists', () => {
+  it('keeps research locked until its required building has finished construction', () => {
     const state = createInitialState(); unlockBorough(state); state.world!.researchPoints = 40;
-    const denied = performRealmAction(state, { type: 'research', id: 'irrigation' });
-    expect(denied.ok).toBe(false); expect(denied.message).toContain('Fattoria');
+    state.buildings.push({ id: 'research-farm', type: 'farm', x: 4, y: 4, level: 1,
+      construction: { kind: 'build', startedAt: 0, completesAt: 60_000, targetLevel: 1 } });
+    const underConstruction = performRealmAction(state, { type: 'research', id: 'irrigation' });
+    expect(underConstruction.ok).toBe(false);
+    expect(underConstruction.message).toContain('Fattoria');
+    state.buildings[1]!.construction = undefined;
+    const completed = performRealmAction(state, { type: 'research', id: 'irrigation' });
+    expect(completed.ok).toBe(true);
   });
 
   it('lets citizens eat from food reserves instead of becoming hungry forever', () => {
