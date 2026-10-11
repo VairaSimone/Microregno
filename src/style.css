@@ -153,6 +153,28 @@ button:disabled { cursor: not-allowed; }
 .secondary:hover:not(:disabled) { background: #e1ebd7; }
 .danger { border: 1px solid #f0d6cb; color: #a25949; background: #f8e8e1; }
 .danger:hover { background: #f3d9ce; }
+
+.epoch-progress { margin: 11px 0 13px; padding: 10px; border: 1px solid #e6e1cf; border-radius: 11px; background: #f8f6ed; }
+.epoch-track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.epoch-step { min-width: 0; padding: 5px 2px; border: 1px solid #e8e7dc; border-radius: 7px; background: #f0efe6; color: #9ba292; text-align: center; }
+.epoch-step > span { display: block; font-size: 14px; line-height: 1.25; }
+.epoch-step small { display: block; margin-top: 2px; font-size: 8px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.epoch-step.done { border-color: #d4e2c9; background: #edf4e6; color: #6e8961; }
+.epoch-step.active { border-color: #8faa7d; background: #e2edd8; color: #2f5738; box-shadow: inset 0 0 0 1px #cadcbc; }
+.epoch-banner { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 9px; }
+.epoch-banner strong { color: #304735; font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; font-weight: 400; }
+.epoch-banner span { color: #819078; font-size: 7px; font-weight: 800; letter-spacing: .6px; text-align: right; }
+.epoch-summary { margin: 5px 0 8px; color: #72806e; font-size: 9px; line-height: 1.5; }
+.epoch-checklist { display: grid; gap: 5px; }
+.epoch-check { display: grid; grid-template-columns: 13px minmax(0, 1fr); gap: 5px; align-items: center; color: #697565; font-size: 9px; line-height: 1.35; }
+.epoch-check > span:first-child { width: 13px; height: 13px; display: grid; place-items: center; border: 1px solid #dedfd4; border-radius: 50%; font-size: 8px; }
+.epoch-check.done > span:first-child { color: #fff; border-color: #80a16d; background: #80a16d; }
+.epoch-check small { grid-column: 2; margin-top: -3px; color: #9ba492; font-size: 8px; }
+.epoch-check.done > span:nth-child(2) { color: #9aa195; }
+.epoch-story { margin: 9px 0 0; padding-top: 8px; border-top: 1px solid #e8e5d8; color: #8a7b5e; font-size: 9px; line-height: 1.5; font-style: italic; }
+.epoch-progress.challenge-epoch .epoch-checklist, .epoch-progress.challenge-epoch .epoch-track { display: none; }
+.epoch-progress.challenge-epoch .epoch-summary { margin-bottom: 0; }
+
 .objectives-panel #objectives-list { display: grid; gap: 11px; margin-top: 14px; }
 .objective { display: grid; grid-template-columns: 18px minmax(0,1fr); align-items: center; gap: 7px; color: #61705e; font-size: 10px; }
 .objective-marker { width: 18px; height: 18px; display: grid; place-items: center; border: 1px solid #dce1d3; border-radius: 50%; color: #aab1a4; }
@@ -490,6 +512,15 @@ dialog p strong { color: #38583b; }
   .daily-foot { margin-top: 8px; font-size: 7px; }
   .daily-foot span:last-child { font-size: 8px; }
 
+  .epoch-progress { margin: 7px 0 9px; padding: 7px; }
+  .epoch-step { padding: 4px 1px; }
+  .epoch-step > span { font-size: 12px; }
+  .epoch-step small { font-size: 7px; }
+  .epoch-banner { margin-top: 6px; }
+  .epoch-banner strong { font-size: 14px; }
+  .epoch-summary, .epoch-story { font-size: 8px; }
+  .epoch-check { font-size: 8px; }
+  .epoch-check small { font-size: 7px; }
   .objectives-panel #objectives-list { gap: 7px; margin-top: 9px; }
   .objective { grid-template-columns: 16px minmax(0,1fr); gap: 6px; font-size: 9px; }
   .objective-marker { width: 16px; height: 16px; font-size: 9px; }
