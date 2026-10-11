@@ -51,6 +51,76 @@ export interface Building { id: string; type: BuildingType; x: number; y: number
 export interface GameState { version: 1; seed: number; resources: ResourceBag; population: number; gameMinutes: number; buildings: Building[]; lastSavedAt: number; milestones?: number[]; community?: CommunityState; world?: WorldState; progression?: KingdomProgression }
 export interface BuildingDefinition { type: BuildingType; name: string; shortName: string; description: string; icon: string; cost: Partial<ResourceBag>; unlockedAt: number; housing?: number; production?: Partial<Record<Resource, number>> }
 export interface BuildCheck { ok: boolean; reason?: string }
-export interface DailyChallenge { date: string; seed: number; title: string; description: string; kind: 'population' | 'resources' | 'buildings'; target: number; buildingType?: BuildingType; reward: string }
-export interface ChallengeSave { date: string; state: GameState; completed: boolean; score: number; bestScore: number }
-export interface GameSnapshot { state: GameState; mode: GameMode; challenge: DailyChallenge; challengeProgress: number; challengeCompleted: boolean; bestScore: number; selectedBuildType: BuildingType | null; selectedBuilding: Building | null }
+
+export type ChallengeCategory = 'population' | 'resources' | 'farms' | 'housing';
+export type ChallengeScenario = 'standard' | 'winter' | 'drought' | 'shortage' | 'festival' | 'storm' | 'windfall';
+export type ChallengeConstraint = 'none' | 'no-demolition' | 'no-roads' | 'food-reserve';
+export type MedalTier = 'bronze' | 'silver' | 'gold';
+export interface ChallengeRecord {
+  date: string;
+  challengeId: string;
+  title: string;
+  category: ChallengeCategory;
+  score: number;
+  bestScore: number;
+  completedAt: string;
+  medalId: string;
+  tier: MedalTier;
+  achievedInMinutes: number;
+}
+export interface ChallengeMedal {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  tier: MedalTier;
+  date: string;
+  challengeTitle: string;
+  earnedAt: string;
+}
+export interface PlayerAchievement {
+  id: string;
+  name: string;
+  description: string;
+  rewardId: string;
+  rewardName: string;
+  unlockedAt: string;
+}
+export interface PlayerProfile {
+  version: 1;
+  medals: ChallengeMedal[];
+  achievements: PlayerAchievement[];
+  unlockedRewards: string[];
+  records: ChallengeRecord[];
+  totalCompleted: number;
+  currentStreak: number;
+  bestStreak: number;
+  lastCompletedDate: string | null;
+  allTimeBestScore: number;
+}
+
+export interface DailyChallenge {
+  date: string;
+  seed: number;
+  id: string;
+  title: string;
+  description: string;
+  kind: 'population' | 'resources' | 'buildings';
+  category: ChallengeCategory;
+  target: number;
+  buildingType?: BuildingType;
+  reward: string;
+  medalId: string;
+  condition: string;
+  scenario: ChallengeScenario;
+  constraint: ChallengeConstraint;
+  startGameMinutes?: number;
+  initialResources?: Partial<ResourceBag>;
+  eventAt?: number;
+  eventId?: string;
+  eventTitle?: string;
+  eventDescription?: string;
+  eventDelta?: Partial<ResourceBag>;
+}
+export interface ChallengeSave { date: string; challengeId?: string; state: GameState; completed: boolean; score: number; bestScore: number; eventTriggered?: boolean }
+export interface GameSnapshot { state: GameState; mode: GameMode; challenge: DailyChallenge; challengeProgress: number; challengeCompleted: boolean; bestScore: number; playerProfile: PlayerProfile; challengeEventTriggered: boolean; selectedBuildType: BuildingType | null; selectedBuilding: Building | null }

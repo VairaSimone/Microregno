@@ -27,6 +27,10 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Quattro grandi progetti a tre fasi e avvenimenti concatenati con conseguenze su risorse e comunità.
 - Mappa della frontiera con regioni scoperte, spedizioni possibili e territori ancora coperti dalla nebbia; eventi climatici temporanei, inclusa la siccità che rallenta i raccolti e avvia storie di recupero.
 - Obiettivi, record locali, demolizione con rimborso parziale e interfaccia responsive.
+- Sfide giornaliere a quattro percorsi (popolazione, risorse, fattorie, abitazioni), con scenari iniziali, vincoli e avvenimenti che modificano le scorte.
+- Medaglie di bronzo/argento/oro, archivio delle vittorie, record giornalieri e obiettivi permanenti salvati nel profilo locale indipendentemente dal regno.
+- Rigioca la sfida del giorno per migliorare il punteggio e il grado della medaglia; le vittorie duplicate non duplicano ricompense, ma migliorano il record.
+- Traguardi permanenti che sbloccano bonus reali alle scorte iniziali delle sfide future. Le classifiche sono locali e non richiedono un account o un backend.
 
 ## Come si gioca
 
@@ -49,7 +53,8 @@ Il primo obiettivo è portare il borgo a **8 abitanti**. La guida in gioco segue
 - La popolazione cresce ogni 20 minuti di gioco se ci sono almeno 18 unità di cibo e posti abitativi liberi.
 - Fattorie vicine all'acqua e segherie vicine ai boschi producono di più; le statistiche mostrano i bonus reali.
 - Gli edifici si possono migliorare fino al livello 3 dal pannello Dettagli; i miglioramenti costano anche monete, che diventano una risorsa da pianificare.
-- Il regno principale è persistente. La sfida giornaliera è opzionale e ha un salvataggio separato.
+- Il regno principale è persistente. La sfida giornaliera è opzionale e ha un salvataggio separato. Il profilo delle medaglie e dei traguardi è indipendente dal salvataggio del regno e resta anche se inizi una nuova città.
+- Ogni sfida mostra la propria regola speciale; alcuni scenari iniziano in inverno o con scorte ridotte, altri vietano demolizioni o strade, mentre eventi temporizzati possono aggiungere o consumare risorse. Le medaglie del giorno si possono migliorare ripetendo la stessa missione.
 - Ogni richiesta presenta tre risposte: pagare o scambiare risorse, aiutare la comunità o conservare le scorte. Le richieste scadono dopo 3 minuti reali; ignorarle abbassa umore e fiducia.
 - Umore almeno 75: produzione +5%; umore fino a 25: produzione −10%; umore sotto 20: la popolazione non cresce. Fiducia almeno 75: gli abitanti generano il 20% di monete in più.
 - Le stagioni cambiano ogni 360 minuti di gioco (circa 6 minuti reali). Inverno riduce la produzione agricola e aumenta del 50% il consumo di cibo; l'autunno aumenta la resa agricola del 35%.

@@ -1,5 +1,6 @@
 import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
+import { getAchievementProgress } from './game/profile';
 import { EPOCHS,EPOCH_ORDER,getBuildingEpoch,getCharterRequirements,getCurrentEpochId,getEpochRequirements,isEpochUnlocked } from './game/progression';
 import { getSeason } from './game/community';
 import { getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods } from './game/livingWorld';
@@ -207,6 +208,7 @@ function renderBuildList(snapshot: GameSnapshot): void {
   visibleTypes.forEach((type) => {
     const definition = BUILDINGS[type];
     const unlocked = buildingUnlocked(snapshot.state, type);
+    const forbiddenByChallenge = snapshot.mode === 'challenge' && snapshot.challenge.constraint === 'no-roads' && type === 'road';
     const affordable = Object.entries(definition.cost).every(([resource, amount]) =>
       snapshot.state.resources[resource as Resource] >= (amount ?? 0),
     );
@@ -216,7 +218,7 @@ function renderBuildList(snapshot: GameSnapshot): void {
     button.className = 'build-card ' + type
       + (snapshot.selectedBuildType === type ? ' selected' : '')
       + (!unlocked ? ' locked' : '');
-    button.disabled = !unlocked || (snapshot.mode === 'challenge' && snapshot.challengeCompleted);
+    button.disabled = !unlocked || forbiddenByChallenge || (snapshot.mode === 'challenge' && snapshot.challengeCompleted);
     button.setAttribute('aria-pressed', String(snapshot.selectedBuildType === type));
 
     const icon = document.createElement('span');
@@ -247,7 +249,7 @@ function renderBuildList(snapshot: GameSnapshot): void {
       ...(population < definition.unlockedAt ? [definition.unlockedAt + ' abitanti'] : []),
       ...(!isEpochUnlocked(snapshot.state, requiredEpoch) ? ['epoca ' + EPOCHS[requiredEpoch].name] : []),
     ];
-    cost.textContent = !unlocked ? 'Richiede ' + lockDetails.join(' · ') : formatCost(definition.cost);
+    cost.textContent = forbiddenByChallenge ? 'Vietata in questa sfida' : !unlocked ? 'Richiede ' + lockDetails.join(' · ') : formatCost(definition.cost);
 
     copy.append(title, cost);
 
@@ -425,6 +427,65 @@ function renderEpochPanel(snapshot: GameSnapshot): void {
   $('epoch-story').textContent = complete
     ? (state.progression?.history[0] ?? 'La Carta della Corona è stata firmata.')
     : story;
+}
+
+function renderChallengeRewards(snapshot: GameSnapshot): void {
+  const profile = snapshot.playerProfile;
+  $('challenge-profile-summary').textContent = profile.totalCompleted + ' vittorie · serie ' + profile.currentStreak + ' · record ' + profile.allTimeBestScore + ' pt';
+  $('challenge-medal-count').textContent = String(profile.medals.length);
+  const medalsHost = $('challenge-medals');
+  medalsHost.innerHTML = '';
+  const medals = [...profile.medals].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  if (!medals.length) {
+    const empty = document.createElement('p');
+    empty.className = 'challenge-collection-empty';
+    empty.textContent = 'La tua prima medaglia ti aspetta. Completa la sfida del giorno per iniziare la raccolta.';
+    medalsHost.append(empty);
+  } else {
+    medals.forEach(medal => {
+      const row = document.createElement('div');
+      row.className = 'challenge-medal-row ' + medal.tier;
+      const icon = document.createElement('span');
+      icon.className = 'challenge-medal-icon';
+      icon.textContent = medal.icon;
+      const copy = document.createElement('span');
+      copy.className = 'challenge-medal-copy';
+      const title = document.createElement('strong');
+      title.textContent = medal.name;
+      const detail = document.createElement('small');
+      const record = profile.records.find(item => item.challengeId === medal.id);
+      detail.textContent = medal.date + ' · ' + medal.tier + (record ? ' · ' + record.bestScore + ' pt' : '');
+      copy.append(title, detail);
+      row.append(icon, copy);
+      medalsHost.append(row);
+    });
+  }
+
+  const achievementsHost = $('challenge-achievements');
+  achievementsHost.innerHTML = '';
+  getAchievementProgress(profile).forEach(achievement => {
+    const row = document.createElement('div');
+    row.className = 'challenge-achievement-row' + (achievement.unlocked ? ' unlocked' : '');
+    const header = document.createElement('div');
+    header.className = 'challenge-achievement-header';
+    const title = document.createElement('strong');
+    title.textContent = achievement.name;
+    const progress = document.createElement('small');
+    progress.textContent = achievement.unlocked ? 'Sbloccato ✓' : achievement.progress.toLocaleString('it-IT') + ' / ' + achievement.target.toLocaleString('it-IT');
+    header.append(title, progress);
+    const detail = document.createElement('p');
+    detail.textContent = achievement.description;
+    const reward = document.createElement('small');
+    reward.className = 'challenge-achievement-reward';
+    reward.textContent = (achievement.unlocked ? 'Ricompensa ottenuta: ' : 'Ricompensa: ') + achievement.rewardName;
+    const track = document.createElement('span');
+    track.className = 'challenge-achievement-track';
+    const fill = document.createElement('i');
+    fill.style.width = Math.min(100, achievement.progress / achievement.target * 100) + '%';
+    track.append(fill);
+    row.append(header, detail, reward, track);
+    achievementsHost.append(row);
+  });
 }
 
 function renderObjectives(snapshot: GameSnapshot): void {
@@ -970,6 +1031,7 @@ export function setupUI(): void {
 
   $('kingdom-mode').addEventListener('click', () => dispatch('microregno:mode', 'kingdom'));
   $('challenge-mode').addEventListener('click', () => dispatch('microregno:mode', 'challenge'));
+  $('challenge-retry').addEventListener('click', () => dispatch('microregno:challenge-retry'));
   $('center-map').addEventListener('click', () => dispatch('microregno:center'));
   $('cancel-build').addEventListener('click', () => dispatch('microregno:build', null));
 
@@ -1027,7 +1089,7 @@ export function setupUI(): void {
     $('population-rate').textContent = state.resources.food < 18 ? 'serve cibo' : state.population < housingCapacity(state) ? 'può crescere' : 'case piene';
     $('world-title').textContent = snapshot.mode === 'challenge' ? snapshot.challenge.title : 'Valle di Brumadoro';
     $('world-subtitle').textContent = snapshot.mode === 'challenge'
-      ? 'Una mappa uguale per tutti. La tua strategia fa la differenza.'
+      ? 'Ogni giorno porta una missione, regole speciali e nuove medaglie da conquistare.'
       : 'Un piccolo inizio. Infinite possibilità.';
     $('world-eyebrow').textContent = snapshot.mode === 'challenge' ? 'SFIDA A TEMPO' : 'IL TUO TERRITORIO';
     $('world-status').textContent = snapshot.mode === 'challenge' ? 'Sfida quotidiana in corso' : 'Il tuo regno è in pace';
@@ -1042,8 +1104,26 @@ export function setupUI(): void {
       Math.min(100, snapshot.challengeProgress / snapshot.challenge.target * 100) + '%';
     $('challenge-progress-fill').classList.toggle('complete', snapshot.challengeCompleted);
     $('challenge-best').textContent = snapshot.challengeCompleted
-      ? 'Completata · ' + snapshot.bestScore + ' pt'
+      ? 'Completata · record ' + snapshot.bestScore + ' pt'
       : 'Record: ' + (snapshot.bestScore ? snapshot.bestScore + ' pt' : '—');
+    $('challenge-condition').textContent = snapshot.challenge.condition;
+    const challengeEvent = $('challenge-event');
+    challengeEvent.classList.toggle('hidden', snapshot.challenge.eventAt === undefined);
+    if (snapshot.challenge.eventAt !== undefined) {
+      challengeEvent.textContent = snapshot.challengeEventTriggered
+        ? 'Evento risolto: ' + (snapshot.challenge.eventTitle ?? 'evento speciale') + '. Puoi ancora completare l’obiettivo.'
+        : 'Evento in arrivo dopo ' + snapshot.challenge.eventAt + ' minuti di gioco: ' + (snapshot.challenge.eventTitle ?? 'evento speciale') + '. ' + (snapshot.challenge.eventDescription ?? '');
+    }
+    const challengeRecord = snapshot.playerProfile.records.find(record => record.challengeId === snapshot.challenge.id);
+    const challengeMedal = snapshot.playerProfile.medals.find(medal => medal.id === snapshot.challenge.id);
+    const challengeResult = $('challenge-result');
+    challengeResult.classList.toggle('hidden', snapshot.mode !== 'challenge' || !snapshot.challengeCompleted);
+    $('challenge-result-icon').textContent = challengeMedal?.icon ?? '✦';
+    $('challenge-result-kicker').textContent = challengeMedal ? 'MEDAGLIA ' + challengeMedal.tier.toLocaleUpperCase('it-IT') : 'MEDAGLIA CONQUISTATA';
+    $('challenge-result-title').textContent = challengeMedal?.name ?? snapshot.challenge.reward;
+    $('challenge-result-copy').textContent = 'Record del giorno: ' + (challengeRecord?.bestScore ?? snapshot.bestScore) + ' punti. La medaglia è conservata nel profilo su questo dispositivo.';
+    $('challenge-retry').textContent = 'Rigioca per migliorare il record';
+    renderChallengeRewards(snapshot);
 
     $('save-status').textContent = snapshot.mode === 'kingdom' ? kingdomSaveStatus : challengeSaveStatus;
     $('local-save-label').textContent = snapshot.mode === 'kingdom'
