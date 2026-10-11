@@ -1,6 +1,6 @@
 import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
-import { getAchievementProgress, getChallengeArchive } from './game/profile';
+import { activeChallengeStreak, getAchievementProgress, getChallengeArchive } from './game/profile';
 import { EPOCHS,EPOCH_ORDER,getBuildingEpoch,getCharterRequirements,getCurrentEpochId,getEpochRequirements,isEpochUnlocked } from './game/progression';
 import { getSeason } from './game/community';
 import { getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods } from './game/livingWorld';
@@ -440,7 +440,7 @@ function renderEpochPanel(snapshot: GameSnapshot): void {
 
 function renderChallengeRewards(snapshot: GameSnapshot): void {
   const profile = snapshot.playerProfile;
-  $('challenge-profile-summary').textContent = profile.totalCompleted + ' vittorie · serie ' + profile.currentStreak + ' · record ' + profile.allTimeBestScore + ' pt';
+  $('challenge-profile-summary').textContent = profile.totalCompleted + ' vittorie · serie ' + activeChallengeStreak(profile) + ' · record ' + profile.allTimeBestScore + ' pt';
   $('challenge-medal-count').textContent = String(profile.medals.length);
   const medalsHost = $('challenge-medals');
   medalsHost.innerHTML = '';

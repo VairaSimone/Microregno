@@ -1,5 +1,5 @@
 import type {ChallengeCategory,ChallengeMedal,ChallengeRecord,DailyChallenge,GameState,PlayerAchievement,PlayerProfile} from './types';
-import {challengeCategory,medalTier} from './challenge';
+import {challengeCategory,localDateKey,medalTier} from './challenge';
 
 const PROFILE_KEY='microregno:player-profile:v1';
 const BONUS:Record<string,Partial<GameState['resources']>>={
@@ -75,6 +75,11 @@ function dateDistance(a:string,b:string):number{
   const [ay,am,ad]=a.split('-').map(Number),[by,bm,bd]=b.split('-').map(Number);
   if(!ay||!am||!ad||!by||!bm||!bd)return Number.POSITIVE_INFINITY;
   return Math.round((Date.UTC(by!,bm!-1,bd!)-Date.UTC(ay!,am!-1,ad!))/86400000);
+}
+export function activeChallengeStreak(profile:PlayerProfile,today=localDateKey()):number{
+  if(!profile.lastCompletedDate)return 0;
+  const gap=dateDistance(profile.lastCompletedDate,today);
+  return gap>=0&&gap<=1?profile.currentStreak:0;
 }
 function categoryIcon(category:ChallengeCategory):string{
   return category==='population'?'♟':category==='resources'?'◆':category==='farms'?'♧':'⌂';

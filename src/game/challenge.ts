@@ -60,6 +60,9 @@ export function createChallengeState(c:DailyChallenge):GameState{
   s.resources={wood:38,stone:22,food:36,coins:15,...c.initialResources};
   s.population=5;
   s.gameMinutes=c.startGameMinutes??0;
+  if(c.scenario==='drought'&&s.world){
+    s.world={...s.world,weather:{id:'drought',endsAt:s.gameMinutes+(c.eventAt??35)}};
+  }
   return s;
 }
 export function challengeScore(s:GameState,c?:DailyChallenge):number{

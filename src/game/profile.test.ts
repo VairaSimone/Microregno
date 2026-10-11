@@ -1,6 +1,6 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {createDailyChallenge} from './challenge';
-import {createPlayerProfile,loadPlayerProfile,recordChallengeVictory,savePlayerProfile,applyProfileBonuses,getAchievementProgress,getChallengeArchive,normalizePlayerProfile} from './profile';
+import {createPlayerProfile,loadPlayerProfile,recordChallengeVictory,savePlayerProfile,applyProfileBonuses,getAchievementProgress,getChallengeArchive,normalizePlayerProfile,activeChallengeStreak} from './profile';
 import {createInitialState} from './engine';
 
 afterEach(()=>vi.unstubAllGlobals());
@@ -78,6 +78,12 @@ describe('permanent single-player rewards',()=>{
     expect(profile.records).toHaveLength(500);
     expect(profile.totalCompleted).toBe(731);
     expect(normalizePlayerProfile(profile).totalCompleted).toBe(731);
+  });
+  it('expires the visible streak after a missed daily challenge',()=>{
+    const profile={...createPlayerProfile(),currentStreak:4,lastCompletedDate:'2026-10-08'};
+    expect(activeChallengeStreak(profile,'2026-10-09')).toBe(4);
+    expect(activeChallengeStreak(profile,'2026-10-10')).toBe(0);
+    expect(activeChallengeStreak(createPlayerProfile(),'2026-10-10')).toBe(0);
   });
   it('exposes the newest completed challenges as a local archive without mutating saved order',()=>{
     let profile=createPlayerProfile();
