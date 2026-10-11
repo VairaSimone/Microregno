@@ -530,10 +530,29 @@ describe('living world simulation', () => {
     const opened = advanceRealmMinute({ ...state, gameMinutes: 240, world: { ...state.world!, nextEventAt: 0 } });
     const event = opened.world!.activeEvent!;
     expect(event.citizenId).toBeDefined();
-    const choice = event.choices[0]!;
+    const choice = event.choices.find((entry) => !entry.cost && !entry.goodsCost) ?? event.choices[0]!;
     const resolved = performRealmAction(opened, { type: 'event', id: choice.id });
-    expect(resolved.ok).toBe(true);
+    expect(resolved.ok, resolved.message).toBe(true);
     expect(resolved.state.world!.citizens.find((citizen) => citizen.id === event.citizenId)?.personalHistory?.some((entry) => entry.includes(event.title))).toBe(true);
+  });
+
+  it('lets adaptable citizens change career when the village has an urgent shortage', () => {
+    const state = createInitialState(8773);
+    state.gameMinutes = 1440 * 7;
+    state.resources.food = 0;
+    state.resources.wood = 100;
+    state.buildings.push(
+      { id: 'need-farm', type: 'farm', x: 3, y: 4, level: 1 },
+      { id: 'need-sawmill', type: 'sawmill', x: 4, y: 4, level: 1 },
+    );
+    const worker = state.world!.citizens[0]!;
+    worker.profession = 'lumberjack';
+    worker.workplaceId = null;
+    worker.traits = ['pratico'];
+    const after = advanceRealmMinute(state);
+    const adapted = after.world!.citizens.find((citizen) => citizen.id === worker.id)!;
+    expect(adapted.profession).toBe('farmer');
+    expect(adapted.personalHistory?.some((entry) => entry.includes('Contadino'))).toBe(true);
   });
 
   it('requires discoveries or cartography before entering distant regions', () => {
