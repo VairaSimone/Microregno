@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState, advanceTime, resourceRates } from './engine';
-import { advanceRealmMinute, canExploreRegion, createWorldState, getInterestGroups, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
+import { advanceRealmMinute, canExploreRegion, createWorldState, getInterestGroups, getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods, ensureWorldState, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
 import type { Building } from './types';
 
 function unlockBorough(state: ReturnType<typeof createInitialState>): void {
@@ -16,6 +16,70 @@ describe('living world simulation', () => {
     const rebuilt = createWorldState(migrated.seed, migrated.population, migrated.gameMinutes);
     expect(rebuilt.citizens).toHaveLength(5);
     expect(rebuilt.citizens.every((citizen) => citizen.health > 0 && citizen.traits.length > 0)).toBe(true);
+  });
+
+  it('uses medicine to restore the least healthy resident and consumes one remedy', () => {
+    const state = createInitialState(450);
+    state.gameMinutes = 60;
+    state.world!.goods.medicine = 1;
+    const patient = state.world!.citizens[0]!;
+    patient.health = 50;
+    const after = advanceRealmMinute(state);
+    expect(after.world!.citizens.find((citizen) => citizen.id === patient.id)!.health).toBeGreaterThan(70);
+    expect(after.world!.goods.medicine).toBeLessThan(1);
+    expect(after.world!.chronicle.some((entry) => entry.includes('dispensario'))).toBe(true);
+  });
+
+  it('uses bread as a daily food supplement and as a fallback when food stocks run out', () => {
+    const withBread = createInitialState(451);
+    withBread.resources.food = 100;
+    withBread.world!.goods.bread = 5;
+    const withoutBread = { ...withBread, world: { ...withBread.world!, goods: { ...withBread.world!.goods, bread: 0 }, citizens: withBread.world!.citizens.map((citizen) => ({ ...citizen })) } };
+    const fed = advanceRealmMinute(withBread);
+    const unfed = advanceRealmMinute(withoutBread);
+    expect(fed.world!.goods.bread).toBeLessThan(5);
+    expect(fed.world!.citizens[0]!.hunger).toBeLessThan(unfed.world!.citizens[0]!.hunger);
+  });
+
+  it('uses stored tools to increase industrial output efficiency', () => {
+    const state = createInitialState(452);
+    const farm: Building = { id: 'tools-farm', type: 'farm', x: 4, y: 4, level: 1 };
+    state.buildings.push(farm);
+    state.world!.goods.tools = 0;
+    const withoutTools = worldBuildingMultiplier(state, farm);
+    state.world!.goods.tools = 1;
+    const withTools = worldBuildingMultiplier(state, farm);
+    expect(withTools).toBeCloseTo(withoutTools * 1.12);
+  });
+
+  it('wears one tool for maintenance when productive workplaces are active', () => {
+    const state = createInitialState(453);
+    state.gameMinutes = 180;
+    state.world!.goods.tools = 1;
+    state.buildings.push({ id: 'maintenance-farm', type: 'farm', x: 4, y: 4, level: 1 });
+    const after = advanceRealmMinute(state);
+    expect(after.world!.goods.tools).toBeLessThan(1);
+  });
+
+  it('allows a staffed market to import raw materials at dynamic prices', () => {
+    const state = createInitialState(454);
+    state.buildings.push({ id: 'raw-market', type: 'market', x: 4, y: 4, level: 1 });
+    state.resources.coins = 100;
+    state.resources.wood = 5;
+    const unitPrice = getResourcePurchasePrice(state, 'wood');
+    const bought = performRealmAction(state, { type: 'buyResource', resource: 'wood', amount: 5 });
+    expect(bought.ok).toBe(true);
+    expect(bought.state.resources.wood).toBe(10);
+    expect(bought.state.resources.coins).toBe(100 - unitPrice * 5);
+  });
+
+  it('uses one shared capacity for all stored goods and migrates overfull old saves', () => {
+    const state = createInitialState(455);
+    state.world!.goods = { grain: 80, flour: 80, bread: 80, tools: 80, medicine: 80 };
+    const normalized = ensureWorldState(state);
+    expect(totalStoredGoods(normalized.world!.goods)).toBeLessThanOrEqual(goodsStorageCapacity(normalized));
+    expect(normalized.world!.goods.tools).toBeGreaterThan(0);
+    expect(normalized.world!.goods.medicine).toBeGreaterThan(0);
   });
 
   it('lets the player change a citizen profession and persists the journal entry', () => {

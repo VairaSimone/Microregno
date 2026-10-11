@@ -3,7 +3,7 @@ import { BUILDINGS } from './definitions';
 import { getSeason } from './community';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
-  GameState, GoodsBag, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
+  GameState, GoodsBag, MarketResource, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
   MarketState, RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, TradableGood, WorldState,
 } from './types';
 
@@ -284,13 +284,13 @@ export function ensureWorldState(state: GameState): GameState {
     ...existing,
     nextCitizenId,
     citizens,
-    goods: {
+    goods: clampGoodsToCapacity({
       grain: Number.isFinite(existing.goods.grain) ? Math.max(0, Math.min(100000, existing.goods.grain)) : DEFAULT_GOODS.grain,
       flour: Number.isFinite(existing.goods.flour) ? Math.max(0, Math.min(100000, existing.goods.flour)) : DEFAULT_GOODS.flour,
       bread: Number.isFinite(existing.goods.bread) ? Math.max(0, Math.min(100000, existing.goods.bread)) : DEFAULT_GOODS.bread,
       tools: Number.isFinite(existing.goods.tools) ? Math.max(0, Math.min(100000, existing.goods.tools)) : DEFAULT_GOODS.tools,
       medicine: Number.isFinite(existing.goods.medicine) ? Math.max(0, Math.min(100000, existing.goods.medicine)) : DEFAULT_GOODS.medicine,
-    },
+    }, goodsStorageCapacity(state)),
     policies: {
       tax: ['low', 'balanced', 'high'].includes(existing.policies.tax) ? existing.policies.tax : DEFAULT_POLICIES.tax,
       food: ['reserve', 'balanced', 'generous'].includes(existing.policies.food) ? existing.policies.food : DEFAULT_POLICIES.food,
@@ -376,6 +376,7 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
     multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
   }
   if (world.researched.includes('tools') && ['farm', 'sawmill', 'quarry', 'market'].includes(building.type)) multiplier *= 1.12;
+  if (world.goods.tools >= 1 && ['farm', 'sawmill', 'quarry', 'mill', 'bakery', 'workshop'].includes(building.type)) multiplier *= 1.12;
   if (building.type !== 'road' && state.buildings.some((entry) => entry.type === 'road' && Math.abs(entry.x - building.x) + Math.abs(entry.y - building.y) <= 1)) multiplier *= 1.08;
   if (world.completedProjects.includes('artisan-quarter')) multiplier *= 1.08;
   if (building.type === 'farm' && world.researched.includes('irrigation')) multiplier *= 1.15;
@@ -533,8 +534,41 @@ function regionUnlocked(world: WorldState, regionId: RegionId): boolean {
 }
 export function canExploreRegion(world: WorldState, regionId: RegionId): boolean { return regionUnlocked(world, regionId); }
 
-function goodsCapacity(state: GameState): number {
+export function goodsStorageCapacity(state: GameState): number {
   return 100 + state.buildings.filter((building) => building.type === 'warehouse').reduce((total, building) => total + 80 * building.level, 0);
+}
+
+export function totalStoredGoods(goods: GoodsBag): number {
+  return (Object.keys(goods) as Array<keyof GoodsBag>).reduce((total, good) => total + Math.max(0, Number.isFinite(goods[good]) ? goods[good] : 0), 0);
+}
+
+function clampGoodsToCapacity(input: GoodsBag, capacity: number): GoodsBag {
+  const goods: GoodsBag = {
+    grain: Math.max(0, Number.isFinite(input.grain) ? input.grain : 0),
+    flour: Math.max(0, Number.isFinite(input.flour) ? input.flour : 0),
+    bread: Math.max(0, Number.isFinite(input.bread) ? input.bread : 0),
+    tools: Math.max(0, Number.isFinite(input.tools) ? input.tools : 0),
+    medicine: Math.max(0, Number.isFinite(input.medicine) ? input.medicine : 0),
+  };
+  let excess = Math.max(0, totalStoredGoods(goods) - Math.max(0, capacity));
+  const reductionOrder: Array<keyof GoodsBag> = ['bread', 'flour', 'grain', 'medicine', 'tools'];
+  for (const good of reductionOrder) {
+    if (excess <= 0) break;
+    const removed = Math.min(goods[good], excess);
+    goods[good] -= removed;
+    excess -= removed;
+  }
+  return goods;
+}
+
+const RAW_RESOURCE_BASE_PRICES: Record<MarketResource, number> = { wood: 2, stone: 3, food: 2 };
+export function getResourcePurchasePrice(state: GameState, resource: MarketResource): number {
+  const quantity = state.resources[resource];
+  const scarcity = quantity < 12 ? 1.45 : quantity < 30 ? 1.2 : quantity > 80 ? 0.8 : 1;
+  const relatedGood: TradableGood = resource === 'food' ? 'grain' : 'tools';
+  const demand = state.world?.market.demand[relatedGood] ?? 1;
+  const demandFactor = 0.85 + demand * 0.2;
+  return Math.max(1, Math.round(RAW_RESOURCE_BASE_PRICES[resource] * scarcity * demandFactor));
 }
 function hasCost(resources: ResourceBag, cost: Partial<ResourceBag>): boolean {
   return Object.entries(cost).every(([key, value]) => resources[key as Resource] >= (value ?? 0));
@@ -589,13 +623,15 @@ export function advanceRealmMinute(input: GameState): GameState {
   const activeExpeditions = world.expeditions.filter((expedition) => expedition.status === 'active');
   const hasFoodRation = resources.food > 0.1;
   const rationDemand = Math.max(0.01, state.population * 0.008);
-  const breadRation = !hasFoodRation ? Math.min(goods.bread, rationDemand) : 0;
+  // Bread complements the basic food reserve; when it runs out, bread becomes the fallback ration.
+  const breadRation = Math.min(goods.bread, rationDemand * (hasFoodRation ? 0.12 : 1));
   goods.bread = Math.max(0, Math.round((goods.bread - breadRation) * 1000) / 1000);
   const rationCoverage = hasFoodRation ? 1 : Math.min(1, breadRation / rationDemand);
   citizens = citizens.map((citizen) => {
     if (citizen.status === 'exploring') return { ...citizen, activity: 'exploring', energy: clamp(citizen.energy - 0.055), hunger: clamp(citizen.hunger + 0.05) };
     const workplace = getCitizenWorkplace(state, citizen);
-    const hungerDelta = rationCoverage >= 1 ? -0.18 : 0.16 - 0.34 * rationCoverage;
+    const breadMealBonus = breadRation > 0 && hasFoodRation ? 0.035 : 0;
+    const hungerDelta = (rationCoverage >= 1 ? -0.18 : 0.16 - 0.34 * rationCoverage) - breadMealBonus;
     const hunger = clamp(citizen.hunger + hungerDelta);
     const activity = getCitizenActivity({ ...state, resources, world: { ...world, goods } }, { ...citizen, hunger });
     const atWork = activity === 'working' && !!workplace;
@@ -603,7 +639,7 @@ export function advanceRealmMinute(input: GameState): GameState {
     let happiness = citizen.happiness;
     if ((rationCoverage === 0 && resources.food < 0.1) || hunger > 80) happiness -= 0.12;
     else if (hunger < 45 && (state.community?.morale ?? 60) >= 60) happiness += 0.025;
-    if (goods.bread > 0 && state.gameMinutes % 10 === 0) happiness += 0.05;
+    if (breadRation > 0 && state.gameMinutes % 10 === 0) happiness += 0.06;
     let health = citizen.health;
     if (hunger > 90) health -= 0.035;
     else if (hunger < 45) health += 0.008;
@@ -612,6 +648,15 @@ export function advanceRealmMinute(input: GameState): GameState {
     if (atWork) skills[citizen.profession] = clamp(skills[citizen.profession] + (world.researched.includes('education') ? 0.018 : 0.01), 0, 100);
     return { ...citizen, activity, hunger, energy, happiness: clamp(happiness), health: clamp(health), skills, experience: citizen.experience + (atWork ? 0.002 : 0) };
   });
+
+  if (state.gameMinutes > 0 && state.gameMinutes % 60 === 0 && goods.medicine >= 1) {
+    const patient = citizens.filter((citizen) => citizen.status === 'resident' && citizen.health < 92).sort((a, b) => a.health - b.health)[0];
+    if (patient) {
+      goods.medicine -= 1;
+      citizens = citizens.map((citizen) => citizen.id === patient.id ? { ...citizen, health: clamp(citizen.health + 22), lastAction: 'Ha ricevuto un rimedio dal dispensario' } : citizen);
+      notes.push('Il dispensario ha usato 1 rimedio per aiutare ' + patient.name + ' a recuperare 22 punti salute.');
+    }
+  }
 
   const labourState: GameState = { ...state, world: { ...world, citizens } };
   const farms = state.buildings.filter((building) => building.type === 'farm');
@@ -636,7 +681,6 @@ export function advanceRealmMinute(input: GameState): GameState {
     const produced = Math.min(goods.flour, Math.min(0.14 * bakery.level * worldBuildingMultiplier(labourState, bakery), workers * 0.11));
     goods.flour -= produced; goods.bread += produced;
   }
-  if (goods.bread > 0 && state.gameMinutes > 0 && state.gameMinutes % 18 === 0 && resources.food > 0.1) goods.bread = Math.max(0, goods.bread - state.population * 0.015);
   const workshops = state.buildings.filter((building) => building.type === 'workshop');
   const staffedWorkshops = workshops.filter((workshop) => citizens.some((citizen) => citizen.profession === 'artisan' && citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === workshop.id)).length;
   const toolBatch = Math.min(staffedWorkshops, Math.floor(resources.wood / 2), Math.floor(resources.stone));
@@ -644,8 +688,15 @@ export function advanceRealmMinute(input: GameState): GameState {
     resources.wood -= 2 * toolBatch; resources.stone -= toolBatch; goods.tools += toolBatch;
     notes.push(toolBatch === 1 ? 'L’officina ha completato un nuovo attrezzo.' : 'Le officine hanno completato ' + toolBatch + ' nuovi attrezzi.');
   }
-  const cap = goodsCapacity(state);
-  (Object.keys(goods) as Array<keyof GoodsBag>).forEach((key) => { goods[key] = clamp(goods[key], 0, cap); });
+  Object.assign(goods, clampGoodsToCapacity(goods, goodsStorageCapacity(state)));
+  if (state.gameMinutes > 0 && state.gameMinutes % 180 === 0 && goods.tools >= 1) {
+    const activeProduction = state.buildings.some((building) => ['farm', 'sawmill', 'quarry', 'mill', 'bakery', 'workshop'].includes(building.type)
+      && citizens.some((citizen) => citizen.status === 'resident' && getCitizenWorkplace(labourState, citizen)?.id === building.id));
+    if (activeProduction) {
+      goods.tools -= 1;
+      notes.push('Un attrezzo è stato consumato per la manutenzione delle botteghe e delle macchine.');
+    }
+  }
 
   if (state.gameMinutes > 0 && state.gameMinutes % 30 === 0 && citizens.length > 1) {
     const nextCitizens = citizens.map((citizen) => ({ ...citizen, relationships: { ...citizen.relationships } }));
@@ -805,8 +856,7 @@ export function advanceRealmMinute(input: GameState): GameState {
       else if (community) { community.trust = clamp(community.trust - 2); community.morale = clamp(community.morale - 1); notes.push('Le guardie non sono state pagate: il Consiglio deve rifinanziare le pattuglie.'); }
     }
   }
-  const goodsLimit = goodsCapacity(state);
-  (Object.keys(goods) as Array<keyof GoodsBag>).forEach((good) => { goods[good] = Math.max(0, Math.min(goodsLimit, Number.isFinite(goods[good]) ? goods[good] : 0)); });
+  Object.assign(goods, clampGoodsToCapacity(goods, goodsStorageCapacity(state)));
   nextWorld = { ...nextWorld, goods: { ...goods } };
   const now = state.gameMinutes;
   if (nextWorld.weather.id === 'drought' && now >= nextWorld.weather.endsAt) {
@@ -989,12 +1039,25 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     community = applyCommunityEffects(community, choice.moodDelta ?? 0, choice.trustDelta ?? 0);
     return finish(event.title + ' — ' + choice.label + '. ' + choice.detail);
   }
+  if (action.type === 'buyResource') {
+    if (!state.buildings.some((building) => building.type === 'market')) return fail('Costruisci un mercato prima di acquistare materie prime.');
+    if (!world.citizens.some((citizen) => citizen.profession === 'merchant' && citizen.status === 'resident')) return fail('Assegna almeno un cittadino al mestiere Mercante per acquistare al mercato.');
+    if (!['wood', 'stone', 'food'].includes(action.resource)) return fail('Questa materia prima non è acquistabile.');
+    const amount = Math.floor(action.amount);
+    if (!Number.isSafeInteger(action.amount) || amount < 1 || amount > 25) return fail('Puoi acquistare da 1 a 25 unità per volta.');
+    const unitPrice = getResourcePurchasePrice(state, action.resource);
+    const cost = unitPrice * amount;
+    if (resources.coins < cost) return fail('Servono ' + cost + ' monete per acquistare ' + amount + ' unità di ' + action.resource + '.');
+    resources.coins -= cost;
+    resources[action.resource] += amount;
+    return finish('Acquistate ' + amount + ' unità di ' + (action.resource === 'wood' ? 'legname' : action.resource === 'stone' ? 'pietra' : 'cibo') + ' a ' + unitPrice + ' monete ciascuna: -' + cost + ' monete.');
+  }
   if (action.type === 'tradeGoods') {
     if (!state.buildings.some((building) => building.type === 'market')) return fail('Costruisci un mercato prima di vendere i beni lavorati.');
     if (!world.citizens.some((citizen) => citizen.profession === 'merchant' && citizen.status === 'resident')) return fail('Assegna almeno un cittadino al mestiere Mercante.');
     if (!Object.prototype.hasOwnProperty.call(world.goods, action.good)) return fail('Questo bene non è commerciabile.');
     const amount = Math.floor(action.amount);
-    if (!Number.isFinite(amount) || amount < 1 || amount > 50) return fail('Puoi vendere da 1 a 50 unità per volta.');
+    if (!Number.isSafeInteger(action.amount) || amount < 1 || amount > 50) return fail('Puoi vendere da 1 a 50 unità per volta.');
     if (world.goods[action.good] < amount) return fail('Scorte insufficienti: non hai ' + amount + ' unità di ' + MARKET_GOOD_LABELS[action.good] + '.');
     const price = Math.max(1, world.market.prices[action.good]);
     const revenue = Math.floor(amount * price);

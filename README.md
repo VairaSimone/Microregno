@@ -102,3 +102,11 @@ Il workflow di deploy è manuale per evitare tentativi di pubblicazione prima di
 ## Limiti
 I salvataggi e i record sono locali. Le stagioni si alternano rapidamente per rendere visibili i cambiamenti in una sessione breve. I cittadini hanno bisogni, attività giornaliere e percorsi locali verso casa, lavoro o piazza, ma la navigazione è limitata alla mappa attuale: non sono ancora presenti una simulazione urbana completa, routine lavorative dettagliate per ogni edificio o un sistema di animazioni individuali avanzato.
  Account, sincronizzazione, classifiche online e anti-cheat richiedono un backend e non sono inclusi in questa base. La licenza open source non è ancora stata scelta.
+
+## Economia delle scorte e commercio
+
+- I beni lavorati condividono una capienza complessiva: 100 unità di base, più 80 per ogni livello di Magazzino. Il limite viene applicato anche quando si carica un vecchio salvataggio troppo pieno; pane, farina e grano in eccesso vengono rimossi prima dei rimedi e degli attrezzi.
+- Le fattorie producono grano, i mulini lo trasformano in farina e i panifici in pane. Il pane viene consumato dagli abitanti come supplemento quando c’è cibo di base e diventa una razione di emergenza quando il cibo scarseggia.
+- I rimedi sono usati automaticamente ogni 60 minuti di gioco per curare di 22 punti salute il residente più debilitato (solo se ha salute sotto 92); un rimedio viene consumato per trattamento.
+- Gli attrezzi presenti in magazzino aumentano del 12% l’efficienza di fattorie, segherie, cave, mulini, panifici e officine. Con postazioni produttive attive, un attrezzo viene consumato per la manutenzione ogni 180 minuti di gioco; restano inoltre utilizzabili per le spedizioni.
+- Un Mercato con un cittadino Mercante permette di vendere beni lavorati e comprare pacchetti da 5 unità di legname, pietra o cibo. Il prezzo d’acquisto dipende dalla disponibilità delle risorse nel regno e dalla domanda del mercato, così comprare per risolvere una carenza urgente ha un costo visibile.

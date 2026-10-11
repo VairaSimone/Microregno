@@ -2,8 +2,9 @@ import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS
 import { buildingUnlocked } from './game/challenge';
 import { EPOCHS,EPOCH_ORDER,getBuildingEpoch,getCharterRequirements,getCurrentEpochId,getEpochRequirements,isEpochUnlocked } from './game/progression';
 import { getSeason } from './game/community';
+import { getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods } from './game/livingWorld';
 import { canExploreRegion, CITIZEN_ACTIVITY_LABELS, getCitizenActivity, getCitizenWorkplace, getInterestGroups, projectRequirement, PROFESSION_LABELS, PROFESSIONS, PROJECTS, researchRequirement, RESEARCH, REGIONS, worldBuildingMultiplier } from './game/livingWorld';
-import type { GoodsBag, WorldState } from './game/types';
+import type { GoodsBag, MarketResource, WorldState } from './game/types';
 import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, GameSnapshot, Profession, Resource } from './game/types';
 
@@ -660,9 +661,24 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
     }).join('') + '</div><p class="realm-market-note">' +
       (!hasMarket ? 'Costruisci un mercato per aprire le vendite.' : !hasMerchant ? 'Assegna un cittadino al mestiere Mercante per vendere le scorte.' : 'Le quotazioni cambiano ogni 120 minuti di gioco. Accumularne troppi riduce il prezzo; i beni rari possono valere di più.') +
       '</p>';
-    const employment = '<div class="realm-card"><div class="realm-card-title"><h3>Filiere produttive</h3><span>BENI LAVORATI</span></div>' + goodsStrip + marketPanel +
-      '<p>Le fattorie generano grano; mugnai e fornai lo trasformano in farina e pane. L’officina consuma legname e pietra per produrre attrezzi. Magazzini aggiuntivi aumentano la capienza e riducono il deterioramento di pane, farina, grano e rimedi. La capienza dei beni è ' +
-      (100 + state.buildings.filter((building) => building.type === 'warehouse').reduce((sum, building) => sum + 80 * building.level, 0)) + ' unità.</p>' +
+    const rawMarketPanel = '<div class="realm-card-title realm-raw-title"><h3>Acquista materie prime</h3><span>IMPORTAZIONI</span></div><div class="realm-market-grid realm-raw-market-grid">' + ([
+      { id: 'wood' as const, name: 'Legname' },
+      { id: 'stone' as const, name: 'Pietra' },
+      { id: 'food' as const, name: 'Cibo' },
+    ]).map((item) => {
+      const amount = 5;
+      const unitPrice = getResourcePurchasePrice(state, item.id);
+      const cost = amount * unitPrice;
+      return '<div class="realm-market-good"><div><strong>' + item.name + '</strong><small>Prezzo ' + unitPrice + ' monete/u.</small></div>' +
+        '<b>' + cost + ' <small>monete</small></b>' +
+        realmActionButton('Compra 5', 'buyResource', item.id, String(amount), !hasMarket || !hasMerchant || state.resources.coins < cost) +
+        '</div>';
+    }).join('') + '</div><p class="realm-market-note">' +
+      (!hasMarket ? 'Costruisci un mercato per comprare o vendere.' : !hasMerchant ? 'Assegna un Mercante per commerciare.' : 'Acquistare materie prime risolve carenze urgenti ma costa monete. I prezzi salgono quando le tue scorte sono basse e seguono anche la domanda del mercato.') +
+      '</p>';
+    const employment = '<div class="realm-card"><div class="realm-card-title"><h3>Filiere produttive</h3><span>BENI LAVORATI</span></div>' + goodsStrip + marketPanel + rawMarketPanel +
+      '<p>Le fattorie producono grano; mugnai e fornai lo trasformano in farina e pane. Il pane è consumato dagli abitanti e integra le scorte alimentari. Gli attrezzi aumentano del 12% la resa di fattorie, segherie, cave, mulini, panifici e officine finché sono disponibili; le botteghe attive ne consumano uno per la manutenzione ogni 180 minuti di gioco. I rimedi curano 22 punti salute all’abitante più debilitato ogni 60 minuti se ne ha bisogno. La capienza è ' +
+      formatNumber(totalStoredGoods(goods)) + '/' + formatNumber(goodsStorageCapacity(state)) + ' unità complessive condivise tra tutti i beni. Ogni livello di Magazzino aggiunge 80 unità e riduce il deterioramento.</p>' +
       '<div class="realm-chain">' + ['farm', 'mill', 'bakery', 'workshop'].map((type) => {
         const count = state.buildings.filter((building) => building.type === type).length;
         const labels: Record<string, string> = { farm: 'Fattorie', mill: 'Mulini', bakery: 'Panifici', workshop: 'Officine' };
@@ -826,6 +842,7 @@ export function setupUI(): void {
     else if (action === 'event') dispatch('microregno:realm-action', { type: 'event', id });
     else if (action === 'diplomacy') dispatch('microregno:realm-action', { type: 'diplomacy', id, value });
     else if (action === 'tradeGoods') dispatch('microregno:realm-action', { type: 'tradeGoods', good: id as keyof GoodsBag, amount: Number(value) });
+    else if (action === 'buyResource') dispatch('microregno:realm-action', { type: 'buyResource', resource: id as MarketResource, amount: Number(value) });
   });
   realmContent.addEventListener('change', (event) => {
     const target = event.target as HTMLElement;
