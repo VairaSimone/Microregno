@@ -3,7 +3,8 @@ import { BUILDINGS } from './definitions';
 import { getSeason } from './community';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
-  CitizenIllness, GameState, GoodsBag, MarketResource, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
+  CitizenIllness, FrontierIncident, FrontierPerkId, FrontierStructure, FrontierStructureType, FrontierTerritory,
+  GameState, GoodsBag, MarketResource, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
   MarketState, RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, TradableGood, WorldState,
 } from './types';
 
@@ -30,6 +31,66 @@ export const REGIONS: Array<{ id: RegionId; name: string; description: string; d
   { id: 'ancient-ruins', name: 'Rovine della Corona', description: 'Resti di una civiltà e conoscenze sepolte.', duration: 180, requirement: 'cartography' },
   { id: 'borderlands', name: 'Terre di confine', description: 'Nuove comunità, merci rare e opportunità diplomatiche.', duration: 210, requirement: 'cartography' },
 ];
+
+export const FRONTIER_GRID_SIZE = 5;
+export const FRONTIER_STRUCTURES: Record<FrontierStructureType, {
+  name: string; icon: string; description: string; cost: Partial<ResourceBag>;
+  allowedRegions: RegionId[]; output: Resource | 'research' | 'stability' | null; amount: number;
+}> = {
+  outpost: { name: 'Avamposto', icon: '⌂', description: 'Punto sicuro da cui amministrare il territorio.', cost: {}, allowedRegions: REGIONS.map((region) => region.id), output: null, amount: 0 },
+  lumberCamp: { name: 'Campo boschivo', icon: '🪵', description: 'Raccoglie legname dalle riserve locali.', cost: { wood: 8, stone: 2 }, allowedRegions: ['forest', 'borderlands'], output: 'wood', amount: 5 },
+  quarry: { name: 'Cava di frontiera', icon: '⛏', description: 'Estrae pietra dalle riserve minerarie locali.', cost: { wood: 8, stone: 5 }, allowedRegions: ['mountains', 'ancient-ruins'], output: 'stone', amount: 4 },
+  fishery: { name: 'Peschiera', icon: '🐟', description: 'Raccoglie cibo dalle acque e dalle rive.', cost: { wood: 8, food: 4 }, allowedRegions: ['lake'], output: 'food', amount: 6 },
+  tradingPost: { name: 'Posto commerciale', icon: '⚖', description: 'Genera monete e consolida gli scambi regionali.', cost: { wood: 10, stone: 6, coins: 4 }, allowedRegions: ['lake', 'borderlands'], output: 'coins', amount: 3 },
+  archive: { name: 'Archivio delle rovine', icon: '📜', description: 'Trasforma le scoperte locali in conoscenza per il regno.', cost: { wood: 12, stone: 12, coins: 8 }, allowedRegions: ['ancient-ruins'], output: 'research', amount: 3 },
+  watchtower: { name: 'Torre di frontiera', icon: '♜', description: 'Riduce le incursioni e aiuta il territorio a riprendersi.', cost: { wood: 10, stone: 8 }, allowedRegions: REGIONS.map((region) => region.id), output: 'stability', amount: 0.8 },
+};
+
+const FRONTIER_PROFILES: Record<RegionId, {
+  climate: FrontierTerritory['climate']; risk: number; foundingCost: Partial<ResourceBag>;
+  stock: ResourceBag; reserveResource: Resource;
+}> = {
+  forest: { climate: 'woodland', risk: 15, foundingCost: { wood: 16, stone: 5, coins: 6 }, stock: { wood: 80, stone: 18, food: 35, coins: 8 }, reserveResource: 'wood' },
+  mountains: { climate: 'alpine', risk: 26, foundingCost: { wood: 12, stone: 18, coins: 10 }, stock: { wood: 20, stone: 90, food: 14, coins: 8 }, reserveResource: 'stone' },
+  lake: { climate: 'wetland', risk: 18, foundingCost: { wood: 12, stone: 8, coins: 5 }, stock: { wood: 28, stone: 18, food: 90, coins: 22 }, reserveResource: 'food' },
+  'ancient-ruins': { climate: 'ruins', risk: 24, foundingCost: { wood: 18, stone: 16, coins: 18 }, stock: { wood: 18, stone: 65, food: 12, coins: 25 }, reserveResource: 'stone' },
+  borderlands: { climate: 'border', risk: 28, foundingCost: { wood: 20, stone: 16, coins: 22 }, stock: { wood: 50, stone: 45, food: 30, coins: 45 }, reserveResource: 'coins' },
+};
+const FRONTIER_PERKS: FrontierPerkId[] = ['forest-reserve', 'forest-contract', 'mountain-charter', 'mountain-shelters', 'lake-cooperative', 'lake-tolls', 'border-customs', 'border-watch', 'archive-network'];
+const FACTION_TRADE_PROFILES: Record<string, Pick<Faction, 'need' | 'offer' | 'needAmount' | 'offerAmount' | 'treatyBenefit'>> = {
+  selvalunga: { need: 'stone', needAmount: 5, offer: 'wood', offerAmount: 9, treatyBenefit: 'legname e recupero forestale' },
+  salmastra: { need: 'wood', needAmount: 6, offer: 'food', offerAmount: 10, treatyBenefit: 'provviste e pesca' },
+  rocciacupa: { need: 'food', needAmount: 8, offer: 'stone', offerAmount: 7, treatyBenefit: 'pietra e strumenti' },
+};
+const FRONTIER_INCIDENTS: Record<RegionId, { kind: FrontierIncident['kind']; title: string; loss: Resource }> = {
+  forest: { kind: 'wildfire', title: 'Incendio nel bosco', loss: 'wood' },
+  mountains: { kind: 'landslide', title: 'Frana al passo', loss: 'stone' },
+  lake: { kind: 'flood', title: 'Piena sulle rive', loss: 'food' },
+  'ancient-ruins': { kind: 'collapse', title: 'Crollo nelle rovine', loss: 'stone' },
+  borderlands: { kind: 'raiders', title: 'Incursione alla frontiera', loss: 'coins' },
+};
+
+export function frontierFoundingCost(region: RegionId): Partial<ResourceBag> {
+  return { ...FRONTIER_PROFILES[region].foundingCost };
+}
+export function frontierStructureAllowed(region: RegionId, structure: FrontierStructureType): boolean {
+  return structure !== 'outpost' && FRONTIER_STRUCTURES[structure].allowedRegions.includes(region);
+}
+export function canColonizeRegion(state: GameState, region: RegionId): boolean {
+  const world = state.world;
+  return !!world && world.discoveredRegions.includes(region) &&
+    !world.frontierTerritories.some((territory) => territory.region === region) &&
+    isEpochUnlocked(state, 'borough') && REGIONS.some((entry) => entry.id === region);
+}
+function createFrontierTerritory(region: RegionId, gameMinutes: number): FrontierTerritory {
+  const profile = FRONTIER_PROFILES[region];
+  return {
+    region, name: REGIONS.find((entry) => entry.id === region)?.name ?? region, climate: profile.climate,
+    foundedAt: gameMinutes, stock: { ...profile.stock }, stability: region === 'borderlands' ? 58 : region === 'ancient-ruins' ? 62 : region === 'mountains' ? 66 : region === 'lake' ? 80 : 86,
+    structures: [{ id: 'outpost-' + region + '-' + gameMinutes, type: 'outpost', x: 2, y: 2, level: 1 }],
+    lastIncidentAt: -1, activeIncident: null,
+  };
+}
 
 export const PROJECTS: Array<{ id: ProjectId; name: string; description: string; stages: Array<Partial<ResourceBag>> }> = [
   { id: 'aqueduct', name: 'Acquedotto del borgo', description: 'Stabilizza i raccolti e migliora l’efficienza agricola.', stages: [{ wood: 10, stone: 8 }, { wood: 14, stone: 12, coins: 8 }, { stone: 18, coins: 14 }] },
@@ -70,7 +131,7 @@ function refreshMarket(seed: number, gameMinutes: number, market: MarketState, g
   return { prices, demand, cycle, nextShiftAt: gameMinutes + 120 };
 }
 const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', forest: 'managed', guard: 'none' };
-const EVENT_IDS = ['drought', 'caravan', 'wanderer', 'wolves', 'fair', 'caravan-rescue', 'drought-recovery', 'ruins-found', 'archive-clue'];
+const EVENT_IDS = ['drought', 'caravan', 'wanderer', 'wolves', 'fair', 'caravan-rescue', 'drought-recovery', 'ruins-found', 'archive-clue', 'forest-expedition', 'mountain-expedition', 'lake-expedition', 'border-expedition'];
 
 function clamp(value: number, low = 0, high = 100): number {
   return Math.max(low, Math.min(high, Math.round(value * 100) / 100));
@@ -114,7 +175,8 @@ function validEventChoice(value: unknown): value is RealmEventChoice {
     && finiteOptional(choice.researchDelta) && (choice.researchDelta === undefined || choice.researchDelta >= 0)
     && finiteOptional(choice.populationDelta) && (choice.populationDelta === undefined || (Number.isInteger(choice.populationDelta) && Math.abs(choice.populationDelta) <= 100))
     && (choice.chain === undefined || (typeof choice.chain === 'string' && EVENT_IDS.includes(choice.chain)))
-    && (choice.profession === undefined || PROFESSIONS.includes(choice.profession));
+    && (choice.profession === undefined || PROFESSIONS.includes(choice.profession))
+    && (choice.frontierPerk === undefined || ['forest-reserve', 'forest-contract', 'mountain-charter', 'mountain-shelters', 'lake-cooperative', 'lake-tolls', 'border-customs', 'border-watch', 'archive-network'].includes(choice.frontierPerk));
 }
 
 function makeCitizen(seed: number, index: number, gameMinutes: number): Citizen {
