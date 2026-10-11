@@ -80,4 +80,13 @@ describe('campagna e progressione per epoche', () => {
     expect(updated.state.progression?.unlockedEpochs).toEqual(['settlement', 'village', 'borough']);
     expect(getCurrentEpochId(updated.state)).toBe('borough');
   });
+
+  it('repairs saved epoch lists that skip prerequisite eras', () => {
+    const state = createInitialState(781);
+    state.progression!.unlockedEpochs = ['settlement', 'metropolis', 'empire'];
+    const updated = synchronizeKingdomProgression(state);
+    expect(updated.state.progression?.unlockedEpochs).toEqual(['settlement']);
+    expect(updated.state.progression?.campaignComplete).toBe(false);
+    expect(getCurrentEpochId(updated.state)).toBe('settlement');
+  });
 });

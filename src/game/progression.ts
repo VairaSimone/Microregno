@@ -221,7 +221,15 @@ export function synchronizeKingdomProgression(input: GameState): ProgressionUpda
   );
   valid.add('settlement');
 
-  let unlocked = EPOCH_ORDER.filter((id) => valid.has(id));
+  // Only accept a contiguous sequence of unlocked eras. Corrupt or hand-edited saves
+  // must not unlock later-era buildings while skipping a prerequisite era.
+  let unlocked: EpochId[] = ['settlement'];
+  for (let index = 1; index < EPOCH_ORDER.length; index += 1) {
+    const epoch = EPOCH_ORDER[index]!;
+    const previous = EPOCH_ORDER[index - 1]!;
+    if (!valid.has(epoch) || !unlocked.includes(previous)) break;
+    unlocked.push(epoch);
+  }
   let history = Array.isArray(current?.history)
     ? current.history.filter((entry): entry is string => typeof entry === 'string').slice(0, 12)
     : [EPOCHS.settlement.story];
