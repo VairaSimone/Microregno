@@ -43,7 +43,7 @@ describe('permanent single-player rewards',()=>{
       profile=recordChallengeVictory(profile,{...c,id:'forced-day-'+day,date:c.date},3700,120,new Date(Date.UTC(2026,0,day,12))).profile;
     }
     expect(profile.unlockedRewards).toContain('granary-blessing');
-    expect(applyProfileBonuses(state,profile).resources.food).toBe(state.resources.food+6);
+    expect(applyProfileBonuses(state,profile).resources.food).toBe(state.resources.food+11); // Granary blessing (+6) and three-day streak seal (+5).
     expect(getAchievementProgress(profile).find(a=>a.id==='three-trials')?.unlocked).toBe(true);
   });
   it('repairs malformed profile records rather than crashing on old/corrupt storage',()=>{
