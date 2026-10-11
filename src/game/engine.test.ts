@@ -162,14 +162,17 @@ describe('simulazione Microregno',()=>{
     house.state.community!.morale=19;
     expect(advanceTime(house.state,20).population).toBe(5);
   });
-  it('non penalizza le richieste durante il tempo offline',()=>{
+  it('sospende la scadenza delle richieste durante il tempo offline',()=>{
     const s=createInitialState();
     s.lastSavedAt=1_000;
     const offline=applyOfflineProgress(s,181_000);
     expect(offline.minutes).toBe(180);
     expect(offline.state.community?.ignoredRequests).toBe(0);
     expect(offline.state.community?.morale).toBeGreaterThanOrEqual(60);
-    expect(advanceTime(offline.state,1,true).community?.ignoredRequests).toBe(1);
+    expect(offline.state.community?.activeRequest?.deadline).toBeGreaterThan(offline.state.gameMinutes);
+    const returned=advanceTime(offline.state,1,true);
+    expect(returned.community?.ignoredRequests).toBe(0);
+    expect(returned.community?.activeRequest).not.toBeNull();
   });
   it('genera la stessa sfida per una stessa data',()=>{
     const date=new Date(2026,9,10,12),challenge=createDailyChallenge(date);
