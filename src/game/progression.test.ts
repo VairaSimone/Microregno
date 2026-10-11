@@ -47,18 +47,22 @@ describe('campagna e progressione per epoche', () => {
     expect(getCurrentEpochId(update.state)).toBe('city');
   });
 
-  it('non conclude la campagna finché non sono soddisfatti tutti i requisiti della Carta', () => {
+  it('conclude la campagna imperiale solo dopo aver soddisfatto tutti i requisiti della Carta', () => {
     const state = createInitialState(779);
-    state.progression!.unlockedEpochs = ['settlement', 'village', 'borough', 'city'];
-    state.population = 24;
-    state.resources.coins = 130;
-    state.world!.researched = ['irrigation', 'forestry'];
-    state.world!.completedProjects = ['aqueduct', 'stone-bridge', 'artisan-quarter'];
-    state.world!.tradeRoutes = ['selvalunga', 'salmastra'];
-    state.world!.discoveredRegions = ['forest', 'mountains', 'lake'];
-    addBuilding(state, { id: 'farm-one', type: 'farm', x: 4, y: 4, level: 3 });
-    addBuilding(state, { id: 'house-three', type: 'house', x: 6, y: 6, level: 3 });
-    addBuilding(state, { id: 'university-charter', type: 'university', x: 7, y: 6, level: 1 });
+    state.progression!.unlockedEpochs = ['settlement', 'village', 'borough', 'city', 'metropolis', 'empire'];
+    state.population = 60;
+    state.resources.coins = 600;
+    state.world!.researched = ['irrigation', 'forestry', 'tools', 'trade', 'education'];
+    state.world!.completedProjects = ['aqueduct', 'stone-bridge', 'artisan-quarter', 'grand-archive'];
+    state.world!.tradeRoutes = ['selvalunga', 'salmastra', 'roccia', 'frontiera'];
+    state.world!.discoveredRegions = ['forest', 'mountains', 'lake', 'ancient-ruins', 'borderlands'];
+    state.buildings[0]!.level = 5;
+    addBuilding(state, { id: 'farm-one', type: 'farm', x: 4, y: 4, level: 5 });
+    addBuilding(state, { id: 'house-three', type: 'house', x: 6, y: 6, level: 5 });
+    addBuilding(state, { id: 'market-charter', type: 'market', x: 8, y: 6, level: 5 });
+    addBuilding(state, { id: 'sawmill-charter', type: 'sawmill', x: 9, y: 6, level: 5 });
+    addBuilding(state, { id: 'university-charter', type: 'university', x: 7, y: 6, level: 5 });
+    addBuilding(state, { id: 'observatory-charter', type: 'observatory', x: 7, y: 7, level: 3 });
     expect(getCharterRequirements(state).every((item) => item.done)).toBe(true);
     const completed = synchronizeKingdomProgression(state);
     expect(completed.state.progression?.campaignComplete).toBe(true);

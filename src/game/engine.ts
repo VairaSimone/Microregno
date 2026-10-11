@@ -1,4 +1,4 @@
-import {BOARD_SIZE,BUILDINGS,MAX_BUILDING_LEVEL} from './definitions';
+import {BOARD_SIZE,BUILDINGS,MAX_BUILDING_LEVEL,constructionDuration} from './definitions';
 import {advanceCommunityMinute,createCommunityState,getSeason} from './community';
 import {advanceRealmMinute,createWorldState,ensureWorldState,realmModifiers,worldBuildingMultiplier} from './livingWorld';
 import {initialKingdomProgression,isBuildingEpochAvailable,getBuildingEpoch,synchronizeKingdomProgression,EPOCHS} from './progression';
@@ -6,7 +6,7 @@ import type {BuildCheck,Building,BuildingType,GameState,Resource,Terrain} from '
 function random(seed:number):()=>number{let v=seed>>>0;return()=>{v=(v*1664525+1013904223)>>>0;return v/4294967296;};}
 export function generateTerrain(seed:number):Terrain[][]{const r=random(seed);const map:Terrain[][]=Array.from({length:BOARD_SIZE},()=>Array.from({length:BOARD_SIZE},()=>{const n=r();return n<.065?'water':n<.21?'forest':n<.275?'rock':'grass';}));for(let y=4;y<=7;y++)for(let x=4;x<=7;x++)map[y]![x]='grass';[[7,2],[8,2],[7,3],[8,3],[7,4]].forEach(([x,y])=>map[y]![x]='water');[[2,5],[2,6],[3,5],[9,7],[10,7],[9,8],[5,2],[5,3],[6,2]].forEach(([x,y])=>map[y]![x]='forest');[[9,2],[10,2],[9,3],[10,3],[8,8],[8,9]].forEach(([x,y])=>map[y]![x]='rock');return map;}
 export function createInitialState(seed=2310):GameState{const buildings=[{id:'town-hall-1',type:'townHall' as const,x:5,y:6,level:1}];const world=createWorldState(seed,5,0);const state:GameState={version:1,seed,resources:{wood:42,stone:24,food:42,coins:18},population:5,gameMinutes:0,buildings,lastSavedAt:Date.now(),community:undefined,world,progression:initialKingdomProgression()};return{...state,community:createCommunityState(seed,0,state)};}
-export function housingCapacity(s:GameState):number{return s.buildings.reduce((n,b)=>n+(BUILDINGS[b.type].housing??0)*b.level,0)+(s.community?.housingBonus??0);}
+export function housingCapacity(s:GameState):number{return s.buildings.reduce((n,b)=>n+(b.construction?.kind==='build'?0:(BUILDINGS[b.type].housing??0)*b.level),0)+(s.community?.housingBonus??0);}
 export function resourceTotal(s:GameState):number{return Object.values(s.resources).reduce((a,b)=>a+b,0);}
 export const POPULATION_MILESTONES=[{population:8,reward:10},{population:12,reward:15},{population:18,reward:25},{population:24,reward:40}] as const;
 export function awardPopulationMilestones(s:GameState):{state:GameState;reward:number;earned:number[]}{
@@ -24,8 +24,16 @@ const def=BUILDINGS[type];if(s.population<def.unlockedAt)return{ok:false,reason:
 if(!isBuildingEpochAvailable(s,type))return{ok:false,reason:'Per costruire '+def.name+' devi prima raggiungere l’epoca '+EPOCHS[getBuildingEpoch(type)].name+'.'};
 for(const [r,n] of Object.entries(def.cost) as [Resource,number][])if(s.resources[r]<n)return{ok:false,reason:'Non hai abbastanza '+r+'.'};
 if(type==='sawmill'&&!near(map,x,y,'forest',3))return{ok:false,reason:'La segheria deve sorgere vicino a un bosco.'};
-if(type==='quarry'&&!near(map,x,y,'rock',3))return{ok:false,reason:'La cava deve sorgere vicino a una zona rocciosa.'};return{ok:true};}
+if((type==='quarry'||type==='ironworks')&&!near(map,x,y,'rock',3))return{ok:false,reason:(type==='quarry'?'La cava':'La forgia')+' deve sorgere vicino a una zona rocciosa.'};if(type==='fishingHut'&&!near(map,x,y,'water',3))return{ok:false,reason:'Il capanno dei pescatori deve sorgere vicino all’acqua.'};return{ok:true};}
 export function buildAt(s:GameState,map:Terrain[][],x:number,y:number,type:BuildingType):{state:GameState;check:BuildCheck}{const check=canBuild(s,map,x,y,type);if(!check.ok)return{state:s,check};const resources={...s.resources};for(const [r,n] of Object.entries(BUILDINGS[type].cost) as [Resource,number][])resources[r]-=n;const b:Building={id:type+'-'+s.gameMinutes+'-'+s.buildings.length+'-'+x+'-'+y,type,x,y,level:1};return{state:{...s,resources,buildings:[...s.buildings,b]},check:{ok:true}};}
+export function startBuildAt(s:GameState,map:Terrain[][],x:number,y:number,type:BuildingType,now=Date.now()):{state:GameState;check:BuildCheck;duration:number}{
+const result=buildAt(s,map,x,y,type);
+if(!result.check.ok)return{...result,duration:0};
+const id=result.state.buildings[result.state.buildings.length-1]!.id,duration=constructionDuration(type,1,'build');
+const buildings=result.state.buildings.map(b=>b.id===id?{...b,construction:{kind:'build' as const,startedAt:now,completesAt:now+duration*1000,targetLevel:1}}:b);
+return{state:{...result.state,buildings},check:result.check,duration};
+}
+
 
 export function upgradeCost(building:Building):Partial<Record<Resource,number>>{
 if(building.type==='townHall')return{wood:18*building.level,stone:12*building.level,coins:6*building.level};
@@ -37,17 +45,50 @@ export function upgradeBuilding(s:GameState,id:string):{state:GameState;check:Bu
 const building=s.buildings.find(b=>b.id===id);
 if(!building)return{state:s,check:{ok:false,reason:'Seleziona prima un edificio.'}};
 if(building.type==='road')return{state:s,check:{ok:false,reason:'Le strade non si migliorano: costruisci altri tratti per collegare il borgo.'}};
+if(building.construction)return{state:s,check:{ok:false,reason:'Questo edificio ha già un cantiere in corso.'}};
 if(building.level>=MAX_BUILDING_LEVEL)return{state:s,check:{ok:false,reason:'Questo edificio è già al livello massimo.'}};
 const cost=upgradeCost(building);
 for(const [resource,amount] of Object.entries(cost) as [Resource,number][])if(s.resources[resource]<amount)return{state:s,check:{ok:false,reason:'Servono '+amount+' '+(resource==='wood'?'legname':resource==='stone'?'pietra':resource)+' per migliorare questo edificio.'}};
 const resources={...s.resources};
 for(const [resource,amount] of Object.entries(cost) as [Resource,number][])resources[resource]-=amount;
 return{state:{...s,resources,buildings:s.buildings.map(b=>b.id===id?{...b,level:b.level+1}:b)},check:{ok:true}};}
+
+export function startBuildingUpgrade(s:GameState,id:string,now=Date.now()):{state:GameState;check:BuildCheck;duration:number}{
+const building=s.buildings.find(b=>b.id===id);
+if(!building)return{state:s,check:{ok:false,reason:'Seleziona prima un edificio.'},duration:0};
+if(building.construction)return{state:s,check:{ok:false,reason:'Attendi la conclusione del cantiere già aperto.'},duration:0};
+if(building.type==='road')return{state:s,check:{ok:false,reason:'Le strade non si migliorano: costruisci altri tratti per collegare il borgo.'},duration:0};
+if(building.level>=MAX_BUILDING_LEVEL)return{state:s,check:{ok:false,reason:'Questo edificio è già al livello massimo ('+MAX_BUILDING_LEVEL+').' },duration:0};
+const cost=upgradeCost(building);
+for(const [resource,amount] of Object.entries(cost) as [Resource,number][])if(s.resources[resource]<amount)return{state:s,check:{ok:false,reason:'Servono '+amount+' '+(resource==='wood'?'legname':resource==='stone'?'pietra':resource)+' per migliorare questo edificio.'},duration:0};
+const resources={...s.resources};
+for(const [resource,amount] of Object.entries(cost) as [Resource,number][])resources[resource]-=amount;
+const duration=constructionDuration(building.type,building.level,'upgrade');
+const buildings=s.buildings.map(b=>b.id===id?{...b,construction:{kind:'upgrade' as const,startedAt:now,completesAt:now+duration*1000,targetLevel:b.level+1}}:b);
+return{state:{...s,resources,buildings},check:{ok:true},duration};
+}
+export function completeReadyConstructions(s:GameState,now=Date.now()):{state:GameState;completed:Building[]}{
+const ready=s.buildings.filter(b=>!!b.construction&&b.construction.completesAt<=now);
+if(!ready.length)return{state:s,completed:[]};
+const ids=new Set(ready.map(b=>b.id));
+const buildings=s.buildings.map(building=>{
+if(!ids.has(building.id)||!building.construction)return building;
+const construction=building.construction;
+const updated:Building={...building,level:construction.kind==='upgrade'?construction.targetLevel:building.level};
+delete updated.construction;
+return updated;
+});
+const completed=buildings.filter(b=>ids.has(b.id));
+return{state:{...s,buildings},completed};
+}
 export function productionForBuilding(b:Building,map:Terrain[][],gameMinutes=0,morale=50,workforceMultiplier=1):Partial<Record<Resource,number>>{
-const production:Partial<Record<Resource,number>>={},def=BUILDINGS[b.type],season=getSeason(gameMinutes);let multiplier=workforceMultiplier;
+const production:Partial<Record<Resource,number>>={};if(b.construction?.kind==='build')return production;const def=BUILDINGS[b.type],season=getSeason(gameMinutes);let multiplier=workforceMultiplier;
 if(b.type==='farm')multiplier*=season.farmMultiplier;
-if(b.type==='farm'&&near(map,b.x,b.y,'water',3))multiplier*=1.15;
+if((b.type==='farm'||b.type==='orchard')&&near(map,b.x,b.y,'water',3))multiplier*=1.15;
+if(b.type==='fishingHut'&&near(map,b.x,b.y,'water',3))multiplier*=1.2;
+if(b.type==='herbGarden'&&(season.id==='spring'||season.id==='summer'))multiplier*=1.1;
 if(b.type==='sawmill'&&near(map,b.x,b.y,'forest',2))multiplier*=1.1;
+if(b.type==='ironworks'&&near(map,b.x,b.y,'rock',2))multiplier*=1.12;
 if(morale>=75)multiplier*=1.05;else if(morale<=25)multiplier*=.9;
 for(const [resource,amount] of Object.entries(def.production??{}) as [Resource,number][])production[resource]=amount*b.level*multiplier;
 return production;}

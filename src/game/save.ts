@@ -1,5 +1,5 @@
 import { BUILDINGS, BOARD_SIZE, MAX_BUILDING_LEVEL, OFFLINE_CAP_MINUTES } from './definitions';
-import { advanceTime, createInitialState } from './engine';
+import { advanceTime, completeReadyConstructions, createInitialState } from './engine';
 import { ensureCommunity } from './community';
 import { ensureWorldState } from './livingWorld';
 import { synchronizeKingdomProgression } from './progression';
@@ -43,10 +43,21 @@ function sanitizeBuildings(value: unknown): Building[] {
     if (ids.has(id) || tiles.has(x + ',' + y)) continue;
     if (type === 'townHall' && hasTownHall) continue;
 
+    let construction: Building['construction'];
+    if (isRecord(raw.construction)) {
+      const job = raw.construction;
+      if ((job.kind === 'build' || job.kind === 'upgrade')
+        && typeof job.startedAt === 'number' && Number.isFinite(job.startedAt)
+        && typeof job.completesAt === 'number' && Number.isFinite(job.completesAt)
+        && typeof job.targetLevel === 'number' && Number.isInteger(job.targetLevel)
+        && job.targetLevel >= 1 && job.targetLevel <= MAX_BUILDING_LEVEL) {
+        construction = { kind: job.kind, startedAt: job.startedAt, completesAt: job.completesAt, targetLevel: job.targetLevel };
+      }
+    }
     ids.add(id);
     tiles.add(x + ',' + y);
     if (type === 'townHall') hasTownHall = true;
-    buildings.push({ id, type: type as BuildingType, x: x as number, y: y as number, level: level as number });
+    buildings.push({ id, type: type as BuildingType, x: x as number, y: y as number, level: level as number, ...(construction ? { construction } : {}) });
   }
   return buildings;
 }
@@ -74,7 +85,7 @@ function normalizeSavedState(raw: GameState, updateCampaign = true): GameState |
   const hall = state.buildings.find((building) => building.type === 'townHall');
   if (hall) {
     const nonHallCapacity = state.buildings
-      .filter((building) => building.type !== 'townHall')
+      .filter((building) => building.type !== 'townHall' && building.construction?.kind !== 'build')
       .reduce((total, building) => total + (BUILDINGS[building.type].housing ?? 0) * building.level, 0);
     while (hall.level < MAX_BUILDING_LEVEL
       && nonHallCapacity + (BUILDINGS.townHall.housing ?? 0) * hall.level + (state.community?.housingBonus ?? 0) < state.population) {
@@ -124,13 +135,25 @@ export function applyOfflineProgress(state: GameState, now = Date.now()): { stat
   const normalized = ensureCommunity(state);
   const elapsedSeconds = Math.floor(Math.max(0, now - (normalized.lastSavedAt || now)) / 1000);
   const minutes = Math.min(OFFLINE_CAP_MINUTES * 60, elapsedSeconds);
-  let copy: GameState = { ...normalized, resources: { ...normalized.resources }, buildings: normalized.buildings.map((building) => ({ ...building })) };
+  let copy: GameState = { ...normalized, resources: { ...normalized.resources }, buildings: normalized.buildings.map((building) => ({ ...building, ...(building.construction ? { construction: { ...building.construction } } : {}) })) };
   let remaining = minutes;
+  let simulatedAt = now - minutes * 1000;
   while (remaining > 0) {
-    const chunk = Math.min(360, remaining);
+    copy = completeReadyConstructions(copy, simulatedAt).state;
+    const nextFinish = copy.buildings
+      .filter((building) => building.construction && building.construction.completesAt > simulatedAt)
+      .reduce((soonest, building) => Math.min(soonest, building.construction!.completesAt), Number.POSITIVE_INFINITY);
+    let chunk = Math.min(360, remaining);
+    if (Number.isFinite(nextFinish)) {
+      const untilFinish = Math.max(1, Math.ceil((nextFinish - simulatedAt) / 1000));
+      chunk = Math.min(chunk, untilFinish);
+    }
     copy = advanceTime(copy, chunk, false, true);
     remaining -= chunk;
+    simulatedAt += chunk * 1000;
+    copy = completeReadyConstructions(copy, simulatedAt).state;
   }
+  copy = completeReadyConstructions(copy, now).state;
 
   // Community requests use game time too, but offline time must not consume their response window.
   if (copy.community && minutes > 0) {

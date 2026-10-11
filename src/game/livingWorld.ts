@@ -357,7 +357,7 @@ export function ensureWorldState(state: GameState): GameState {
     ...citizen,
     relationships: Object.fromEntries(Object.entries(citizen.relationships).filter(([id]) => id !== citizen.id && presentCitizenIds.has(id))),
   }));
-  const homes = state.buildings.filter((building) => (BUILDINGS[building.type]?.housing ?? 0) > 0);
+  const homes = state.buildings.filter((building) => (BUILDINGS[building.type]?.housing ?? 0) > 0 && building.construction?.kind !== 'build');
   const occupied = new Map<string, number>();
   citizens = citizens.map((citizen, index) => {
     const oldHome = homes.find((building) => building.id === citizen.homeId);
@@ -471,6 +471,7 @@ export function ensureWorldState(state: GameState): GameState {
 const BUILDING_JOB: Partial<Record<BuildingType, Profession>> = {
   farm: 'farmer', sawmill: 'lumberjack', quarry: 'miner', market: 'merchant', mill: 'miller',
   bakery: 'baker', school: 'scholar', watchtower: 'guard', workshop: 'artisan', university: 'scholar',
+  orchard: 'farmer', fishingHut: 'farmer', herbGarden: 'farmer', inn: 'merchant', ironworks: 'artisan', observatory: 'scholar',
 };
 
 export const CITIZEN_ACTIVITY_LABELS: Record<import('./types').CitizenActivity, string> = {
@@ -480,7 +481,7 @@ export const CITIZEN_ACTIVITY_LABELS: Record<import('./types').CitizenActivity, 
 
 export function getCitizenWorkplace(state: GameState, citizen: Citizen): Building | null {
   if (citizen.age < 14 || citizen.status !== 'resident') return null;
-  const compatible = state.buildings.filter((building) => BUILDING_JOB[building.type] === citizen.profession);
+  const compatible = state.buildings.filter((building) => BUILDING_JOB[building.type] === citizen.profession && building.construction?.kind !== 'build');
   if (!compatible.length) return null;
   const explicit = compatible.find((building) => building.id === citizen.workplaceId);
   if (explicit) return explicit;
@@ -808,7 +809,7 @@ function applyGoods(goods: GoodsBag, reward: Partial<GoodsBag> = {}): GoodsBag {
   return next;
 }
 function housing(state: GameState): number {
-  return state.buildings.reduce((total, building) => total + (BUILDINGS[building.type].housing ?? 0) * building.level, 0)
+  return state.buildings.reduce((total, building) => total + (building.construction?.kind === 'build' ? 0 : (BUILDINGS[building.type].housing ?? 0) * building.level), 0)
     + (state.community?.housingBonus ?? 0);
 }
 
@@ -1194,7 +1195,7 @@ export function advanceRealmMinute(input: GameState): GameState {
   if (nextWorld.activeResearch) {
     const definition = RESEARCH.find((entry) => entry.id === nextWorld.activeResearch);
     if (definition) {
-      nextWorld = { ...nextWorld, researchProgress: nextWorld.researchProgress + 0.24 + scholars * 0.43 + (nextWorld.completedProjects.includes('grand-archive') ? 0.12 : 0) + (state.buildings.some((building) => building.type === 'university') ? 0.45 : 0) };
+      nextWorld = { ...nextWorld, researchProgress: nextWorld.researchProgress + 0.24 + scholars * 0.43 + (nextWorld.completedProjects.includes('grand-archive') ? 0.12 : 0) + (state.buildings.some((building) => building.type === 'university' && building.construction?.kind !== 'build') ? 0.45 : 0) + state.buildings.filter((building) => building.type === 'observatory' && building.construction?.kind !== 'build').reduce((sum, building) => sum + 0.18 * building.level, 0) };
       if (nextWorld.researchProgress >= definition.duration) {
         nextWorld = { ...nextWorld, researched: [...new Set([...nextWorld.researched, definition.id])], activeResearch: null, researchProgress: 0 };
         notes.push('Ricerca completata: ' + definition.name + '.');

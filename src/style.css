@@ -189,7 +189,7 @@ button:disabled { cursor: not-allowed; }
 .danger:hover { background: #f3d9ce; }
 
 .epoch-progress { margin: 11px 0 13px; padding: 10px; border: 1px solid #e6e1cf; border-radius: 11px; background: #f8f6ed; }
-.epoch-track { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.epoch-track { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
 .epoch-step { min-width: 0; padding: 5px 2px; border: 1px solid #e8e7dc; border-radius: 7px; background: #f0efe6; color: #9ba292; text-align: center; }
 .epoch-step > span { display: block; font-size: 14px; line-height: 1.25; }
 .epoch-step small { display: block; margin-top: 2px; font-size: 8px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }

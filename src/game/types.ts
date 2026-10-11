@@ -1,6 +1,6 @@
 export type Resource = 'wood' | 'stone' | 'food' | 'coins';
-export type BuildingType = 'townHall' | 'house' | 'farm' | 'sawmill' | 'quarry' | 'market' | 'road' | 'mill' | 'bakery' | 'warehouse' | 'school' | 'watchtower' | 'workshop' | 'university';
-export type EpochId = 'settlement' | 'village' | 'borough' | 'city';
+export type BuildingType = 'townHall' | 'house' | 'farm' | 'sawmill' | 'quarry' | 'market' | 'road' | 'mill' | 'bakery' | 'warehouse' | 'school' | 'watchtower' | 'workshop' | 'university' | 'orchard' | 'fishingHut' | 'herbGarden' | 'inn' | 'ironworks' | 'observatory';
+export type EpochId = 'settlement' | 'village' | 'borough' | 'city' | 'metropolis' | 'empire';
 export interface KingdomProgression { unlockedEpochs: EpochId[]; campaignComplete: boolean; history: string[] }
 export type Terrain = 'grass' | 'forest' | 'rock' | 'water';
 export type GameMode = 'kingdom' | 'challenge';
@@ -47,7 +47,8 @@ export type ProjectId = 'aqueduct' | 'stone-bridge' | 'artisan-quarter' | 'grand
 export interface Faction { id: string; name: string; specialty: string; relation: number; lastContact: number; treaty: boolean; need?: Resource; offer?: Resource; needAmount?: number; offerAmount?: number; treatyBenefit?: string }
 export interface WorldState { version: 1; nextCitizenId: number; citizens: Citizen[]; goods: GoodsBag; policies: RealmPolicies; researchPoints: number; activeResearch: ResearchId | null; researchProgress: number; researched: ResearchId[]; expeditions: Expedition[]; discoveredRegions: RegionId[]; chronicle: string[]; activeEvent: RealmEvent | null; nextEventAt: number; queuedEvent: string | null; eventQueue?: string[]; projectStages: Record<ProjectId, number>; market: MarketState; forestHealth: number; weather: WeatherState; completedProjects: ProjectId[]; factions: Faction[]; tradeRoutes: string[]; frontierTerritories: FrontierTerritory[]; frontierPerks: FrontierPerkId[] }
 export type RealmAction = | { type: 'colonize'; id: RegionId } | { type: 'frontierBuild'; region: RegionId; structure: FrontierStructureType; x: number; y: number } | { type: 'assign'; citizenId: string; value: Profession } | { type: 'workplace'; citizenId: string; buildingId: string | null } | { type: 'law'; id: 'tax' | 'food' | 'forest' | 'guard'; value: string } | { type: 'research'; id: ResearchId } | { type: 'expedition'; id: RegionId; scoutId?: string; crewIds?: string[]; foodSupply?: number; durationFactor?: number; useTools?: boolean } | { type: 'project'; id: ProjectId } | { type: 'event'; id: string } | { type: 'diplomacy'; id: string; value: 'gift' | 'trade' | 'treaty' } | { type: 'tradeGoods'; good: TradableGood; amount: number } | { type: 'buyResource'; resource: MarketResource; amount: number };
-export interface Building { id: string; type: BuildingType; x: number; y: number; level: number }
+export interface BuildingConstruction { kind: 'build' | 'upgrade'; startedAt: number; completesAt: number; targetLevel: number }
+export interface Building { id: string; type: BuildingType; x: number; y: number; level: number; construction?: BuildingConstruction }
 export interface GameState { version: 1; seed: number; resources: ResourceBag; population: number; gameMinutes: number; buildings: Building[]; lastSavedAt: number; milestones?: number[]; community?: CommunityState; world?: WorldState; progression?: KingdomProgression }
 export interface BuildingDefinition { type: BuildingType; name: string; shortName: string; description: string; icon: string; cost: Partial<ResourceBag>; unlockedAt: number; housing?: number; production?: Partial<Record<Resource, number>> }
 export interface BuildCheck { ok: boolean; reason?: string }

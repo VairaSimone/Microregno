@@ -1,4 +1,4 @@
-import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
+import { BUILDINGS, BUILD_ORDER, constructionDuration, formatConstructionTime, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
 import { activeChallengeStreak, getAchievementProgress, getChallengeArchive } from './game/profile';
 import { EPOCHS,EPOCH_ORDER,getBuildingEpoch,getCharterRequirements,getCurrentEpochId,getEpochRequirements,isEpochUnlocked } from './game/progression';
@@ -11,6 +11,7 @@ import type { BuildingType, FrontierStructureType, GameSnapshot, Profession, Reg
 
 const WORKPLACE_PROFESSION: Partial<Record<BuildingType, Profession>> = {
   farm: 'farmer', sawmill: 'lumberjack', quarry: 'miner', market: 'merchant', mill: 'miller', bakery: 'baker', school: 'scholar', watchtower: 'guard', workshop: 'artisan', university: 'scholar',
+  orchard: 'farmer', fishingHut: 'farmer', herbGarden: 'farmer', inn: 'merchant', ironworks: 'artisan', observatory: 'scholar',
 };
 
 const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
@@ -72,8 +73,8 @@ let lastTutorialMessageKey = '';
 
 function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
   const state = snapshot.state;
-  const has = (type: BuildingType): boolean => state.buildings.some((building) => building.type === type);
-  const hasEpoch = (id: 'village' | 'borough' | 'city'): boolean => state.progression?.unlockedEpochs.includes(id) ?? false;
+  const has = (type: BuildingType): boolean => state.buildings.some((building) => building.type === type && building.construction?.kind !== 'build');
+  const hasEpoch = (id: 'village' | 'borough' | 'city' | 'metropolis' | 'empire'): boolean => state.progression?.unlockedEpochs.includes(id) ?? false;
   const world = state.world;
   const researched = world?.researched.length ?? 0;
   const regions = world?.discoveredRegions.length ?? 0;
@@ -83,13 +84,13 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
     {
       key: 'farm', title: '1 · Metti al sicuro il cibo',
       description: 'Ciao, custode! Sono Bricco. Prima di tutto, costruiamo una Fattoria: senza cibo nessun borgo può crescere.',
-      rule: 'Scegli Fattoria nel pannello Costruisci, poi clicca una casella d’erba libera. Costa 10 legname e 3 pietra; ogni minuto produce cibo, se ha lavoratori.',
+      rule: 'Scegli Fattoria nel pannello Costruisci, poi clicca una casella d’erba libera. Costa 10 legname e 3 pietra; il cantiere dura 12 secondi, poi inizierà a produrre cibo con lavoratori.'
       actionType: 'farm', action: 'build', actionLabel: 'Scegli la Fattoria', done: has('farm'),
     },
     {
       key: 'house', title: '2 · Diamo un tetto ai vicini',
       description: 'Bene! Adesso prepara una Casa. Il Municipio ha già spazio per cinque abitanti, ma per crescere ci servono altri posti.',
-      rule: 'La Casa costa 12 legname e 5 pietra e aggiunge 6 posti. Per attirare nuovi abitanti tieni almeno 18 cibo e un posto libero.',
+      rule: 'La Casa costa 12 legname e 5 pietra, il cantiere dura 10 secondi e aggiunge 6 posti solo quando è terminata. Per attirare nuovi abitanti tieni almeno 18 cibo e un posto libero.'
       actionType: 'house', action: 'build', actionLabel: 'Scegli una Casa', done: has('house'),
     },
     {
@@ -150,7 +151,7 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
     {
       key: 'city', title: '11 · Prepariamo la Città',
       description: 'Il passaggio alla Città è una prova completa di gestione: popolazione, istruzione, ricerca, grandi opere e rotte devono crescere insieme.',
-      rule: 'Servono 18 abitanti, una Scuola, 2 ricerche, una grande opera, 2 regioni scoperte e un edificio al livello 3. La lista “Campagna e obiettivi” mostra i progressi aggiornati.',
+      rule: 'Servono 18 abitanti, una Scuola, 2 ricerche, una grande opera, 2 regioni scoperte e un edificio al livello 3. Ogni potenziamento richiede un cantiere: pianifica prima i materiali.'
       actionType: null, action: 'objectives', actionLabel: 'Controlla i requisiti della Città', done: hasEpoch('city'),
     },
     {
@@ -160,13 +161,25 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
       actionType: 'university', action: 'build', actionLabel: 'Scegli l’Università Reale', done: has('university'),
     },
     {
-      key: 'charter', title: '13 · La Carta della Corona',
+      key: 'metropolis', title: '13 · Facciamo crescere la Metropoli',
+      description: 'Una grande città vive di specializzazioni. Frutteti, peschiere, erbe, locande e fucine danno nuove strade alla tua economia.',
+      rule: 'La Metropoli richiede 28 abitanti, l’Università, quattro ricerche, due opere, tre regioni, due edifici al livello 4 e tre edifici specializzati.',
+      actionType: null, action: 'objectives', actionLabel: 'Controlla i requisiti della Metropoli', done: hasEpoch('metropolis'),
+    },
+    {
+      key: 'empire', title: '14 · Fondiamo un Impero',
+      description: 'Ora non basta più crescere: devi coordinare regioni, alleanze, grandi opere ed edifici che hanno raggiunto la loro maturità.',
+      rule: 'L’Impero richiede 45 abitanti, quattro edifici al livello 5, tutte le grandi opere, cinque ricerche, quattro regioni, tre accordi o rotte, Osservatorio e 350 monete.',
+      actionType: null, action: 'objectives', actionLabel: 'Controlla i requisiti dell’Impero', done: hasEpoch('empire'),
+    },
+    {
+      key: 'charter', title: '15 · La Carta della Corona',
       description: 'L’ultimo traguardo mette alla prova tutto ciò che hai imparato. La Corona richiede una città prospera, alleanze e opere durature.',
-      rule: 'Per completare la campagna servono 24 abitanti, due edifici al livello 3, tre grandi opere, due accordi diplomatici, tre regioni, l’Università e 100 monete.',
+      rule: 'La Carta richiede un vero Impero: 60 abitanti, sei edifici al livello 5, quattro grandi opere, quattro accordi o rotte, tutte le cinque regioni, Università al livello 5, Osservatorio al livello 3 e 500 monete.'
       actionType: null, action: 'objectives', actionLabel: 'Controlla la Carta della Corona', done: state.progression?.campaignComplete === true,
     },
     {
-      key: 'challenge', title: '14 · Metti alla prova il regno',
+      key: 'challenge', title: '16 · Metti alla prova il regno',
       description: 'Quando vuoi una sfida breve, prova la missione giornaliera. Cambia obiettivo e condizioni e ti permette di migliorare medaglie e record.',
       rule: 'La sfida del giorno usa una partita indipendente: non consuma risorse e non cambia gli edifici del tuo regno principale. Medaglie e traguardi sono salvati nel profilo locale.',
       actionType: null, action: 'challenge', actionLabel: 'Scopri la sfida del giorno', done: snapshot.playerProfile.records.length > 0,
@@ -291,9 +304,10 @@ function renderBuildList(snapshot: GameSnapshot): void {
   const coreTypes = new Set<BuildingType>([
     'farm',
     'house',
-    ...(population >= 8 ? ['sawmill', 'quarry', 'market', 'road', 'mill', 'warehouse'] as BuildingType[] : []),
-    ...(population >= 12 ? ['bakery', 'school', 'workshop', 'watchtower'] as BuildingType[] : []),
+    ...(population >= 8 ? ['sawmill', 'quarry', 'market', 'road', 'mill', 'warehouse', 'orchard', 'fishingHut', 'herbGarden'] as BuildingType[] : []),
+    ...(population >= 12 ? ['bakery', 'school', 'workshop', 'watchtower', 'inn', 'ironworks'] as BuildingType[] : []),
     ...(isEpochUnlocked(snapshot.state, 'city') ? ['university'] as BuildingType[] : []),
+    ...(isEpochUnlocked(snapshot.state, 'metropolis') ? ['observatory'] as BuildingType[] : []),
   ]);
   // Keep the first screen focused on the next sensible choices. The complete sandbox
   // catalogue remains available on demand; locked items are not the first thing a new
@@ -346,7 +360,7 @@ function renderBuildList(snapshot: GameSnapshot): void {
       ...(population < definition.unlockedAt ? [definition.unlockedAt + ' abitanti'] : []),
       ...(!isEpochUnlocked(snapshot.state, requiredEpoch) ? ['epoca ' + EPOCHS[requiredEpoch].name] : []),
     ];
-    cost.textContent = forbiddenByChallenge ? 'Vietata in questa sfida' : !unlocked ? 'Richiede ' + lockDetails.join(' · ') : formatCost(definition.cost);
+    cost.textContent = forbiddenByChallenge ? 'Vietata in questa sfida' : !unlocked ? 'Richiede ' + lockDetails.join(' · ') : formatCost(definition.cost) + ' · ⏱ ' + formatConstructionTime(constructionDuration(type));
 
     copy.append(title, cost);
 
@@ -511,12 +525,16 @@ function renderEpochPanel(snapshot: GameSnapshot): void {
   });
 
   $('epoch-title').textContent = complete ? 'Carta della Corona' : EPOCHS[current].name;
-  $('epoch-count').textContent = complete ? 'CAMPAGNA CONCLUSA' : (currentIndex + 1) + '/4 EPOCHE';
+  $('epoch-count').textContent = complete ? 'CAMPAGNA CONCLUSA' : (currentIndex + 1) + '/6 EPOCHE';
   $('epoch-summary').textContent = complete
-    ? 'Brumadoro è una città autonoma. Hai completato la campagna: il regno può continuare a prosperare in modalità libera.'
-    : current === 'city'
-      ? 'L’ultima impresa è la Carta della Corona: dimostra che la Città sa sostenere popolazione, opere pubbliche, rotte e conoscenza.'
-      : EPOCHS[current].summary;
+    ? 'Brumadoro è diventato un Impero. Hai completato la Carta della Corona: il regno può continuare a prosperare in modalità libera.'
+    : current === 'empire'
+      ? 'L’ultima impresa è la Carta della Corona: dimostra che il tuo Impero sa sostenere popolazione, opere pubbliche, rotte e conoscenza.'
+      : current === 'metropolis'
+        ? 'La Metropoli ha bisogno di quartieri specializzati, edifici al livello 4 e una rete di ricerca più matura.'
+        : current === 'city'
+          ? 'La Città ha aperto nuove possibilità. Rafforza l’economia, completa le ricerche e prepara la Metropoli.'
+          : EPOCHS[current].summary;
 
   // Detailed requirements are shown once in the objective list below.
 
@@ -671,9 +689,9 @@ function renderObjectives(snapshot: GameSnapshot): void {
   } else {
     const current = getCurrentEpochId(state);
     const nextIndex = EPOCH_ORDER.indexOf(current) + 1;
-    const criteria = current === 'city' || state.progression?.campaignComplete
+    const criteria = current === 'empire' || state.progression?.campaignComplete
       ? getCharterRequirements(state)
-      : getEpochRequirements(state, EPOCH_ORDER[nextIndex]!);
+      : getEpochRequirements(state, EPOCH_ORDER[nextIndex] ?? 'empire');
     objectives = criteria.map((entry) => ({ label: entry.label, done: entry.done, value: entry.value }));
     if (state.progression?.campaignComplete) {
       objectives = [{ label: 'Carta della Corona firmata', done: true, value: 'Campagna completata' }, ...objectives];
@@ -719,7 +737,12 @@ function renderInspector(snapshot: GameSnapshot): void {
     $('inspector-copy').textContent = definition.description;
 
     addStat(stats, 'Livello', selected.level + ' / ' + MAX_BUILDING_LEVEL);
-    if (definition.housing) addStat(stats, 'Capienza abitativa', '+' + definition.housing * selected.level);
+    if (selected.construction) {
+      addStat(stats, 'Stato', selected.construction.kind === 'build' ? 'Cantiere in corso' : 'Miglioramento in corso');
+      addStat(stats, 'Tempo restante', formatConstructionTime(Math.max(0, Math.ceil((selected.construction.completesAt - Date.now()) / 1000))));
+      if (selected.construction.kind === 'upgrade') addStat(stats, 'Prossimo livello', String(selected.construction.targetLevel));
+    }
+    if (definition.housing) addStat(stats, 'Capienza abitativa', (selected.construction?.kind === 'build' ? 'al termine: +' : '+') + definition.housing * selected.level);
 
     const output = productionForBuilding(selected, generateTerrain(snapshot.state.seed), snapshot.state.gameMinutes, snapshot.state.community?.morale ?? 60, worldBuildingMultiplier(snapshot.state, selected));
     Object.entries(output).forEach(([resource, amount]) => {
@@ -729,12 +752,12 @@ function renderInspector(snapshot: GameSnapshot): void {
     else if (!definition.housing && Object.keys(output).length === 0) addStat(stats, 'Funzione', 'Edificio di servizio');
 
     const upgrade = $('upgrade-button') as HTMLButtonElement;
-    const canUpgrade = selected.type !== 'road' && selected.level < MAX_BUILDING_LEVEL && !snapshot.challengeCompleted;
+    const canUpgrade = selected.type !== 'road' && selected.level < MAX_BUILDING_LEVEL && !selected.construction && !snapshot.challengeCompleted;
     upgrade.classList.toggle('hidden', !canUpgrade);
     if (canUpgrade) {
       const cost = upgradeCost(selected);
       const affordable = Object.entries(cost).every(([resource, amount]) => snapshot.state.resources[resource as Resource] >= (amount ?? 0));
-      upgrade.textContent = 'Migliora · livello ' + (selected.level + 1) + ' · ' + formatCost(cost);
+      upgrade.textContent = 'Migliora · livello ' + (selected.level + 1) + ' · ' + formatCost(cost) + ' · ⏱ ' + formatConstructionTime(constructionDuration(selected.type, selected.level, 'upgrade'));
       upgrade.disabled = !affordable;
     }
 
@@ -743,7 +766,7 @@ function renderInspector(snapshot: GameSnapshot): void {
   } else if (snapshot.selectedBuildType) {
     const definition = BUILDINGS[snapshot.selectedBuildType];
     $('inspector-title').textContent = 'Posiziona ' + definition.shortName;
-    $('inspector-copy').textContent = definition.description + ' Costo: ' + formatCost(definition.cost) + '.';
+    $('inspector-copy').textContent = definition.description + ' Costo: ' + formatCost(definition.cost) + '. Tempo di costruzione: ' + formatConstructionTime(constructionDuration(snapshot.selectedBuildType)) + '.';
     $('upgrade-button').classList.add('hidden');
     $('demolish-button').classList.add('hidden');
     $('cancel-build').classList.remove('hidden');
@@ -858,7 +881,7 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
       const tieCitizen = nearestTie ? world.citizens.find((other) => other.id === nearestTie[0]) : undefined;
       const relationshipNote = tieCitizen && nearestTie ? (nearestTie[1] >= 25 ? 'Amico di ' : nearestTie[1] <= -15 ? 'In contrasto con ' : 'Conosce ') + tieCitizen.name : '';
       const options = PROFESSIONS.map((profession) => '<option value="' + profession + '"' + (citizen.profession === profession ? ' selected' : '') + '>' + escapeRealmHtml(PROFESSION_LABELS[profession]) + '</option>').join('');
-      const compatibleBuildings = state.buildings.filter((building) => WORKPLACE_PROFESSION[building.type] === citizen.profession);
+      const compatibleBuildings = state.buildings.filter((building) => WORKPLACE_PROFESSION[building.type] === citizen.profession && building.construction?.kind !== 'build');
       const actualWorkplace = getCitizenWorkplace(state, citizen);
       const workplaceOptions = '<option value="auto"' + (!citizen.workplaceId ? ' selected' : '') + '>Automatica' + (actualWorkplace ? ' · ' + escapeRealmHtml(BUILDINGS[actualWorkplace.type].shortName) : '') + '</option>' + compatibleBuildings.map((building) => '<option value="' + escapeRealmHtml(building.id) + '"' + (citizen.workplaceId === building.id ? ' selected' : '') + '>' + escapeRealmHtml(BUILDINGS[building.type].shortName) + ' · livello ' + building.level + '</option>').join('');
       const routine = CITIZEN_ACTIVITY_LABELS[getCitizenActivity(state, citizen)];

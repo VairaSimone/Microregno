@@ -16,7 +16,7 @@ export interface ProgressionCriterion {
   value: string;
 }
 
-export const EPOCH_ORDER: EpochId[] = ['settlement', 'village', 'borough', 'city'];
+export const EPOCH_ORDER: EpochId[] = ['settlement', 'village', 'borough', 'city', 'metropolis', 'empire'];
 
 export const EPOCHS: Record<EpochId, EpochDefinition> = {
   settlement: {
@@ -39,6 +39,16 @@ export const EPOCHS: Record<EpochId, EpochDefinition> = {
     summary: 'Le rotte raggiungono terre lontane. Organizza grandi opere e prepara la Carta della Corona.',
     story: 'Le spedizioni hanno aperto nuove rotte e le opere comuni hanno cambiato il territorio. Il Consiglio riconosce Brumadoro come Città e autorizza la costruzione dell’Università Reale.',
   },
+  metropolis: {
+    id: 'metropolis', name: 'Metropoli', icon: '🌆', reward: 90,
+    summary: 'Specializza l’economia, porta gli edifici al livello 4 e coordina regioni, studiosi e cantieri.',
+    story: 'Le strade di Brumadoro non finiscono più ai confini della valle. Nuovi quartieri, viandanti e mestieri specializzati fanno della città un centro di scambi e conoscenza.',
+  },
+  empire: {
+    id: 'empire', name: 'Impero', icon: '👑', reward: 120,
+    summary: 'Costruisci un’economia matura, completa le grandi opere e prepara la Carta della Corona.',
+    story: 'Le regioni riconoscono l’autorità del Consiglio di Brumadoro. Solo un regno capace di sostenere grandi città, scienza e rotte durature potrà firmare la Carta della Corona.',
+  }
 };
 
 const BUILDING_EPOCH: Partial<Record<BuildingType, EpochId>> = {
@@ -56,14 +66,24 @@ const BUILDING_EPOCH: Partial<Record<BuildingType, EpochId>> = {
   watchtower: 'borough',
   workshop: 'borough',
   university: 'city',
+  orchard: 'village',
+  fishingHut: 'village',
+  herbGarden: 'village',
+  inn: 'borough',
+  ironworks: 'borough',
+  observatory: 'metropolis',
 };
 
 const countBuildings = (state: GameState, type: BuildingType): number =>
-  state.buildings.filter((building) => building.type === type).length;
+  state.buildings.filter((building) => building.type === type && building.construction?.kind !== 'build').length;
 const levelTwoCount = (state: GameState): number =>
-  state.buildings.filter((building) => building.type !== 'road' && building.level >= 2).length;
+  state.buildings.filter((building) => building.type !== 'road' && building.construction?.kind !== 'build' && building.level >= 2).length;
 const levelThreeCount = (state: GameState): number =>
-  state.buildings.filter((building) => building.type !== 'road' && building.level >= 3).length;
+  state.buildings.filter((building) => building.type !== 'road' && building.construction?.kind !== 'build' && building.level >= 3).length;
+const levelFourCount = (state: GameState): number =>
+  state.buildings.filter((building) => building.type !== 'road' && building.construction?.kind !== 'build' && building.level >= 4).length;
+const levelFiveCount = (state: GameState): number =>
+  state.buildings.filter((building) => building.type !== 'road' && building.construction?.kind !== 'build' && building.level >= 5).length;
 const researchCount = (state: GameState): number => state.world?.researched.length ?? 0;
 const projectCount = (state: GameState): number => state.world?.completedProjects.length ?? 0;
 const regionCount = (state: GameState): number => state.world?.discoveredRegions.length ?? 0;
@@ -138,24 +158,51 @@ export function getEpochRequirements(state: GameState, target: EpochId): Progres
       criterion('city-level-three', 'Porta un edificio al livello 3', threePlus >= 1, threePlus + '/1 edificio al livello 3'),
     ];
   }
+
+  if (target === 'metropolis') {
+    const newEconomyBuildings = ['orchard', 'fishingHut', 'herbGarden', 'inn', 'ironworks'] as BuildingType[];
+    const newEconomyCount = newEconomyBuildings.reduce((total, type) => total + countBuildings(state, type), 0);
+    return [
+      criterion('metropolis-population', 'Raggiungi 28 abitanti', pop >= 28, Math.min(pop, 28) + '/28 abitanti'),
+      criterion('metropolis-university', 'Apri l’Università Reale', countBuildings(state, 'university') >= 1, countBuildings(state, 'university') + '/1 università'),
+      criterion('metropolis-research', 'Completa 4 ricerche', researched >= 4, Math.min(researched, 4) + '/4 ricerche'),
+      criterion('metropolis-projects', 'Completa 2 grandi opere', projects >= 2, Math.min(projects, 2) + '/2 progetti'),
+      criterion('metropolis-regions', 'Scopri 3 regioni', regions >= 3, Math.min(regions, 3) + '/3 regioni'),
+      criterion('metropolis-level-four', 'Porta 2 edifici al livello 4', levelFourCount(state) >= 2, Math.min(levelFourCount(state), 2) + '/2 edifici'),
+      criterion('metropolis-special-buildings', 'Costruisci 3 edifici economici specializzati', newEconomyCount >= 3, Math.min(newEconomyCount, 3) + '/3 edifici'),
+    ];
+  }
+  if (target === 'empire') {
+    return [
+      criterion('empire-population', 'Raggiungi 45 abitanti', pop >= 45, Math.min(pop, 45) + '/45 abitanti'),
+      criterion('empire-level-five', 'Porta 4 edifici al livello 5', levelFiveCount(state) >= 4, Math.min(levelFiveCount(state), 4) + '/4 edifici'),
+      criterion('empire-projects', 'Completa tutte le 4 grandi opere', projects >= 4, Math.min(projects, 4) + '/4 progetti'),
+      criterion('empire-research', 'Completa 5 ricerche', researched >= 5, Math.min(researched, 5) + '/5 ricerche'),
+      criterion('empire-regions', 'Scopri 4 regioni', regions >= 4, Math.min(regions, 4) + '/4 regioni'),
+      criterion('empire-routes', 'Stringi 3 accordi o rotte commerciali', routeCount(state) >= 3, Math.min(routeCount(state), 3) + '/3 accordi'),
+      criterion('empire-observatory', 'Costruisci l’Osservatorio Reale', countBuildings(state, 'observatory') >= 1, countBuildings(state, 'observatory') + '/1 osservatorio'),
+      criterion('empire-coins', 'Accumula 350 monete', state.resources.coins >= 350, Math.min(Math.floor(state.resources.coins), 350) + '/350 monete'),
+    ];
+  }
   return [];
 }
 
 export function getCharterRequirements(state: GameState): ProgressionCriterion[] {
   const pop = state.population;
-  const threePlus = levelThreeCount(state);
   const projects = projectCount(state);
   const routes = routeCount(state);
   const regions = regionCount(state);
-  const university = countBuildings(state, 'university');
+  const university = state.buildings.find((building) => building.type === 'university' && building.construction?.kind !== 'build');
+  const observatory = state.buildings.find((building) => building.type === 'observatory' && building.construction?.kind !== 'build');
   return [
-    criterion('charter-population', 'Raggiungi 24 abitanti', pop >= 24, Math.min(pop, 24) + '/24 abitanti'),
-    criterion('charter-level-three', 'Porta 2 edifici al livello 3', threePlus >= 2, Math.min(threePlus, 2) + '/2 edifici'),
-    criterion('charter-projects', 'Completa 3 grandi opere', projects >= 3, Math.min(projects, 3) + '/3 progetti'),
-    criterion('charter-routes', 'Stringi 2 accordi diplomatici', routes >= 2, Math.min(routes, 2) + '/2 accordi'),
-    criterion('charter-regions', 'Scopri 3 regioni', regions >= 3, Math.min(regions, 3) + '/3 regioni'),
-    criterion('charter-university', 'Costruisci l’Università Reale', university >= 1, university + '/1 università'),
-    criterion('charter-coins', 'Riserva 100 monete per la Corona', state.resources.coins >= 100, Math.min(Math.floor(state.resources.coins), 100) + '/100 monete'),
+    criterion('charter-population', 'Raggiungi 60 abitanti', pop >= 60, Math.min(pop, 60) + '/60 abitanti'),
+    criterion('charter-level-five', 'Porta 6 edifici al livello 5', levelFiveCount(state) >= 6, Math.min(levelFiveCount(state), 6) + '/6 edifici'),
+    criterion('charter-projects', 'Completa tutte le 4 grandi opere', projects >= 4, Math.min(projects, 4) + '/4 progetti'),
+    criterion('charter-routes', 'Stringi 4 accordi o rotte commerciali', routes >= 4, Math.min(routes, 4) + '/4 accordi'),
+    criterion('charter-regions', 'Scopri tutte le 5 regioni', regions >= 5, Math.min(regions, 5) + '/5 regioni'),
+    criterion('charter-university', 'Porta l’Università Reale al livello 5', (university?.level ?? 0) >= 5, Math.min(university?.level ?? 0, 5) + '/5 livello'),
+    criterion('charter-observatory', 'Porta l’Osservatorio al livello 3', (observatory?.level ?? 0) >= 3, Math.min(observatory?.level ?? 0, 3) + '/3 livello'),
+    criterion('charter-coins', 'Riserva 500 monete per la Corona', state.resources.coins >= 500, Math.min(Math.floor(state.resources.coins), 500) + '/500 monete'),
   ];
 }
 
@@ -178,7 +225,7 @@ export function synchronizeKingdomProgression(input: GameState): ProgressionUpda
   let history = Array.isArray(current?.history)
     ? current.history.filter((entry): entry is string => typeof entry === 'string').slice(0, 12)
     : [EPOCHS.settlement.story];
-  let campaignComplete = current?.campaignComplete === true && unlocked.includes('city');
+  let campaignComplete = current?.campaignComplete === true && unlocked.includes('empire');
   let state: GameState = {
     ...input,
     resources: { ...input.resources },
@@ -209,11 +256,11 @@ export function synchronizeKingdomProgression(input: GameState): ProgressionUpda
   }
 
   let campaignJustCompleted = false;
-  if (!campaignComplete && unlocked.includes('city') && getCharterRequirements(state).every((entry) => entry.done)) {
+  if (!campaignComplete && unlocked.includes('empire') && getCharterRequirements(state).every((entry) => entry.done)) {
     campaignComplete = true;
     campaignJustCompleted = true;
     reward += 150;
-    const finale = '👑 La Carta della Corona è firmata. Brumadoro è una città autonoma: le grandi opere, le rotte diplomatiche e le conoscenze condivise ne garantiscono il futuro.';
+    const finale = '👑 La Carta della Corona è firmata. Brumadoro è diventato un Impero: cinque regioni collegate, grandi opere concluse, Università e Osservatorio ai massimi livelli ne garantiscono il futuro.';
     history = [finale, ...history].slice(0, 12);
     state = {
       ...state,

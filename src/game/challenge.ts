@@ -47,7 +47,7 @@ export function challengeProgress(s:GameState,c:DailyChallenge):number{
   if(category==='population')return Math.min(s.population,c.target);
   if(category==='resources')return Math.min(Math.floor(resourceTotal(s)),c.target);
   const type=category==='farms'?'farm':'house';
-  return Math.min(s.buildings.filter(b=>b.type===(c.buildingType??type)).length,c.target);
+  return Math.min(s.buildings.filter(b=>b.type===(c.buildingType??type)&&b.construction?.kind!=='build').length,c.target);
 }
 export function isChallengeComplete(s:GameState,c:DailyChallenge,eventTriggered=false):boolean{
   if(challengeProgress(s,c)<c.target)return false;

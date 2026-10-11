@@ -1,5 +1,6 @@
 import {describe,expect,it} from 'vitest';
-import {advanceTime,awardPopulationMilestones,buildAt,canBuild,createInitialState,generateTerrain,housingCapacity,productionForBuilding,resourceRates,upgradeBuilding} from './engine';
+import {advanceTime,awardPopulationMilestones,buildAt,canBuild,completeReadyConstructions,createInitialState,generateTerrain,housingCapacity,productionForBuilding,resourceRates,startBuildAt,startBuildingUpgrade,upgradeBuilding} from './engine';
+import {constructionDuration} from './definitions';
 import {createDailyChallenge,challengeProgress,isChallengeComplete} from './challenge';
 import {applyOfflineProgress} from './save';
 import {getSeason,resolveCitizenRequest} from './community';
@@ -71,7 +72,7 @@ describe('simulazione Microregno',()=>{
     expect(productionForBuilding(farm.state.buildings[1]!,map,360,60).food).toBeCloseTo(2.07);
     expect(resourceRates(farm.state,map,360).food).toBeCloseTo(productionForBuilding(farm.state.buildings[1]!,map,360,60,worldBuildingMultiplier(farm.state,farm.state.buildings[1]!)).food!-farm.state.population*.035);
   });
-  it('permette di migliorare un edificio fino al livello 3',()=>{
+  it('permette di migliorare un edificio fino al livello 5',()=>{
     const s=createInitialState(),map=generateTerrain(s.seed),farm=buildAt(s,map,6,4,'farm'),id=farm.state.buildings[1]!.id;
     const upgraded=upgradeBuilding(farm.state,id);
     expect(upgraded.check.ok).toBe(true);
@@ -81,7 +82,51 @@ describe('simulazione Microregno',()=>{
     expect(productionForBuilding(upgraded.state.buildings[1]!,map,360,60).food).toBeCloseTo(4.14);
     const levelThree=upgradeBuilding(upgraded.state,id);
     expect(levelThree.state.buildings[1]!.level).toBe(3);
-    expect(upgradeBuilding(levelThree.state,id).check.ok).toBe(false);
+    const levelFour=upgradeBuilding(levelThree.state,id);
+    expect(levelFour.state.buildings[1]!.level).toBe(4);
+    const levelFive=upgradeBuilding(levelFour.state,id);
+    expect(levelFive.state.buildings[1]!.level).toBe(5);
+    expect(upgradeBuilding(levelFive.state,id).check.ok).toBe(false);
+  });
+
+  it('assegna tempi crescenti a costruzioni e potenziamenti',()=>{
+    expect(constructionDuration('house')).toBe(10);
+    expect(constructionDuration('farm')).toBe(12);
+    expect(constructionDuration('university')).toBe(60);
+    expect(constructionDuration('house',1,'upgrade')).toBe(20);
+    expect(constructionDuration('house',4,'upgrade')).toBeGreaterThan(constructionDuration('house',1,'upgrade'));
+  });
+  it('una nuova casa non ospita abitanti prima della fine del cantiere',()=>{
+    const s=createInitialState(),map=generateTerrain(s.seed),now=1_000;
+    const started=startBuildAt(s,map,6,6,'house',now);
+    expect(started.check.ok).toBe(true);
+    expect(started.duration).toBe(10);
+    expect(started.state.buildings[1]!.construction?.kind).toBe('build');
+    expect(housingCapacity(started.state)).toBe(5);
+    expect(completeReadyConstructions(started.state,now+9_999).completed).toHaveLength(0);
+    const finished=completeReadyConstructions(started.state,now+10_000);
+    expect(finished.completed).toHaveLength(1);
+    expect(finished.state.buildings[1]!.construction).toBeUndefined();
+    expect(housingCapacity(finished.state)).toBe(11);
+  });
+  it('il potenziamento mantiene il livello precedente fino al termine del cantiere',()=>{
+    const s=createInitialState(),house=buildAt(s,generateTerrain(s.seed),6,6,'house'),id=house.state.buildings[1]!.id,now=2_000;
+    const started=startBuildingUpgrade(house.state,id,now);
+    expect(started.check.ok).toBe(true);
+    expect(started.duration).toBe(20);
+    expect(started.state.buildings[1]!.level).toBe(1);
+    expect(started.state.buildings[1]!.construction?.targetLevel).toBe(2);
+    expect(completeReadyConstructions(started.state,now+19_999).state.buildings[1]!.level).toBe(1);
+    const finished=completeReadyConstructions(started.state,now+20_000);
+    expect(finished.state.buildings[1]!.level).toBe(2);
+    expect(finished.state.buildings[1]!.construction).toBeUndefined();
+  });
+  it('una fattoria in costruzione inizia a produrre solo quando viene completata',()=>{
+    const s=createInitialState(),map=generateTerrain(s.seed),started=startBuildAt(s,map,6,4,'farm',5_000);
+    const building=started.state.buildings[1]!;
+    expect(productionForBuilding(building,map,0,60).food).toBeUndefined();
+    const finished=completeReadyConstructions(started.state,17_000);
+    expect(productionForBuilding(finished.state.buildings[1]!,map,0,60).food).toBeGreaterThan(0);
   });
   it('premia i traguardi di popolazione una sola volta',()=>{
     const s=createInitialState();s.population=8;

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createInitialState } from './engine';
+import { createInitialState, generateTerrain, startBuildAt, housingCapacity } from './engine';
 import { ensureWorldState, performRealmAction } from './livingWorld';
-import { loadChallengeSave, loadKingdom, resetKingdom, saveKingdom } from './save';
+import { applyOfflineProgress, loadChallengeSave, loadKingdom, resetKingdom, saveKingdom } from './save';
 import type { GameState } from './types';
 
 const KINGDOM_KEY = 'microregno:kingdom:v1';
@@ -43,7 +43,7 @@ describe('save resilience', () => {
     expect(loaded.buildings.some((building) => building.type === 'townHall')).toBe(true);
     expect(new Set(loaded.buildings.map((building) => building.id)).size).toBe(loaded.buildings.length);
     expect(new Set(loaded.buildings.map((building) => building.x + ',' + building.y)).size).toBe(loaded.buildings.length);
-    expect(loaded.buildings.every((building) => building.x >= 0 && building.x < 12 && building.y >= 0 && building.y < 12 && building.level >= 1 && building.level <= 3)).toBe(true);
+    expect(loaded.buildings.every((building) => building.x >= 0 && building.x < 12 && building.y >= 0 && building.y < 12 && building.level >= 1 && building.level <= 5)).toBe(true);
     expect(loaded.population).toBe(5);
   });
 
@@ -170,6 +170,26 @@ describe('save resilience', () => {
 
     expect(repaired.world!.expeditions).toHaveLength(0);
     expect(repaired.world!.citizens.every((citizen) => citizen.status === 'resident' && citizen.expeditionId === null)).toBe(true);
+  });
+
+
+  it('preserves a building site in the save and finishes it while offline', () => {
+    const { storage } = installStorage();
+    const state = createInitialState(456);
+    const now = 1_000;
+    const started = startBuildAt(state, generateTerrain(state.seed), 6, 6, 'house', now);
+    expect(started.check.ok).toBe(true);
+    const toSave: GameState = { ...started.state, lastSavedAt: now };
+    storage.setItem(KINGDOM_KEY, JSON.stringify(toSave));
+
+    const loaded = loadKingdom();
+    expect(loaded.buildings[1]!.construction?.kind).toBe('build');
+    expect(housingCapacity(loaded)).toBe(5);
+
+    const returned = applyOfflineProgress(loaded, now + 10_000);
+    expect(returned.minutes).toBe(10);
+    expect(returned.state.buildings[1]!.construction).toBeUndefined();
+    expect(housingCapacity(returned.state)).toBe(11);
   });
 
   it('does not reuse progress from another daily challenge definition', () => {
