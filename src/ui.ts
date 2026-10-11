@@ -1031,6 +1031,7 @@ export function setupUI(): void {
 
   $('kingdom-mode').addEventListener('click', () => dispatch('microregno:mode', 'kingdom'));
   $('challenge-mode').addEventListener('click', () => dispatch('microregno:mode', 'challenge'));
+  $('challenge-retry').addEventListener('click', () => dispatch('microregno:challenge-retry'));
   $('center-map').addEventListener('click', () => dispatch('microregno:center'));
   $('cancel-build').addEventListener('click', () => dispatch('microregno:build', null));
 
