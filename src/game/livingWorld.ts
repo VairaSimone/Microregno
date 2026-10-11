@@ -382,6 +382,8 @@ export function getCitizenWorkplace(state: GameState, citizen: Citizen): Buildin
 export function getCitizenActivity(state: GameState, citizen: Citizen): import('./types').CitizenActivity {
   if (citizen.status === 'exploring') return 'exploring';
   if (citizen.hunger > 75 || (state.resources.food < 0.1 && (state.world?.goods.bread ?? 0) < 0.1)) return 'eating';
+  if (citizen.illness) return 'resting';
+  if (citizen.age < 14) return citizen.energy < 24 ? 'resting' : 'socializing';
   const minuteOfDay = state.gameMinutes % 1440;
   const workplace = getCitizenWorkplace(state, citizen);
   if (citizen.energy < 24 || minuteOfDay >= 21 * 60 || minuteOfDay < 6 * 60) return 'resting';
@@ -397,7 +399,7 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   const job = BUILDING_JOB[building.type];
   let multiplier = 1;
   if (job) {
-    const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident' && getCitizenWorkplace(state, citizen)?.id === building.id);
+    const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident' && !citizen.illness && getCitizenWorkplace(state, citizen)?.id === building.id);
     const workers = assigned.length;
     if (workers === 0) return 0;
     const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / assigned.length;
@@ -692,9 +694,7 @@ export function advanceRealmMinute(input: GameState): GameState {
     const breadMealBonus = breadRation > 0 && hasFoodRation ? 0.035 : 0;
     const hungerDelta = (rationCoverage >= 1 ? -0.18 : 0.16 - 0.34 * rationCoverage) - breadMealBonus;
     const hunger = clamp(citizen.hunger + hungerDelta);
-    const activity = citizen.age < 14
-      ? (citizen.energy < 24 ? 'resting' : 'socializing')
-      : getCitizenActivity({ ...state, resources, world: { ...world, goods } }, { ...citizen, hunger });
+    const activity = getCitizenActivity({ ...state, resources, world: { ...world, goods } }, { ...citizen, hunger });
     const atWork = activity === 'working' && !!workplace;
     const energy = clamp(citizen.energy + (activity === 'resting' ? 0.16 : atWork ? (citizen.traits.includes('ambizioso') ? -0.075 : -0.06) : 0.025) - (citizen.illness ? 0.025 : 0));
     let happiness = citizen.happiness;
@@ -891,7 +891,7 @@ export function advanceRealmMinute(input: GameState): GameState {
   if (state.gameMinutes > 0 && state.gameMinutes % (1440 * 30) === 0) {
     citizens = citizens.map((citizen) => ({ ...citizen, age: citizen.age + 1 }));
     const elderly = citizens.filter((citizen) => citizen.status === 'resident' && citizen.age >= 95 && (citizen.age >= 105 || citizen.health <= 20));
-    const deceased = elderly.slice(0, Math.max(0, nextPopulation - 1));
+    const deceased = elderly.slice(0, Math.max(0, citizens.filter((citizen) => citizen.status === 'resident').length - 1));
     if (deceased.length) {
       const deceasedIds = new Set(deceased.map((citizen) => citizen.id));
       for (const elder of deceased) notes.push('Il borgo ha salutato ' + elder.name + ', dopo una lunga vita di ' + elder.age + ' anni. La sua storia resta nella cronaca.');
