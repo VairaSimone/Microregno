@@ -122,4 +122,4 @@ export interface PlayerProfile {
   eventDelta?: Partial<ResourceBag>;
 }
 export interface ChallengeSave { date: string; state: GameState; completed: boolean; score: number; bestScore: number; eventTriggered?: boolean }
-export interface GameSnapshot { state: GameState; mode: GameMode; challenge: DailyChallenge; challengeProgress: number; challengeCompleted: boolean; bestScore: number; playerProfile: PlayerProfile; selectedBuildType: BuildingType | null; selectedBuilding: Building | null }
+export interface GameSnapshot { state: GameState; mode: GameMode; challenge: DailyChallenge; challengeProgress: number; challengeCompleted: boolean; bestScore: number; playerProfile: PlayerProfile; challengeEventTriggered: boolean; selectedBuildType: BuildingType | null; selectedBuilding: Building | null }
