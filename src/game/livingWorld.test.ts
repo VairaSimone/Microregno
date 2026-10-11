@@ -306,6 +306,23 @@ describe('living world simulation', () => {
     expect(result.state.world!.nextEventAt).toBe(45);
   });
 
+  it('does not let an event reduce the population below the playable minimum', () => {
+    const state = createInitialState();
+    state.world!.activeEvent = {
+      id: 'caravan',
+      title: 'Una partenza',
+      description: 'Una persona lascia il borgo.',
+      startedAt: 0,
+      choices: [{ id: 'departure', label: 'Accetta', detail: 'Il borgo perde un abitante.', populationDelta: -1 }],
+    };
+
+    const result = performRealmAction(state, { type: 'event', id: 'departure' });
+
+    expect(result.ok).toBe(true);
+    expect(result.state.population).toBe(5);
+    expect(result.state.world!.citizens).toHaveLength(5);
+  });
+
   it('queues a new event chain behind an already queued story', () => {
     const state = createInitialState();
     state.world!.queuedEvent = 'ruins-found';
