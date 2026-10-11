@@ -133,3 +133,11 @@ export function applyProfileBonuses(state:GameState,profile:PlayerProfile):GameS
 export function getAchievementProgress(profile:PlayerProfile):Array<{id:string;name:string;description:string;rewardName:string;progress:number;target:number;unlocked:boolean}>{
   return ACHIEVEMENTS.map(def=>({id:def.id,name:def.name,description:def.description,rewardName:def.rewardName,progress:Math.min(def.target,Math.max(0,def.progress(profile))),target:def.target,unlocked:profile.achievements.some(a=>a.id===def.id)}));
 }
+
+/** Returns a detached, newest-first view of local challenge records for the results archive. */
+export function getChallengeArchive(profile:PlayerProfile,limit=8):ChallengeRecord[]{
+  const count=Number.isFinite(limit)?Math.max(0,Math.floor(limit)):8;
+  return [...profile.records]
+    .sort((a,b)=>b.date.localeCompare(a.date)||b.bestScore-a.bestScore)
+    .slice(0,count);
+}
