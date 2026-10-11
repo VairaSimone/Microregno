@@ -98,7 +98,8 @@ export interface PlayerProfile {
   lastCompletedDate: string | null;
   allTimeBestScore: number;
 }
-\nexport interface DailyChallenge {
+
+export interface DailyChallenge {
   date: string;
   seed: number;
   id: string;
