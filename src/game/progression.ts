@@ -21,32 +21,32 @@ export const EPOCH_ORDER: EpochId[] = ['settlement', 'village', 'borough', 'city
 export const EPOCHS: Record<EpochId, EpochDefinition> = {
   settlement: {
     id: 'settlement', name: 'Insediamento', icon: '🌱', reward: 0,
-    summary: 'Cinque famiglie hanno trovato riparo sotto il Municipio. Prima che la campana sepolta si zittisca di nuovo, Brumadoro deve imparare a vivere.'
+    summary: 'Cinque famiglie hanno trovato riparo sotto il Municipio. Prima che la campana sepolta si zittisca di nuovo, Brumadoro deve imparare a vivere.',
     story: 'PROLOGO · Tre notti fa, una campana ha suonato sotto le fondamenta del vecchio Municipio. Nessuna torre la custodisce. Io, Bricco, ho trovato fra le pietre una mappa con cinque stelle cancellate e una frase: “Quando le cinque luci torneranno, la Corona non comanderà il popolo: sarà il popolo a custodire la Corona.” Per ora siamo cinque famiglie, poche scorte e un mistero più grande della valle.'
   },
   village: {
     id: 'village', name: 'Villaggio', icon: '🏘️', reward: 20,
-    summary: 'La prima luce è il focolare: nessun segreto vale quanto un tetto e un pasto condiviso. La campana tornerà a parlare solo a una comunità capace di prendersi cura di tutti.'
+    summary: 'La prima luce è il focolare: nessun segreto vale quanto un tetto e un pasto condiviso. La campana tornerà a parlare solo a una comunità capace di prendersi cura di tutti.',
     story: 'CAPITOLO I · LA PRIMA LUCE. Al compimento del Villaggio, un contadino trova nel campo una scheggia di bronzo incisa con una stella. La stessa figura compare sulla mappa di Bricco. I mercanti raccontano che, da generazioni, tre comunità vicine custodiscono canti diversi su una corona scomparsa. Per la prima volta, il suono sotto il Municipio sembra avere una direzione.'
   },
   borough: {
     id: 'borough', name: 'Borgo', icon: '🏰', reward: 35,
-    summary: 'Il sentiero verso le altre valli è aperto. Scopri chi ricorda la campana, stringi accordi e investi in opere che nessuna famiglia potrebbe costruire da sola.'
+    summary: 'Il sentiero verso le altre valli è aperto. Scopri chi ricorda la campana, stringi accordi e investi in opere che nessuna famiglia potrebbe costruire da sola.',
     story: 'CAPITOLO II · LE VOCI OLTRE IL BOSCO. Gli emissari di Selvalunga, Porto Salmastra e Rocciacupa arrivano a Brumadoro con tre racconti incompatibili. Una parla di una regina che salvò le valli; un altro di un sovrano che volle possederle; il terzo di un patto spezzato in cinque parti. Bricco sospetta che ogni regione conservi un frammento della verità. Per trovarlo serviranno fiducia, mappe e mani al lavoro.'
   },
   city: {
     id: 'city', name: 'Città', icon: '🏛️', reward: 60,
-    summary: 'Gli antichi segni cominciano a combaciare. Una Scuola e nuove ricerche possono svelare che cosa accadde alla Corona e perché la campana fu sepolta.'
+    summary: 'Gli antichi segni cominciano a combaciare. Una Scuola e nuove ricerche possono svelare che cosa accadde alla Corona e perché la campana fu sepolta.',
     story: 'CAPITOLO III · L’ARCHIVIO TACIUTO. Nelle Rovine della Corona, gli esploratori trovano una tavola spezzata: non era un decreto di conquista, ma il primo testo di un accordo fra cinque popoli. L’Università Reale ne decifra le righe: la campana non serviva a convocare eserciti, bensì a chiamare aiuto quando una valle era in pericolo. Qualcuno trasformò quel richiamo in un ordine; le altre valli si ribellarono e il Patto fu diviso, perché nessun sovrano potesse usarlo da solo.'
   },
   metropolis: {
     id: 'metropolis', name: 'Metropoli', icon: '🌆', reward: 90,
-    summary: 'La mappa non indica una capitale, ma cinque stelle legate da strade, acqua e conoscenza. Costruisci l’Osservatorio e dimostra che le valli possono prosperare senza diventare uguali.'
+    summary: 'La mappa non indica una capitale, ma cinque stelle legate da strade, acqua e conoscenza. Costruisci l’Osservatorio e dimostra che le valli possono prosperare senza diventare uguali.',
     story: 'CAPITOLO IV · LE STELLE SULLA PIETRA. Dall’Osservatorio, gli studiosi leggono il cielo come un’antica mappa: Bosco, Passo, Lago, Rovine e Terre di Confine formano una costellazione. Ogni grande opera riaccende un tratto del disegno. Bricco comprende la parte dimenticata della leggenda: la Corona era un patto di mutuo soccorso, non un trono. Le cinque luci si accenderanno soltanto se ogni regione avrà voce e futuro.'
   },
   empire: {
     id: 'empire', name: 'Impero', icon: '👑', reward: 120,
-    summary: 'Un Impero degno di quel nome non annette le valli: le unisce senza cancellarle. Completa le grandi opere, proteggi i territori e prepara la Carta che nessuno potrà imporre con la forza.'
+    summary: 'Un Impero degno di quel nome non annette le valli: le unisce senza cancellarle. Completa le grandi opere, proteggi i territori e prepara la Carta che nessuno potrà imporre con la forza.',
     story: 'CAPITOLO V · IL PATTO DELLE CINQUE LUCI. Le cinque regioni hanno inviato i loro sigilli. La vecchia Corona di Brumadoro non sarà rimessa sul capo di un sovrano: verrà incisa sulla Carta come promessa reciproca. Ogni valle conserverà le proprie tradizioni e contribuirà secondo le proprie forze. Se popolo, opere, conoscenza e rotte resteranno in equilibrio, la campana potrà suonare ancora — questa volta non per impartire un ordine, ma per annunciare che nessuna valle è sola.'
   }
 };
