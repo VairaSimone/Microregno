@@ -218,9 +218,9 @@ export function createWorldState(seed: number, population = 5, gameMinutes = 0):
   const citizens = Array.from({ length: Math.max(0, population) }, (_, index) => makeCitizen(seed, index, gameMinutes));
   const factionSeed = Math.abs(seed);
   const factions: Faction[] = [
-    { id: 'selvalunga', name: 'Selvalunga', specialty: 'Legname e botanica', relation: 28 + factionSeed % 20, lastContact: 0, treaty: false },
-    { id: 'salmastra', name: 'Porto Salmastra', specialty: 'Commercio e pesca', relation: 32 + (factionSeed >> 3) % 21, lastContact: 0, treaty: false },
-    { id: 'rocciacupa', name: 'Rocciacupa', specialty: 'Pietra e artigiani', relation: 25 + (factionSeed >> 6) % 25, lastContact: 0, treaty: false },
+    { id: 'selvalunga', name: 'Selvalunga', specialty: 'Legname, botanica e protezione dei boschi', relation: 28 + factionSeed % 20, lastContact: 0, treaty: false, ...FACTION_TRADE_PROFILES.selvalunga },
+    { id: 'salmastra', name: 'Porto Salmastra', specialty: 'Pesca, sale e trasporto via acqua', relation: 32 + (factionSeed >> 3) % 21, lastContact: 0, treaty: false, ...FACTION_TRADE_PROFILES.salmastra },
+    { id: 'rocciacupa', name: 'Rocciacupa', specialty: 'Pietra, attrezzi e lavori minerari', relation: 25 + (factionSeed >> 6) % 25, lastContact: 0, treaty: false, ...FACTION_TRADE_PROFILES.rocciacupa },
   ];
   return {
     version: 1, nextCitizenId: citizens.length + 1, citizens, goods: { ...DEFAULT_GOODS },
@@ -229,7 +229,7 @@ export function createWorldState(seed: number, population = 5, gameMinutes = 0):
     activeEvent: null, nextEventAt: gameMinutes + 240, queuedEvent: null, eventQueue: [],
     projectStages: { aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 },
     market: createMarketState(gameMinutes), forestHealth: 100, weather: { id: 'clear', endsAt: 0 },
-    completedProjects: [], factions, tradeRoutes: [],
+    completedProjects: [], factions, tradeRoutes: [], frontierTerritories: [], frontierPerks: [],
   };
 }
 
@@ -415,8 +415,51 @@ export function ensureWorldState(state: GameState): GameState {
     weather: existing.weather && ['clear', 'drought'].includes(existing.weather.id) && Number.isFinite(existing.weather.endsAt)
       ? { ...existing.weather } : { id: 'clear', endsAt: 0 },
     completedProjects: [...new Set(existing.completedProjects.filter((id): id is ProjectId => PROJECTS.some((project) => project.id === id)))],
-    factions: existing.factions.filter((faction) => faction && typeof faction.id === 'string' && typeof faction.name === 'string' && typeof faction.specialty === 'string' && Number.isFinite(faction.relation)).map((faction) => ({ ...faction, relation: clamp(faction.relation), lastContact: Number.isFinite(faction.lastContact) ? Math.max(0, faction.lastContact) : 0, treaty: faction.treaty === true })),
+    factions: existing.factions.filter((faction) => faction && typeof faction.id === 'string' && typeof faction.name === 'string' && typeof faction.specialty === 'string' && Number.isFinite(faction.relation)).map((faction) => {
+      const fallback = FACTION_TRADE_PROFILES[faction.id] ?? FACTION_TRADE_PROFILES.selvalunga;
+      const validResource = (value: unknown): value is Resource => ['wood', 'stone', 'food', 'coins'].includes(value as string);
+      return {
+        ...fallback, ...faction, relation: clamp(faction.relation),
+        lastContact: Number.isFinite(faction.lastContact) ? Math.max(0, faction.lastContact) : 0,
+        treaty: faction.treaty === true,
+        need: validResource(faction.need) ? faction.need : fallback.need,
+        offer: validResource(faction.offer) ? faction.offer : fallback.offer,
+        needAmount: Number.isFinite(faction.needAmount) ? Math.max(1, Math.min(100, faction.needAmount!)) : fallback.needAmount,
+        offerAmount: Number.isFinite(faction.offerAmount) ? Math.max(1, Math.min(100, faction.offerAmount!)) : fallback.offerAmount,
+        treatyBenefit: typeof faction.treatyBenefit === 'string' ? faction.treatyBenefit : fallback.treatyBenefit,
+      };
+    }),
     tradeRoutes: [...new Set(existing.tradeRoutes.filter((id) => typeof id === 'string' && existing.factions.some((faction) => faction?.id === id)))],
+    frontierTerritories: Array.isArray(existing.frontierTerritories) ? existing.frontierTerritories
+      .filter((territory) => territory && typeof territory === 'object' && REGIONS.some((region) => region.id === (territory as FrontierTerritory).region))
+      .slice(0, REGIONS.length).map((raw): FrontierTerritory => {
+        const source = raw as Partial<FrontierTerritory>;
+        const region = source.region as RegionId;
+        const profile = FRONTIER_PROFILES[region];
+        const stock = source.stock && typeof source.stock === 'object' ? source.stock as Partial<ResourceBag> : {};
+        const cleanAmount = (key: Resource) => Number.isFinite(stock[key]) ? Math.max(0, Math.min(profile.stock[key], stock[key]!)) : profile.stock[key];
+        const structures = Array.isArray(source.structures) ? source.structures.filter((entry) => entry && typeof entry.id === 'string'
+          && Object.prototype.hasOwnProperty.call(FRONTIER_STRUCTURES, entry.type)
+          && Number.isInteger(entry.x) && entry.x >= 0 && entry.x < FRONTIER_GRID_SIZE
+          && Number.isInteger(entry.y) && entry.y >= 0 && entry.y < FRONTIER_GRID_SIZE
+          && Number.isFinite(entry.level)).map((entry) => ({ ...entry, level: Math.max(1, Math.min(3, Math.floor(entry.level))) })).slice(0, FRONTIER_GRID_SIZE * FRONTIER_GRID_SIZE) : [];
+        const hazard = source.activeIncident && ['wildfire', 'landslide', 'flood', 'collapse', 'raiders'].includes(source.activeIncident.kind)
+          && Number.isFinite(source.activeIncident.endsAt) && source.activeIncident.endsAt > state.gameMinutes
+          ? { ...source.activeIncident, startedAt: Math.max(0, Number.isFinite(source.activeIncident.startedAt) ? source.activeIncident.startedAt : state.gameMinutes),
+              endsAt: Math.max(state.gameMinutes, source.activeIncident.endsAt), outputPenalty: Math.max(0.1, Math.min(1, Number.isFinite(source.activeIncident.outputPenalty) ? source.activeIncident.outputPenalty : 0.5)) }
+          : null;
+        const result: FrontierTerritory = {
+          region, name: typeof source.name === 'string' ? source.name.slice(0, 80) : (REGIONS.find((entry) => entry.id === region)?.name ?? region),
+          climate: profile.climate, foundedAt: Number.isFinite(source.foundedAt) ? Math.max(0, source.foundedAt!) : state.gameMinutes,
+          stock: { wood: cleanAmount('wood'), stone: cleanAmount('stone'), food: cleanAmount('food'), coins: cleanAmount('coins') },
+          stability: Number.isFinite(source.stability) ? clamp(source.stability!) : 70,
+          structures: structures.length ? structures : [{ id: 'outpost-' + region + '-' + state.gameMinutes, type: 'outpost', x: 2, y: 2, level: 1 }],
+          lastIncidentAt: Number.isFinite(source.lastIncidentAt) ? Math.max(-1, source.lastIncidentAt!) : -1,
+          activeIncident: hazard,
+        };
+        return result;
+      }) : [],
+    frontierPerks: Array.isArray(existing.frontierPerks) ? [...new Set(existing.frontierPerks.filter((perk): perk is FrontierPerkId => FRONTIER_PERKS.includes(perk)))].slice(0, FRONTIER_PERKS.length) : [],
   };
   return { ...state, world };
 }
