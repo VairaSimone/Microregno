@@ -23,7 +23,7 @@ const CHALLENGE_REWARDS = [
   { id: 'golden-banner', name: 'Stendardo dorato', detail: '+3 monete all’inizio di ogni nuova sfida.', icon: '⚑', status: 'ATTIVA' },
   { id: 'crown-signet', name: 'Sigillo della Corona', detail: '+5 cibo all’inizio di ogni nuova sfida.', icon: '♕', status: 'ATTIVA' },
 ] as const;
-const TUTORIAL_SEEN_KEY = 'microregno:tutorial-seen:v1';
+const TUTORIAL_SEEN_KEY = 'microregno:tutorial-seen:v2';
 let renderedRequestId: string | null | undefined;
 let showAllBuildOptions = false;
 let kingdomSaveStatus = 'Salvataggio locale attivo';
@@ -55,7 +55,7 @@ function publicAssetUrl(file: string): string {
 
 let latestSnapshot: GameSnapshot | null = null;
 
-type TutorialAction = 'build' | 'upgrade' | 'research' | 'exploration' | 'projects' | 'objectives' | 'challenge' | 'hint';
+type TutorialAction = 'build' | 'upgrade' | 'community' | 'research' | 'exploration' | 'projects' | 'objectives' | 'challenge' | 'hint';
 interface TutorialStep {
   key: string;
   title: string;
@@ -111,7 +111,14 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
       actionType: 'market', action: 'build', actionLabel: 'Scegli il Mercato', done: has('market'),
     },
     {
-      key: 'upgrade', title: '6 · Miglioriamo un edificio',
+      key: 'community', title: '6 · Ascoltiamo i cittadini',
+      description: 'Un regno non è fatto soltanto di edifici: le persone chiedono aiuto, propongono scambi e reagiscono alle decisioni del Consiglio.',
+      rule: 'Leggi le richieste nel pannello della comunità e valuta costi e conseguenze. Le richieste ignorate abbassano umore e fiducia; questi valori influenzano crescita, produzione e monete.',
+      actionType: null, action: 'community', actionLabel: 'Mostrami le richieste in piazza',
+      done: (state.community?.fulfilledRequests ?? 0) > 0 || (state.community?.ignoredRequests ?? 0) > 0,
+    },
+    {
+      key: 'upgrade', title: '7 · Miglioriamo un edificio',
       description: 'Non devi costruire all’infinito: puoi rendere più efficaci gli edifici che hai già. Selezionane uno sulla mappa e guarda il pannello Dettagli.',
       rule: 'Seleziona un edificio, poi usa Migliora. I livelli aumentano l’efficacia, ma costano risorse e monete. Un edificio al livello 2 è necessario per fondare il Borgo.',
       actionType: null, action: 'upgrade', actionLabel: 'Aiutami a migliorare un edificio', done: state.buildings.some((building) => building.level >= 2),
@@ -1218,6 +1225,8 @@ export function setupUI(): void {
     } else if (current.action === 'research' || current.action === 'exploration' || current.action === 'projects') {
       realmTab = current.action === 'research' ? 'research' : current.action === 'exploration' ? 'exploration' : 'projects';
       $('realm-dashboard-button').click();
+    } else if (current.action === 'community') {
+      $('living-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else if (current.action === 'objectives') {
       document.querySelector('.objectives-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else if (current.action === 'challenge') {
