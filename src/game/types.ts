@@ -54,6 +54,7 @@ export interface BuildCheck { ok: boolean; reason?: string }
 
 export type ChallengeCategory = 'population' | 'resources' | 'farms' | 'housing';
 export type ChallengeScenario = 'standard' | 'winter' | 'drought' | 'shortage' | 'festival' | 'storm' | 'windfall';
+export type ChallengeConstraint = 'none' | 'no-demolition' | 'no-roads' | 'food-reserve';
 export type MedalTier = 'bronze' | 'silver' | 'gold';
 export interface ChallengeRecord {
   date: string;
@@ -111,6 +112,8 @@ export interface PlayerProfile {
   medalId: string;
   condition: string;
   scenario: ChallengeScenario;
+  constraint: ChallengeConstraint;
+  startGameMinutes?: number;
   initialResources?: Partial<ResourceBag>;
   eventAt?: number;
   eventId?: string;
