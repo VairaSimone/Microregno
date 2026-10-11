@@ -1,6 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="70" viewBox="0 0 128 70">
-<path d="M3 35 64 3 125 35 64 67Z" fill="#8f826b" stroke="#675e4b" stroke-width="2"/>
-<path d="M11 35 64 7 117 35 64 63Z" fill="#c8bda1" stroke="#e3d8bc" stroke-width="2"/>
-<path d="M20 35 34 28 48 35 34 42ZM48 21 64 13 80 21 64 29ZM64 35 80 27 96 35 80 43ZM34 42 48 35 64 43 48 50ZM80 43 96 35 110 42 96 50Z" fill="#a79a7e" stroke="#8a7f67" stroke-width="1.5"/>
-<path d="M20 35 64 60 108 35M34 28 48 21M80 21 94 28" fill="none" stroke="#eaddc0" stroke-width="1.5" opacity=".85"/>
+<defs>
+  <linearGradient id="road-bed" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a1967b"/><stop offset="1" stop-color="#625b4a"/></linearGradient>
+  <linearGradient id="stone-top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#eee2c4"/><stop offset="1" stop-color="#b8aa8b"/></linearGradient>
+</defs>
+<path d="M3 36 64 2 125 35 64 69Z" fill="#475d48" opacity=".23"/>
+<path d="M3 33 64 1 125 34 64 67Z" fill="url(#road-bed)" stroke="#645d4b" stroke-width="2"/>
+<path d="M10 33 64 5 118 34 64 63Z" fill="#d4c7a6" stroke="#f1e2c0" stroke-width="1.8"/>
+<g stroke="#9a9077" stroke-width="1.5" stroke-linejoin="round">
+ <path d="M10 33 23 26 37 33 24 41Z" fill="url(#stone-top)"/>
+ <path d="M24 41 37 33 51 41 38 49Z" fill="#c2b497"/>
+ <path d="M23 26 36 19 50 26 37 34Z" fill="#b9ae93"/>
+ <path d="M37 34 50 26 64 34 51 42Z" fill="url(#stone-top)"/>
+ <path d="M50 26 64 19 78 26 64 34Z" fill="#dcd0b1"/>
+ <path d="M64 19 78 12 91 19 78 27Z" fill="url(#stone-top)"/>
+ <path d="M64 34 78 27 92 34 78 42Z" fill="#b5a78a"/>
+ <path d="M78 42 92 34 105 42 92 50Z" fill="url(#stone-top)"/>
+ <path d="M91 19 105 26 92 34 78 27Z" fill="#c4b79b"/>
+ <path d="M105 26 118 34 105 42 92 34Z" fill="#d9ccb0"/>
+ <path d="M38 49 51 42 65 49 51 57Z" fill="#d6c8a8"/>
+ <path d="M51 42 64 34 78 42 65 50Z" fill="#c0b294"/>
+ <path d="M65 50 78 42 92 50 78 58Z" fill="#d9ccb0"/>
+</g>
+<path d="M10 33 64 63 118 34M24 41 38 49M50 26 64 34M78 27 92 34" fill="none" stroke="#f4e9cf" stroke-width="1.5" opacity=".9"/>
+<path d="M16 32 24 28M45 40 51 37M73 27 79 23M94 43 100 40" stroke="#fff3d2" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
 </svg>
