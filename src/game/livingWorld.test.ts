@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState, advanceTime, resourceRates } from './engine';
 import { advanceRealmMinute, canExploreRegion, createWorldState, getInterestGroups, getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods, ensureWorldState, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
+import { resolveCitizenRequest } from './community';
 import type { Building } from './types';
 
 function unlockBorough(state: ReturnType<typeof createInitialState>): void {
@@ -439,6 +440,137 @@ describe('living world simulation', () => {
     expect(result.state.population).toBe(7);
     expect(result.state.world!.citizens).toHaveLength(7);
     expect(result.state.world!.citizens.slice(-2).every((citizen) => citizen.profession === 'scout')).toBe(true);
+  });
+
+  it('links the initial community request to a real saved resident', () => {
+    const state = createInitialState(8765);
+    const request = state.community!.activeRequest!;
+    const citizen = state.world!.citizens.find((entry) => entry.id === request.citizenId);
+    expect(citizen).toBeDefined();
+    expect(request.citizen).toBe(citizen!.name);
+  });
+
+  it('records community decisions in the requester’s individual story', () => {
+    const state = createInitialState(8766);
+    const request = state.community!.activeRequest!;
+    const result = resolveCitizenRequest(state, request.options[0]!.id);
+    const requester = result.state.world!.citizens.find((citizen) => citizen.id === request.citizenId)!;
+    expect(result.ok).toBe(true);
+    expect(requester.personalHistory?.some((entry) => entry.includes('Consiglio'))).toBe(true);
+  });
+
+  it('lets useful traits improve a citizen’s production at work', () => {
+    const state = createInitialState(8767);
+    const farm: Building = { id: 'trait-farm', type: 'farm', x: 4, y: 4, level: 1 };
+    state.buildings.push(farm);
+    const worker = state.world!.citizens[0]!;
+    worker.profession = 'farmer';
+    worker.workplaceId = farm.id;
+    worker.traits = [];
+    const baseline = worldBuildingMultiplier(state, farm);
+    worker.traits = ['inventivo'];
+    expect(worldBuildingMultiplier(state, farm)).toBeGreaterThan(baseline);
+  });
+
+  it('recovers naturally from illness and clears the saved illness state', () => {
+    const state = createInitialState(8768);
+    state.gameMinutes = 240;
+    state.world!.goods.medicine = 0;
+    const patient = state.world!.citizens[0]!;
+    patient.health = 70;
+    patient.illness = { id: 'cold', severity: 1, since: 0 };
+    const after = advanceRealmMinute(state);
+    const recovered = after.world!.citizens.find((citizen) => citizen.id === patient.id)!;
+    expect(recovered.illness).toBeNull();
+    expect(recovered.personalHistory?.some((entry) => entry.includes('guarito'))).toBe(true);
+  });
+
+  it('uses remedies to cure a disease, not just restore health', () => {
+    const state = createInitialState(8769);
+    state.gameMinutes = 60;
+    state.world!.goods.medicine = 1;
+    const patient = state.world!.citizens[0]!;
+    patient.health = 60;
+    patient.illness = { id: 'fever', severity: 2, since: 0 };
+    const after = advanceRealmMinute(state);
+    const cured = after.world!.citizens.find((citizen) => citizen.id === patient.id)!;
+    expect(cured.illness).toBeNull();
+    expect(cured.health).toBeGreaterThan(80);
+  });
+
+  it('does not award research progress for scholars who are not assigned to a school', () => {
+    const state = createInitialState(8770);
+    state.buildings.push({ id: 'research-school', type: 'school', x: 4, y: 4, level: 1 });
+    state.world!.citizens.forEach((citizen) => { citizen.profession = 'farmer'; citizen.workplaceId = null; });
+    const scholar = state.world!.citizens[0]!;
+    scholar.age = 10;
+    scholar.profession = 'scholar';
+    const before = state.world!.researchPoints;
+    const after = advanceRealmMinute({ ...state, gameMinutes: 10 });
+    expect(after.world!.researchPoints - before).toBeCloseTo(0.025);
+  });
+
+  it('makes sick residents rest and pauses their workplace production', () => {
+    const state = createInitialState(8774);
+    state.gameMinutes = 100;
+    const farm: Building = { id: 'sick-farm', type: 'farm', x: 4, y: 4, level: 1 };
+    state.buildings.push(farm);
+    const patient = state.world!.citizens[0]!;
+    for (const citizen of state.world!.citizens) {
+      if (citizen.id !== patient.id) citizen.profession = 'merchant';
+    }
+    patient.profession = 'farmer';
+    patient.workplaceId = farm.id;
+    patient.hunger = 10;
+    patient.illness = { id: 'cold', severity: 1, since: 0 };
+    expect(worldBuildingMultiplier(state, farm)).toBe(0);
+    const after = advanceRealmMinute(state);
+    expect(after.world!.citizens.find((citizen) => citizen.id === patient.id)!.activity).toBe('resting');
+  });
+
+  it('ages residents and records an elder’s passing in the chronicle', () => {
+    const state = createInitialState(8771);
+    state.gameMinutes = 1440 * 30;
+    state.resources.food = 0;
+    const elder = state.world!.citizens[0]!;
+    elder.age = 104;
+    const comparisonId = state.world!.citizens[1]!.id;
+    const oldAge = state.world!.citizens[1]!.age;
+    const after = advanceRealmMinute(state);
+    expect(after.population).toBe(4);
+    expect(after.world!.citizens.some((citizen) => citizen.id === elder.id)).toBe(false);
+    expect(after.world!.chronicle.some((entry) => entry.includes(elder.name) && entry.includes('salutato'))).toBe(true);
+    expect(after.world!.citizens.find((citizen) => citizen.id === comparisonId)!.age).toBe(oldAge + 1);
+  });
+
+  it('links realm events to a real citizen and writes their outcome to personal history', () => {
+    const state = createInitialState(8772);
+    const opened = advanceRealmMinute({ ...state, gameMinutes: 240, world: { ...state.world!, nextEventAt: 0 } });
+    const event = opened.world!.activeEvent!;
+    expect(event.citizenId).toBeDefined();
+    const choice = event.choices.find((entry) => !entry.cost && !entry.goodsCost) ?? event.choices[0]!;
+    const resolved = performRealmAction(opened, { type: 'event', id: choice.id });
+    expect(resolved.ok, resolved.message).toBe(true);
+    expect(resolved.state.world!.citizens.find((citizen) => citizen.id === event.citizenId)?.personalHistory?.some((entry) => entry.includes(event.title))).toBe(true);
+  });
+
+  it('lets adaptable citizens change career when the village has an urgent shortage', () => {
+    const state = createInitialState(8773);
+    state.gameMinutes = 1440 * 7;
+    state.resources.food = 0;
+    state.resources.wood = 100;
+    state.buildings.push(
+      { id: 'need-farm', type: 'farm', x: 3, y: 4, level: 1 },
+      { id: 'need-sawmill', type: 'sawmill', x: 4, y: 4, level: 1 },
+    );
+    const worker = state.world!.citizens[0]!;
+    worker.profession = 'lumberjack';
+    worker.workplaceId = null;
+    worker.traits = ['pratico'];
+    const after = advanceRealmMinute(state);
+    const adapted = after.world!.citizens.find((citizen) => citizen.id === worker.id)!;
+    expect(adapted.profession).toBe('farmer');
+    expect(adapted.personalHistory?.some((entry) => entry.includes('Contadino'))).toBe(true);
   });
 
   it('requires discoveries or cartography before entering distant regions', () => {

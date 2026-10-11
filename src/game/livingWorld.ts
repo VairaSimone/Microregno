@@ -3,7 +3,7 @@ import { BUILDINGS } from './definitions';
 import { getSeason } from './community';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
-  GameState, GoodsBag, MarketResource, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
+  CitizenIllness, GameState, GoodsBag, MarketResource, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
   MarketState, RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, TradableGood, WorldState,
 } from './types';
 
@@ -76,6 +76,18 @@ function clamp(value: number, low = 0, high = 100): number {
   return Math.max(low, Math.min(high, Math.round(value * 100) / 100));
 }
 
+function rememberCitizen(citizen: Citizen, memory: string): string[] {
+  return [...(citizen.personalHistory ?? []), memory].slice(-6);
+}
+
+function schoolScholarCount(state: GameState, citizens: Citizen[]): number {
+  return citizens.filter((citizen) => {
+    if (citizen.profession !== 'scholar' || citizen.status !== 'resident' || citizen.age < 14 || !citizen.workplaceId) return false;
+    const workplace = state.buildings.find((building) => building.id === citizen.workplaceId);
+    return workplace?.type === 'school' || workplace?.type === 'university';
+  }).length;
+}
+
 function validPartialResourceBag(value: unknown): value is Partial<ResourceBag> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const allowed = new Set<Resource>(['wood', 'stone', 'food', 'coins']);
@@ -134,6 +146,9 @@ function makeCitizen(seed: number, index: number, gameMinutes: number): Citizen 
     homeId: 'town-hall-1',
     familyId: 'family-' + (Math.floor(index / 2) + 1),
     bornAt: gameMinutes,
+    illness: null,
+    personalHistory: ['È arrivato nel borgo come ' + PROFESSION_LABELS[profession] + '.'],
+    parentIds: [],
   };
 }
 
@@ -209,6 +224,19 @@ export function ensureWorldState(state: GameState): GameState {
       homeId: typeof source.homeId === 'string' ? source.homeId : null,
       familyId: typeof source.familyId === 'string' && source.familyId ? source.familyId.slice(0, 80) : fallback.familyId,
       bornAt: Number.isFinite(source.bornAt) ? Math.max(0, source.bornAt as number) : state.gameMinutes,
+      illness: source.illness && typeof source.illness === 'object'
+        && ['cold', 'fever'].includes((source.illness as CitizenIllness).id)
+        && Number.isFinite((source.illness as CitizenIllness).since)
+        && (source.illness as CitizenIllness).since >= 0
+        && (source.illness as CitizenIllness).since <= state.gameMinutes
+        ? { id: (source.illness as CitizenIllness).id, severity: (source.illness as CitizenIllness).severity === 2 ? 2 : 1, since: (source.illness as CitizenIllness).since }
+        : null,
+      personalHistory: Array.isArray(source.personalHistory)
+        ? source.personalHistory.filter((entry): entry is string => typeof entry === 'string').slice(-6)
+        : fallback.personalHistory,
+      parentIds: Array.isArray(source.parentIds)
+        ? source.parentIds.filter((parentId): parentId is string => typeof parentId === 'string' && parentId !== id).slice(0, 2)
+        : [],
     };
   });
   while (citizens.length < state.population) {
@@ -342,6 +370,7 @@ export const CITIZEN_ACTIVITY_LABELS: Record<import('./types').CitizenActivity, 
 };
 
 export function getCitizenWorkplace(state: GameState, citizen: Citizen): Building | null {
+  if (citizen.age < 14 || citizen.status !== 'resident') return null;
   const compatible = state.buildings.filter((building) => BUILDING_JOB[building.type] === citizen.profession);
   if (!compatible.length) return null;
   const explicit = compatible.find((building) => building.id === citizen.workplaceId);
@@ -353,6 +382,8 @@ export function getCitizenWorkplace(state: GameState, citizen: Citizen): Buildin
 export function getCitizenActivity(state: GameState, citizen: Citizen): import('./types').CitizenActivity {
   if (citizen.status === 'exploring') return 'exploring';
   if (citizen.hunger > 75 || (state.resources.food < 0.1 && (state.world?.goods.bread ?? 0) < 0.1)) return 'eating';
+  if (citizen.illness) return 'resting';
+  if (citizen.age < 14) return citizen.energy < 24 ? 'resting' : 'socializing';
   const minuteOfDay = state.gameMinutes % 1440;
   const workplace = getCitizenWorkplace(state, citizen);
   if (citizen.energy < 24 || minuteOfDay >= 21 * 60 || minuteOfDay < 6 * 60) return 'resting';
@@ -368,12 +399,29 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   const job = BUILDING_JOB[building.type];
   let multiplier = 1;
   if (job) {
-    const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident' && getCitizenWorkplace(state, citizen)?.id === building.id);
+    const assigned = world.citizens.filter((citizen) => citizen.profession === job && citizen.status === 'resident' && !citizen.illness && getCitizenWorkplace(state, citizen)?.id === building.id);
     const workers = assigned.length;
     if (workers === 0) return 0;
     const averageSkill = assigned.reduce((total, citizen) => total + citizen.skills[job], 0) / assigned.length;
     const readiness = assigned.reduce((total, citizen) => total + (citizen.energy + citizen.health + citizen.happiness) / 3, 0) / Math.max(1, assigned.length) / 100;
     multiplier *= Math.min(1.38, 0.44 + workers * 0.29 + averageSkill / 100 * 0.12) * (0.55 + readiness * 0.45);
+    const traitBonus = assigned.reduce((total, citizen) => total
+      + (citizen.traits.includes('pratico') ? 0.035 : 0)
+      + (citizen.traits.includes('inventivo') ? 0.045 : 0)
+      + (citizen.traits.includes('ambizioso') ? 0.02 : 0), 0) / assigned.length;
+    multiplier *= 1 + Math.min(0.08, traitBonus);
+    let friendlyPairs = 0;
+    let rivalPairs = 0;
+    let pairs = 0;
+    for (let left = 0; left < assigned.length; left++) {
+      for (let right = left + 1; right < assigned.length; right++) {
+        pairs++;
+        const relationship = ((assigned[left]!.relationships[assigned[right]!.id] ?? 0) + (assigned[right]!.relationships[assigned[left]!.id] ?? 0)) / 2;
+        if (relationship >= 25) friendlyPairs++;
+        if (relationship <= -15) rivalPairs++;
+      }
+    }
+    if (pairs > 0) multiplier *= Math.max(0.88, Math.min(1.08, 1 + ((friendlyPairs - rivalPairs) / pairs) * 0.08));
   }
   if (world.researched.includes('tools') && ['farm', 'sawmill', 'quarry', 'market'].includes(building.type)) multiplier *= 1.12;
   if (world.goods.tools >= 1 && ['farm', 'sawmill', 'quarry', 'mill', 'bakery', 'workshop'].includes(building.type)) multiplier *= 1.12;
@@ -399,8 +447,17 @@ export function researchRequirement(state: GameState, research: ResearchDefiniti
   const missingResearch = (research.requiresResearch ?? []).find((id) => !world.researched.includes(id));
   if (missingResearch) return 'Richiede la ricerca: ' + (RESEARCH.find((entry) => entry.id === missingResearch)?.name ?? missingResearch) + '.';
   if (research.requiredProfession) {
-    const qualified = world.citizens.some((citizen) => citizen.status === 'resident' && citizen.profession === research.requiredProfession && citizen.skills[research.requiredProfession] >= (research.minSkill ?? 0));
-    if (!qualified) return 'Serve un cittadino disponibile come ' + PROFESSION_LABELS[research.requiredProfession] + (research.minSkill ? ' con abilità almeno ' + research.minSkill : '') + '.';
+    const qualified = world.citizens.some((citizen) => {
+      if (citizen.status !== 'resident' || citizen.profession !== research.requiredProfession
+        || citizen.age < 14 || citizen.skills[research.requiredProfession!] < (research.minSkill ?? 0)) return false;
+      if (research.requiredProfession !== 'scholar') return true;
+      if (!citizen.workplaceId) return false;
+      const workplace = state.buildings.find((building) => building.id === citizen.workplaceId);
+      return workplace?.type === 'school' || workplace?.type === 'university';
+    });
+    if (!qualified) return research.requiredProfession === 'scholar'
+      ? 'Serve uno Studioso qualificato assegnato alla Scuola o all’Università (abilità almeno ' + (research.minSkill ?? 0) + ').'
+      : 'Serve un cittadino disponibile come ' + PROFESSION_LABELS[research.requiredProfession] + (research.minSkill ? ' con abilità almeno ' + research.minSkill : '') + '.';
   }
   if (research.resourceCost && !hasCost(state.resources, research.resourceCost)) return 'Materiali richiesti: ' + Object.entries(research.resourceCost).map(([key, value]) => `${value} ${key === 'wood' ? 'legname' : key === 'stone' ? 'pietra' : key === 'food' ? 'cibo' : 'monete'}`).join(', ') + '.';
   return null;
@@ -457,9 +514,13 @@ function addCitizenForState(state: GameState, world: WorldState, profession: Pro
   return { ...world, nextCitizenId: world.nextCitizenId + 1, citizens: [...world.citizens, citizen] };
 }
 
-function eventTemplate(id: string, gameMinutes: number, seed = 2310): RealmEvent {
-  const event = (eventId: string, title: string, description: string, choices: RealmEventChoice[]): RealmEvent =>
-    ({ id: eventId, title, description, choices, startedAt: gameMinutes });
+function eventTemplate(id: string, gameMinutes: number, seed = 2310, actor?: Citizen): RealmEvent {
+  const event = (eventId: string, title: string, description: string, choices: RealmEventChoice[]): RealmEvent => ({
+    id: eventId,
+    title,
+    description: actor ? description + ' ' + actor.name + ' (' + PROFESSION_LABELS[actor.profession] + ') è coinvolto direttamente e ricorderà la risposta del Consiglio.' : description,
+    choices, startedAt: gameMinutes, ...(actor ? { citizenId: actor.id } : {}),
+  });
   if (id === 'caravan-rescue') return event(id, 'La carovana è salva', 'La spedizione ha trovato i carri dispersi. Ora bisogna decidere come usare le merci recuperate.', [
     { id: 'take-cargo', label: 'Accetta il carico', detail: 'Ottieni legname, pietra e monete.', reward: { wood: 6, stone: 4, coins: 10 }, researchDelta: 5, trustDelta: 2 },
     { id: 'share-cargo', label: 'Condividi le provviste', detail: 'Rinunci a una parte del bottino e guadagni fiducia.', cost: { food: 5 }, trustDelta: 8, moodDelta: 6 },
@@ -635,26 +696,78 @@ export function advanceRealmMinute(input: GameState): GameState {
     const hunger = clamp(citizen.hunger + hungerDelta);
     const activity = getCitizenActivity({ ...state, resources, world: { ...world, goods } }, { ...citizen, hunger });
     const atWork = activity === 'working' && !!workplace;
-    const energy = clamp(citizen.energy + (activity === 'resting' ? 0.16 : atWork ? -0.06 : 0.025));
+    const energy = clamp(citizen.energy + (activity === 'resting' ? 0.16 : atWork ? (citizen.traits.includes('ambizioso') ? -0.075 : -0.06) : 0.025) - (citizen.illness ? 0.025 : 0));
     let happiness = citizen.happiness;
-    if ((rationCoverage === 0 && resources.food < 0.1) || hunger > 80) happiness -= 0.12;
+    if ((rationCoverage === 0 && resources.food < 0.1) || hunger > 80) happiness -= citizen.traits.includes('generoso') ? 0.09 : 0.12;
     else if (hunger < 45 && (state.community?.morale ?? 60) >= 60) happiness += 0.025;
     if (breadRation > 0 && state.gameMinutes % 10 === 0) happiness += 0.06;
+    if (citizen.traits.includes('ambizioso') && atWork) happiness += 0.018;
+    if (citizen.traits.includes('generoso') && (state.community?.morale ?? 60) >= 60) happiness += 0.012;
     let health = citizen.health;
     if (hunger > 90) health -= 0.035;
-    else if (hunger < 45) health += 0.008;
+    else if (hunger < 45) health += citizen.traits.includes('paziente') ? 0.012 : 0.008;
+    if (citizen.illness) {
+      health -= citizen.illness.severity === 2 ? 0.05 : 0.025;
+      happiness -= citizen.illness.severity === 2 ? 0.035 : 0.015;
+    }
     if (citizen.age >= 70 && state.gameMinutes % 1440 === 0) health -= 0.08;
     const skills = { ...citizen.skills };
-    if (atWork) skills[citizen.profession] = clamp(skills[citizen.profession] + (world.researched.includes('education') ? 0.018 : 0.01), 0, 100);
-    return { ...citizen, activity, hunger, energy, happiness: clamp(happiness), health: clamp(health), skills, experience: citizen.experience + (atWork ? 0.002 : 0) };
+    if (atWork) {
+      const traitMultiplier = (citizen.traits.includes('pratico') ? 1.25 : 1)
+        * (citizen.traits.includes('ambizioso') ? 1.35 : 1)
+        * (citizen.traits.includes('curioso') && workplace && ['school', 'university'].includes(workplace.type) ? 1.3 : 1);
+      skills[citizen.profession] = clamp(skills[citizen.profession] + (world.researched.includes('education') ? 0.018 : 0.01) * traitMultiplier, 0, 100);
+    }
+    let illness = citizen.illness ?? null;
+    let lastAction = citizen.lastAction;
+    let personalHistory = citizen.personalHistory ?? [];
+    if (illness && state.gameMinutes - illness.since >= (citizen.traits.includes('paziente') ? 180 : 240) && health > 25) {
+      illness = null;
+      health = clamp(health + 8);
+      happiness = clamp(happiness + 2);
+      lastAction = 'Si è ripreso da una malattia';
+      personalHistory = rememberCitizen(citizen, 'È guarito dopo alcuni giorni di riposo.');
+      notes.push(citizen.name + ' è guarito dalla malattia senza cure straordinarie.');
+    }
+    return { ...citizen, illness, personalHistory, lastAction, activity, hunger, energy, happiness: clamp(happiness), health: clamp(health), skills, experience: citizen.experience + (atWork ? 0.002 : 0) };
   });
 
   if (state.gameMinutes > 0 && state.gameMinutes % 60 === 0 && goods.medicine >= 1) {
-    const patient = citizens.filter((citizen) => citizen.status === 'resident' && citizen.health < 92).sort((a, b) => a.health - b.health)[0];
+    const patient = citizens.filter((citizen) => citizen.status === 'resident' && (citizen.illness || citizen.health < 92))
+      .sort((a, b) => Number(!!b.illness) - Number(!!a.illness) || a.health - b.health)[0];
     if (patient) {
       goods.medicine -= 1;
-      citizens = citizens.map((citizen) => citizen.id === patient.id ? { ...citizen, health: clamp(citizen.health + 22), lastAction: 'Ha ricevuto un rimedio dal dispensario' } : citizen);
-      notes.push('Il dispensario ha usato 1 rimedio per aiutare ' + patient.name + ' a recuperare 22 punti salute.');
+      const curedIllness = !!patient.illness;
+      citizens = citizens.map((citizen) => citizen.id === patient.id ? {
+        ...citizen, illness: null, health: clamp(citizen.health + 22),
+        lastAction: curedIllness ? 'È guarito grazie a un rimedio del dispensario' : 'Ha ricevuto un rimedio dal dispensario',
+        personalHistory: rememberCitizen(citizen, curedIllness ? 'Il dispensario lo ha curato dalla malattia.' : 'Il dispensario lo ha aiutato a recuperare le forze.'),
+      } : citizen);
+      notes.push('Il dispensario ha usato 1 rimedio per aiutare ' + patient.name + (curedIllness ? ' a guarire e recuperare 22 punti salute.' : ' a recuperare 22 punti salute.'));
+    }
+  }
+
+  if (state.gameMinutes > 0 && state.gameMinutes % 360 === 0) {
+    const candidates = citizens.filter((citizen) => citizen.status === 'resident' && !citizen.illness);
+    const candidate = [...candidates].sort((a, b) => (a.health - a.hunger * 0.2) - (b.health - b.hunger * 0.2))[0];
+    if (candidate) {
+      const seasonalRisk = getSeason(state.gameMinutes).id === 'winter' ? 8 : 0;
+      const risk = Math.max(5, Math.min(70,
+        (100 - candidate.health) * 0.55 + candidate.hunger * 0.2 + (candidate.age >= 65 ? 8 : 0)
+        + seasonalRisk - (candidate.traits.includes('prudente') ? 10 : 0) - (candidate.traits.includes('paziente') ? 3 : 0)));
+      const idHash = candidate.id.split('').reduce((sum, character) => sum + character.charCodeAt(0), 0);
+      const roll = Math.abs(state.seed * 17 + state.gameMinutes * 13 + idHash * 7) % 100;
+      if (roll < risk) {
+        const severity = roll < risk * 0.28 ? 2 : 1;
+        const illness: CitizenIllness = { id: severity === 2 ? 'fever' : 'cold', severity, since: state.gameMinutes };
+        citizens = citizens.map((citizen) => citizen.id === candidate.id ? {
+          ...citizen, illness, health: clamp(citizen.health - (severity === 2 ? 3 : 1)),
+          happiness: clamp(citizen.happiness - 2),
+          lastAction: severity === 2 ? 'È a letto con la febbre' : 'Sta riposando per un raffreddore',
+          personalHistory: rememberCitizen(citizen, severity === 2 ? 'Si è ammalato di febbre; il recupero richiederà riposo o cure.' : 'Ha preso un raffreddore e ha bisogno di riposo.'),
+        } : citizen);
+        notes.push(candidate.name + (severity === 2 ? ' ha la febbre: la malattia riduce energia e salute finché non guarisce.' : ' ha preso un raffreddore e dovrà riposare per riprendersi.'));
+      }
     }
   }
 
@@ -708,19 +821,32 @@ export function advanceRealmMinute(input: GameState): GameState {
         let delta = a.profession === b.profession ? 1 : 0;
         if (sameWorkplace) delta += 1;
         if (a.familyId === b.familyId) delta += 2;
-        if (a.traits.includes('socievole') || b.traits.includes('socievole')) delta += 1;
+        if (a.traits.includes('socievole') || b.traits.includes('socievole')) delta += 2;
+        if ((a.traits.includes('generoso') || b.traits.includes('generoso')) && resources.food >= 18) delta += 1;
+        if ((a.traits.includes('curioso') && b.profession === 'scholar') || (b.traits.includes('curioso') && a.profession === 'scholar')) delta += 1;
         if (a.traits.includes('ambizioso') && b.traits.includes('ambizioso')) delta -= sameWorkplace ? 3 : 1;
         else if (sameWorkplace && ((a.traits.includes('ambizioso') && b.traits.includes('paziente')) || (b.traits.includes('ambizioso') && a.traits.includes('paziente')))) delta -= 1;
         const prior = ((a.relationships[b.id] ?? 0) + (b.relationships[a.id] ?? 0)) / 2;
         const value = Math.max(-100, Math.min(100, prior + delta));
         a.relationships[b.id] = value;
         b.relationships[a.id] = value;
+        if (prior < 25 && value >= 25) {
+          a.personalHistory = rememberCitizen(a, 'È diventato amico di ' + b.name + '.');
+          b.personalHistory = rememberCitizen(b, 'È diventato amico di ' + a.name + '.');
+          notes.push(a.name + ' e ' + b.name + ' sono diventati amici.');
+        } else if (prior > -15 && value <= -15) {
+          a.personalHistory = rememberCitizen(a, 'È nata una rivalità con ' + b.name + '.');
+          b.personalHistory = rememberCitizen(b, 'È nata una rivalità con ' + a.name + '.');
+          notes.push(a.name + ' e ' + b.name + ' sono entrati in contrasto.');
+        }
       }
     }
     citizens = nextCitizens.map((citizen) => {
       const ties = Object.values(citizen.relationships);
       const average = ties.reduce((sum, value) => sum + value, 0) / Math.max(1, ties.length);
-      return { ...citizen, happiness: clamp(citizen.happiness + (average > 20 ? 0.18 : average < -15 ? -0.18 : 0)) };
+      const nearest = ties.length ? Math.max(...ties) : 0;
+      const isolationPenalty = ties.length > 0 && nearest < -15 ? -0.22 : 0;
+      return { ...citizen, happiness: clamp(citizen.happiness + (average > 20 ? 0.18 : average < -15 ? -0.18 : 0) + (citizen.traits.includes('socievole') && nearest >= 25 ? 0.08 : 0) + isolationPenalty) };
     });
   }
   const routineState: GameState = { ...state, resources, world: { ...world, citizens, goods } };
@@ -733,14 +859,54 @@ export function advanceRealmMinute(input: GameState): GameState {
   let nextCitizenId = world.nextCitizenId;
   if (state.gameMinutes > 0 && state.gameMinutes % (1440 * 7) === 0) {
     const availableJobs = [...new Set(state.buildings.map((building) => BUILDING_JOB[building.type]).filter((job): job is Profession => !!job))];
+    const jobNeed = (job: Profession): number => {
+      const workers = citizens.filter((person) => person.profession === job && person.age >= 14 && person.status === 'resident').length;
+      const shortage = job === 'farmer' ? (resources.food < 18 ? 100 : resources.food < 40 ? 55 : goods.grain < 4 ? 22 : 5)
+        : job === 'lumberjack' ? (resources.wood < 8 ? 80 : resources.wood < 20 ? 36 : 5)
+        : job === 'miner' ? (resources.stone < 6 ? 70 : resources.stone < 16 ? 30 : 4)
+        : job === 'merchant' ? (resources.coins < 10 ? 45 : 8)
+        : job === 'baker' ? (goods.flour > 5 ? 38 : 3)
+        : job === 'miller' ? (goods.grain > 8 ? 32 : 2)
+        : job === 'scholar' ? (world.activeResearch ? 28 : 8)
+        : job === 'scout' ? (world.discoveredRegions.length < REGIONS.length ? 18 : 4)
+        : job === 'artisan' ? (state.buildings.some((building) => building.type === 'workshop') ? 18 : 2)
+        : 8;
+      return shortage - workers * 3;
+    };
     citizens = citizens.map((citizen) => {
-      if (citizen.status !== 'resident' || availableJobs.includes(citizen.profession) || !citizen.traits.some((trait) => ['pratico', 'ambizioso', 'curioso'].includes(trait))) return citizen;
-      const target = [...availableJobs].sort((a, b) => citizens.filter((person) => person.profession === a).length - citizens.filter((person) => person.profession === b).length)[0];
-      return target ? { ...citizen, profession: target, workplaceId: null, lastAction: 'Ha imparato un nuovo mestiere per trovare lavoro nel borgo' } : citizen;
+      if (citizen.age < 14 || citizen.status !== 'resident' || citizen.workplaceId
+        || !citizen.traits.some((trait) => ['pratico', 'ambizioso', 'curioso', 'inventivo'].includes(trait))) return citizen;
+      const target = [...availableJobs].sort((a, b) => jobNeed(b) - jobNeed(a)
+        || citizens.filter((person) => person.profession === a).length - citizens.filter((person) => person.profession === b).length)[0];
+      if (!target || target === citizen.profession) return citizen;
+      const currentProfessionHasWorkplace = availableJobs.includes(citizen.profession);
+      if (currentProfessionHasWorkplace && jobNeed(target) < jobNeed(citizen.profession) + 18) return citizen;
+      return {
+        ...citizen, profession: target, workplaceId: null,
+        lastAction: 'Ha cambiato mestiere per rispondere ai bisogni del borgo: ' + PROFESSION_LABELS[target],
+        personalHistory: rememberCitizen(citizen, 'Ha imparato il mestiere di ' + PROFESSION_LABELS[target] + ' per aiutare il borgo.'),
+      };
     });
   }
   if (state.gameMinutes > 0 && state.gameMinutes % (1440 * 30) === 0) {
     citizens = citizens.map((citizen) => ({ ...citizen, age: citizen.age + 1 }));
+    const elderly = citizens.filter((citizen) => citizen.status === 'resident' && citizen.age >= 95 && (citizen.age >= 105 || citizen.health <= 20));
+    const deceased = elderly.slice(0, Math.max(0, citizens.filter((citizen) => citizen.status === 'resident').length - 1));
+    if (deceased.length) {
+      const deceasedIds = new Set(deceased.map((citizen) => citizen.id));
+      for (const elder of deceased) notes.push('Il borgo ha salutato ' + elder.name + ', dopo una lunga vita di ' + elder.age + ' anni. La sua storia resta nella cronaca.');
+      citizens = citizens.filter((citizen) => !deceasedIds.has(citizen.id)).map((citizen) => {
+        const lostFamily = deceased.find((elder) => elder.familyId === citizen.familyId);
+        const relationships = Object.fromEntries(Object.entries(citizen.relationships).filter(([id]) => !deceasedIds.has(id)));
+        return lostFamily ? {
+          ...citizen, relationships, happiness: clamp(citizen.happiness - 8),
+          lastAction: 'Sta elaborando il lutto per un familiare',
+          personalHistory: rememberCitizen(citizen, 'Ha perso un familiare: ' + lostFamily.name + '.'),
+        } : { ...citizen, relationships };
+      });
+      nextPopulation = Math.max(1, nextPopulation - deceased.length);
+      if (community) { community.morale = clamp(community.morale - Math.min(8, deceased.length * 3)); community.trust = clamp(community.trust - Math.min(4, deceased.length)); }
+    }
     const averageHappiness = citizens.reduce((sum, citizen) => sum + citizen.happiness, 0) / Math.max(1, citizens.length);
     const families = new Map<string, Citizen[]>();
     citizens.filter((citizen) => citizen.age >= 18 && citizen.age <= 45 && citizen.status === 'resident').forEach((citizen) => families.set(citizen.familyId, [...(families.get(citizen.familyId) ?? []), citizen]));
@@ -749,30 +915,36 @@ export function advanceRealmMinute(input: GameState): GameState {
       const child = makeCitizen(state.seed, nextCitizenId - 1, state.gameMinutes);
       child.id = 'citizen-' + nextCitizenId; child.age = 0; child.profession = 'farmer'; child.skills.farmer = 3;
       child.traits = [family[0]!.traits[0]!, family[1]!.traits[0]!]; child.familyId = family[0]!.familyId; child.homeId = family[0]!.homeId;
-      child.lastAction = 'È nato in una famiglia del borgo'; citizens.push(child); nextPopulation++; nextCitizenId++;
-      notes.push('È nato un bambino nella famiglia ' + child.familyId + '. La comunità cresce con una nuova generazione.');
+      child.parentIds = [family[0]!.id, family[1]!.id];
+      child.personalHistory = ['È nato nel borgo, figlio di ' + family[0]!.name + ' e ' + family[1]!.name + '.'];
+      child.lastAction = 'È nato in una famiglia del borgo';
+      citizens = citizens.map((citizen) => family.some((parent) => parent.id === citizen.id)
+        ? { ...citizen, lastAction: 'Ha accolto una nuova nascita in famiglia', personalHistory: rememberCitizen(citizen, 'È diventato genitore di una nuova generazione nel borgo.') }
+        : citizen);
+      citizens.push(child); nextPopulation++; nextCitizenId++;
+      notes.push('È nato un bambino nella famiglia ' + child.familyId + ': ' + family[0]!.name + ' e ' + family[1]!.name + ' diventano genitori.');
     }
   }
-  if (state.gameMinutes > 0 && state.gameMinutes % 120 === 0 && state.population > 5) {
+  if (state.gameMinutes > 0 && state.gameMinutes % 120 === 0 && state.population > 5 && nextPopulation === state.population) {
     const averageHappiness = citizens.reduce((sum, citizen) => sum + citizen.happiness, 0) / Math.max(1, citizens.length);
     if (averageHappiness < 25) {
       const leaving = [...citizens].filter((citizen) => citizen.status !== 'exploring').sort((a, b) => a.happiness - b.happiness)[0];
       if (leaving) {
         citizens = citizens.filter((citizen) => citizen.id !== leaving.id);
-        nextPopulation = Math.max(5, state.population - 1);
+        nextPopulation = Math.max(5, nextPopulation - 1);
         notes.push(leaving.name + ' ha lasciato il borgo perché non si sentiva più a casa.');
         if (community) { community.morale = clamp(community.morale - 4); community.trust = clamp(community.trust - 3); }
       }
     }
   }
 
-  let nextWorld: WorldState = { ...world, nextCitizenId, citizens, goods, researchPoints: world.researchPoints + 0.025 + (state.buildings.some((building) => building.type === 'school') ? citizens.filter((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident').length * 0.09 : 0) };
+  const assignedScholars = schoolScholarCount(state, citizens);
+  let nextWorld: WorldState = { ...world, nextCitizenId, citizens, goods, researchPoints: world.researchPoints + 0.025 + assignedScholars * 0.09 };
   if (state.gameMinutes >= nextWorld.market.nextShiftAt) {
     nextWorld = { ...nextWorld, market: refreshMarket(state.seed, state.gameMinutes, nextWorld.market, goods, nextWorld.weather.id === 'drought' && state.gameMinutes < nextWorld.weather.endsAt, nextWorld.activeEvent?.id ?? null) };
     notes.push('La domanda del mercato è cambiata: le quotazioni di grano, pane e beni lavorati sono aggiornate.');
   }
-  const scholars = state.buildings.some((building) => building.type === 'school')
-    ? citizens.filter((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident').length : 0;
+  const scholars = assignedScholars;
   if (nextWorld.activeResearch) {
     const definition = RESEARCH.find((entry) => entry.id === nextWorld.activeResearch);
     if (definition) {
@@ -867,7 +1039,11 @@ export function advanceRealmMinute(input: GameState): GameState {
     const queue = nextWorld.eventQueue ?? (nextWorld.queuedEvent ? [nextWorld.queuedEvent] : []);
     const queuedId = queue[0];
     const id = queuedId ?? nextWorld.queuedEvent ?? chooseDynamicEvent({ ...state, resources, world: nextWorld });
-    const created = eventTemplate(id, now, state.seed);
+    const possibleActors = nextWorld.citizens.filter((citizen) => citizen.status === 'resident');
+    const actor = possibleActors.length
+      ? possibleActors[Math.abs(Math.trunc(state.seed * 7 + now * 13)) % possibleActors.length]
+      : undefined;
+    const created = eventTemplate(id, now, state.seed, actor);
     const remainingQueue = queuedId ? queue.slice(1) : queue;
     nextWorld = { ...nextWorld, activeEvent: created, eventQueue: remainingQueue, queuedEvent: remainingQueue[0] ?? null, nextEventAt: now + 360 };
     if (created.id === 'drought') nextWorld = { ...nextWorld, weather: { id: 'drought', endsAt: now + 180 } };
@@ -909,6 +1085,7 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     const citizen = world.citizens.find((entry) => entry.id === action.citizenId);
     if (!citizen) return fail('Questo cittadino non esiste più.');
     if (citizen.status === 'exploring') return fail('Il cittadino è in spedizione e non può cambiare mestiere.');
+    if (citizen.age < 14) return fail('I cittadini sotto i 14 anni non vengono assegnati a un mestiere.');
     if (!PROFESSIONS.includes(action.value)) return fail('Mestiere non valido.');
     world = { ...world, citizens: world.citizens.map((entry) => entry.id === citizen.id ? { ...entry, profession: action.value, workplaceId: null, lastAction: 'Ha assunto il mestiere: ' + PROFESSION_LABELS[action.value] } : entry) };
     return finish(citizen.name + ' ora lavora come ' + PROFESSION_LABELS[action.value] + '.');
@@ -1025,6 +1202,16 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
         : citizen);
     }
     if (appliedPopulationDelta < 0) citizens = citizens.slice(0, Math.max(0, citizens.length + appliedPopulationDelta));
+    const participant = event.citizenId ? citizens.find((citizen) => citizen.id === event.citizenId) : undefined;
+    if (participant) {
+      const personalNote = 'Ha vissuto l’avvenimento «' + event.title + '»: il Consiglio ha scelto «' + choice.label + '».';
+      citizens = citizens.map((citizen) => citizen.id === participant.id ? {
+        ...citizen,
+        happiness: clamp(citizen.happiness + (choice.moodDelta ?? 0) * 0.45),
+        lastAction: 'Ha vissuto l’avvenimento: ' + event.title,
+        personalHistory: rememberCitizen(citizen, personalNote),
+      } : citizen);
+    }
     const eventQueue = [...(world.eventQueue ?? (world.queuedEvent ? [world.queuedEvent] : []))];
     const alreadyQueued = eventQueue.length > 0;
     if (choice.chain && !eventQueue.includes(choice.chain)) eventQueue.push(choice.chain);

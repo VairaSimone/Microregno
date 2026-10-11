@@ -1,6 +1,6 @@
 import { BUILDINGS } from './definitions';
 import { ensureWorldState } from './livingWorld';
-import type { Building, CommunityState, CitizenRequest, CitizenRequestOption, GameState, Resource, ResourceBag, SeasonInfo } from './types';
+import type { Building, CommunityState, CitizenRequest, CitizenRequestOption, GameState, Profession, Resource, ResourceBag, SeasonInfo } from './types';
 
 export const SEASONS: SeasonInfo[] = [
   { id: 'spring', name: 'Primavera', icon: '🌱', description: 'I campi ripartono: le fattorie producono il 10% in più.', farmMultiplier: 1.1, foodConsumptionMultiplier: 1 },
@@ -36,7 +36,35 @@ function capacityOf(buildings: Building[]): number {
   return buildings.reduce((total, building) => total + (BUILDINGS[building.type].housing ?? 0) * building.level, 0);
 }
 
-function buildRequest(seed: number, number: number, gameMinutes: number, state?: Pick<GameState, 'population' | 'buildings' | 'resources' | 'community'>): CitizenRequest {
+const REQUEST_ROLE_LABELS: Record<Profession, string> = {
+  farmer: 'Contadino', lumberjack: 'Boscaiolo', miner: 'Minatore', merchant: 'Mercante',
+  miller: 'Mugnaio', baker: 'Fornaio', scholar: 'Studioso', scout: 'Esploratore',
+  builder: 'Costruttore', guard: 'Guardia', artisan: 'Artigiano',
+};
+
+function linkRequestToCitizen(request: CitizenRequest, state?: GameState, preferred: Profession[] = []): CitizenRequest {
+  const residents = (state?.world?.citizens ?? []).filter((citizen) => citizen.status === 'resident');
+  if (!residents.length) return request;
+  const existing = request.citizenId ? residents.find((citizen) => citizen.id === request.citizenId) : undefined;
+  let candidates = existing ? [existing] : residents.filter((citizen) => citizen.age >= 14 && preferred.includes(citizen.profession));
+  if (!candidates.length) candidates = residents.filter((citizen) => citizen.age >= 14);
+  if (!candidates.length) candidates = residents;
+  const citizen = existing ?? candidates[Math.abs((state?.seed ?? 0) + request.id.length * 17 + (state?.gameMinutes ?? 0)) % candidates.length]!;
+  const role = REQUEST_ROLE_LABELS[citizen.profession];
+  const description = request.description.replace(/\b(?:Ada|Berto|Neri|Mira|Lina|Elio)\b/g, citizen.name);
+  const rivals = residents.filter((other) => other.id !== citizen.id &&
+    (other.profession === citizen.profession || (!!citizen.workplaceId && citizen.workplaceId === other.workplaceId)));
+  const rival = request.title === 'Una lite in piazza' && !request.rivalId && rivals.length
+    ? rivals[Math.abs((state?.seed ?? 0) + request.id.length * 11) % rivals.length]
+    : undefined;
+  const rivalExists = request.rivalId && residents.some((other) => other.id === request.rivalId);
+  return {
+    ...request, citizenId: citizen.id, citizen: citizen.name, role, description,
+    ...(rival ? { rivalId: rival.id } : rivalExists ? { rivalId: request.rivalId } : {}),
+  };
+}
+
+function buildRequest(seed: number, number: number, gameMinutes: number, state?: GameState): CitizenRequest {
   const season = getSeason(gameMinutes);
   const hasRoom = state ? state.population < capacityOf(state.buildings) + (state.community?.housingBonus ?? 0) : true;
   const food = state?.resources.food ?? 42;
@@ -129,10 +157,13 @@ function buildRequest(seed: number, number: number, gameMinutes: number, state?:
   const seasonOffset = season.id === 'winter' ? 2 : season.id === 'autumn' ? 1 : 0;
   const mixed = Math.imul((seed ^ 0x9e3779b9) + number * 2654435761, 2246822519) >>> 0;
   const index = number === 0 ? 0 : (mixed + seasonOffset) % requests.length;
-  return requests[index]!();
+  const preferredByRequest: Profession[][] = [
+    ['baker', 'farmer'], ['artisan', 'builder'], ['merchant'], ['farmer', 'builder'], ['merchant', 'artisan'], ['farmer', 'merchant'],
+  ];
+  return linkRequestToCitizen(requests[index]!(), state, preferredByRequest[index] ?? []);
 }
 
-export function createCommunityState(seed: number, gameMinutes = 0): CommunityState {
+export function createCommunityState(seed: number, gameMinutes = 0, state?: GameState): CommunityState {
   return {
     morale: 60,
     trust: 50,
@@ -140,7 +171,7 @@ export function createCommunityState(seed: number, gameMinutes = 0): CommunitySt
     ignoredRequests: 0,
     requestNumber: 1,
     nextRequestAt: gameMinutes + 180,
-    activeRequest: buildRequest(seed, 0, gameMinutes),
+    activeRequest: buildRequest(seed, 0, gameMinutes, state),
     history: [],
     lastOutcome: 'Il borgo è giovane. Le prime scelte del Consiglio daranno forma alla comunità.',
   };
@@ -192,20 +223,25 @@ export function ensureCommunity(state: GameState): GameState {
 }
 
 export function advanceCommunityMinute(state: GameState): GameState {
-  const current = state.community ?? createCommunityState(state.seed, state.gameMinutes);
+  const currentState = state.community ?? createCommunityState(state.seed, state.gameMinutes, state);
+  const current = currentState.activeRequest ? { ...currentState, activeRequest: linkRequestToCitizen(currentState.activeRequest, state) } : currentState;
   if (current.activeRequest && state.gameMinutes >= current.activeRequest.deadline) {
-    const note = current.activeRequest.citizen + ' non ha ricevuto risposta. La fiducia ne risente.';
+    const expiredRequest = current.activeRequest;
+    const note = expiredRequest.citizen + ' non ha ricevuto risposta. La fiducia ne risente.';
+    const world = state.world ? {
+      ...state.world,
+      citizens: state.world.citizens.map((citizen) => citizen.id === expiredRequest.citizenId ? {
+        ...citizen, happiness: Math.max(0, Math.min(100, citizen.happiness - 5)),
+        lastAction: 'La sua richiesta è stata ignorata dal Consiglio',
+        personalHistory: [...(citizen.personalHistory ?? []), 'Il Consiglio non ha risposto alla richiesta: la fiducia nelle autorità è diminuita.'].slice(-6),
+      } : citizen),
+    } : undefined;
     return {
-      ...state,
+      ...state, ...(world ? { world } : {}),
       community: {
-        ...current,
-        morale: clampCommunityValue(current.morale - 8),
-        trust: clampCommunityValue(current.trust - 6),
-        ignoredRequests: current.ignoredRequests + 1,
-        activeRequest: null,
-        nextRequestAt: state.gameMinutes + 120,
-        lastOutcome: note,
-        history: [note, ...current.history].slice(0, 6),
+        ...current, morale: clampCommunityValue(current.morale - 8), trust: clampCommunityValue(current.trust - 6),
+        ignoredRequests: current.ignoredRequests + 1, activeRequest: null, nextRequestAt: state.gameMinutes + 120,
+        lastOutcome: note, history: [note, ...current.history].slice(0, 6),
       },
     };
   }
@@ -222,7 +258,7 @@ export function advanceCommunityMinute(state: GameState): GameState {
       },
     };
   }
-  return state;
+  return current === state.community ? state : { ...state, community: current };
 }
 
 export function resolveCitizenRequest(
@@ -265,7 +301,35 @@ export function resolveCitizenRequest(
     lastOutcome: message,
     history: [message, ...community.history].slice(0, 6),
   };
-  const nextState = { ...state, population, resources, community: nextCommunity };
+  let world = state.world;
+  if (world) {
+    const requesterId = request.citizenId ?? world.citizens.find((citizen) => citizen.name === request.citizen)?.id;
+    const memory = selected.moodDelta >= 0
+      ? 'Il Consiglio ha risposto alla sua richiesta: ' + selected.label + '.'
+      : 'La decisione del Consiglio lo ha deluso: ' + selected.label + '.';
+    let citizens = world.citizens.map((citizen) => citizen.id === requesterId ? {
+      ...citizen,
+      happiness: Math.max(0, Math.min(100, Math.round((citizen.happiness + selected.moodDelta * 0.4) * 100) / 100)),
+      lastAction: selected.moodDelta >= 0 ? 'Ha ricevuto una risposta dal Consiglio' : 'È rimasto deluso dalla risposta del Consiglio',
+      personalHistory: [...(citizen.personalHistory ?? []), memory].slice(-6),
+    } : citizen);
+    const relationDelta = selected.id === 'mediate-ignore' ? -10 : selected.id.startsWith('mediate-') ? 8 : 0;
+    if (request.rivalId && relationDelta !== 0) {
+      const first = citizens.find((citizen) => citizen.id === requesterId);
+      const second = citizens.find((citizen) => citizen.id === request.rivalId);
+      if (first && second) {
+        const prior = ((first.relationships[second.id] ?? 0) + (second.relationships[first.id] ?? 0)) / 2;
+        const value = Math.max(-100, Math.min(100, prior + relationDelta));
+        citizens = citizens.map((citizen) => {
+          if (citizen.id === first.id) return { ...citizen, relationships: { ...citizen.relationships, [second.id]: value }, personalHistory: [...(citizen.personalHistory ?? []), relationDelta > 0 ? 'Ha fatto pace con ' + second.name + '.' : 'La lite con ' + second.name + ' è peggiorata.'].slice(-6) };
+          if (citizen.id === second.id) return { ...citizen, relationships: { ...citizen.relationships, [first.id]: value }, personalHistory: [...(citizen.personalHistory ?? []), relationDelta > 0 ? 'Ha fatto pace con ' + first.name + '.' : 'La lite con ' + first.name + ' è peggiorata.'].slice(-6) };
+          return citizen;
+        });
+      }
+    }
+    world = { ...world, citizens };
+  }
+  const nextState = { ...state, ...(world ? { world } : {}), population, resources, community: nextCommunity };
   return {
     state: appliedPopulationDelta ? ensureWorldState(nextState) : nextState,
     ok: true,

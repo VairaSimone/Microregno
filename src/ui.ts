@@ -636,10 +636,15 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
       const actualWorkplace = getCitizenWorkplace(state, citizen);
       const workplaceOptions = '<option value="auto"' + (!citizen.workplaceId ? ' selected' : '') + '>Automatica' + (actualWorkplace ? ' · ' + escapeRealmHtml(BUILDINGS[actualWorkplace.type].shortName) : '') + '</option>' + compatibleBuildings.map((building) => '<option value="' + escapeRealmHtml(building.id) + '"' + (citizen.workplaceId === building.id ? ' selected' : '') + '>' + escapeRealmHtml(BUILDINGS[building.type].shortName) + ' · livello ' + building.level + '</option>').join('');
       const routine = CITIZEN_ACTIVITY_LABELS[getCitizenActivity(state, citizen)];
-      return '<article class="realm-citizen-card"><div class="realm-citizen-head"><div><strong>' + escapeRealmHtml(citizen.name) + '</strong><small>' + citizen.age + ' anni · ' + escapeRealmHtml(citizen.traits.join(' · ')) + ' · Casa: ' + escapeRealmHtml(home ? BUILDINGS[home.type].shortName : 'da assegnare') + ' · ' + escapeRealmHtml(citizen.familyId) + (relationshipNote ? ' · ' + escapeRealmHtml(relationshipNote) : '') + (citizen.status === 'exploring' ? ' · IN SPEDIZIONE' : '') + '</small></div>' +
-        '<label>Mestiere<select data-citizen="' + escapeRealmHtml(citizen.id) + '"' + (citizen.status === 'exploring' ? ' disabled' : '') + '>' + options + '</select></label>' +
-        '<label>Postazione<select data-workplace="' + escapeRealmHtml(citizen.id) + '"' + (citizen.status === 'exploring' ? ' disabled' : '') + '>' + workplaceOptions + '</select></label></div>' +
+      const lifeStage = citizen.age < 14 ? 'Infanzia' : citizen.age >= 75 ? 'Anziano' : citizen.age >= 55 ? 'Maturo' : 'Adulto';
+      const illnessLabel = citizen.illness ? (citizen.illness.id === 'fever' ? 'Febbre' : 'Raffreddore') : '';
+      const parents = (citizen.parentIds ?? []).map((id) => world.citizens.find((other) => other.id === id)?.name).filter((name): name is string => !!name);
+      const story = (citizen.personalHistory ?? []).slice(-2).join(' · ');
+      return '<article class="realm-citizen-card"><div class="realm-citizen-head"><div><strong>' + escapeRealmHtml(citizen.name) + '</strong><small>' + citizen.age + ' anni · ' + lifeStage + (illnessLabel ? ' · MALATTIA: ' + illnessLabel : '') + ' · ' + escapeRealmHtml(citizen.traits.join(' · ')) + ' · Casa: ' + escapeRealmHtml(home ? BUILDINGS[home.type].shortName : 'da assegnare') + ' · ' + escapeRealmHtml(citizen.familyId) + (parents.length ? ' · Figlio di ' + escapeRealmHtml(parents.join(' e ')) : '') + (relationshipNote ? ' · ' + escapeRealmHtml(relationshipNote) : '') + (citizen.status === 'exploring' ? ' · IN SPEDIZIONE' : '') + '</small></div>' +
+        '<label>Mestiere<select data-citizen="' + escapeRealmHtml(citizen.id) + '"' + (citizen.status === 'exploring' || citizen.age < 14 ? ' disabled' : '') + '>' + options + '</select></label>' +
+        '<label>Postazione<select data-workplace="' + escapeRealmHtml(citizen.id) + '"' + (citizen.status === 'exploring' || citizen.age < 14 ? ' disabled' : '') + '>' + workplaceOptions + '</select></label></div>' +
         '<div class="realm-needs">' + realmMeter('Fame', citizen.hunger) + realmMeter('Energia', citizen.energy) + realmMeter('Felicità', citizen.happiness) + realmMeter('Salute', citizen.health) + '</div>' +
+        (story ? '<small class="realm-citizen-story">Storia personale: ' + escapeRealmHtml(story) + '</small>' : '') +
         '<div class="realm-citizen-footer"><span>' + escapeRealmHtml(routine) + ' · ' + escapeRealmHtml(citizen.lastAction) + '</span><b>Abilità: ' + Math.round(citizen.skills[citizen.profession]) + '/100</b></div></article>'; 
     }).join('');
     const hasMarket = state.buildings.some((building) => building.type === 'market');
@@ -688,7 +693,7 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
       ? '<div class="realm-weather-alert drought"><strong>☀ Siccità in corso</strong><span>Le fattorie rendono il 32% in meno. Il fenomeno dovrebbe durare ancora circa ' + Math.ceil((world.weather.endsAt - state.gameMinutes) / 60) + ' minuti reali.</span></div>'
       : '<div class="realm-weather-alert"><strong>☀ Tempo stabile</strong><span>Le condizioni stagionali si applicano normalmente; gli eventi climatici possono modificare i raccolti per un periodo limitato.</span></div>';
     root.innerHTML = '<div class="realm-summary-grid"><div><small>ABITANTI</small><strong>' + world.citizens.length + '</strong></div><div><small>IN SPEDIZIONE</small><strong>' + world.citizens.filter((citizen) => citizen.status === 'exploring').length + '</strong></div><div><small>PUNTI CONOSCENZA</small><strong>' + formatNumber(world.researchPoints) + '</strong></div></div>' +
-      weatherNotice + '<p class="realm-intro">Ogni cittadino ha un mestiere, competenze e bisogni persistenti. Assegna persone agli edifici giusti: gli edifici senza personale funzionano solo in parte.</p>' +
+      weatherNotice + '<p class="realm-intro">Ogni cittadino ha una storia personale, tratti che modificano il lavoro, relazioni che possono diventare amicizie o rivalità e un ciclo di vita con malattie, recupero e lutti. I bambini crescono prima di poter lavorare; gli anziani possono lasciare un ricordo nella cronaca. Assegna persone agli edifici giusti: gli edifici senza personale funzionano solo in parte.</p>' +
       '<div class="realm-citizen-list">' + citizens + '</div>' + employment;
     return;
   }
@@ -764,6 +769,7 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
 
   if (realmTab === 'research') {
     const active = world.activeResearch;
+    const assignedScholars = world.citizens.filter((citizen) => citizen.profession === 'scholar' && citizen.status === 'resident' && citizen.age >= 14 && !!citizen.workplaceId && ['school', 'university'].includes(state.buildings.find((building) => building.id === citizen.workplaceId)?.type ?? '')).length;
     const researches = RESEARCH.map((research) => {
       const done = world.researched.includes(research.id);
       const isActive = active === research.id;
@@ -775,8 +781,8 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
           done ? '<small class="realm-complete-label">Conoscenza acquisita</small>' : '<small>' + (unmet ? 'Requisito: ' + escapeRealmHtml(unmet) : 'Costo ' + research.cost + ' punti' + (research.resourceCost ? ' · materiali: ' + escapeRealmHtml(Object.entries(research.resourceCost).map(([key, value]) => value + ' ' + key).join(', ')) : '') + ' · durata base ' + Math.ceil(research.duration / 60) + ' min di gioco') + '</small>') +
         realmActionButton(done ? 'Completata' : isActive ? 'In corso' : 'Avvia ricerca', 'research', research.id, '', disabled) + '</article>';
     }).join('');
-    root.innerHTML = '<div class="realm-summary-grid"><div><small>PUNTI CONOSCENZA</small><strong>' + formatNumber(world.researchPoints) + '</strong></div><div><small>RICERCHE ACQUISITE</small><strong>' + world.researched.length + '/' + RESEARCH.length + '</strong></div><div><small>STUDIOSI</small><strong>' + world.citizens.filter((citizen) => citizen.profession === 'scholar').length + '</strong></div></div>' +
-      '<p class="realm-intro">La conoscenza cresce nel tempo e con gli studiosi. Costruisci una scuola e assegna il mestiere Studioso per accelerare il progresso. Avvia una ricerca alla volta: una volta completata, il bonus resta attivo.</p>' +
+    root.innerHTML = '<div class="realm-summary-grid"><div><small>PUNTI CONOSCENZA</small><strong>' + formatNumber(world.researchPoints) + '</strong></div><div><small>RICERCHE ACQUISITE</small><strong>' + world.researched.length + '/' + RESEARCH.length + '</strong></div><div><small>STUDIOSI AL LAVORO</small><strong>' + assignedScholars + '</strong></div></div>' +
+      '<p class="realm-intro">La conoscenza cresce solo con studiosi adulti assegnati esplicitamente alla Scuola o all’Università. Chi non ha una postazione di ricerca non genera punti e non accelera gli studi. I tratti curiosi fanno imparare più in fretta. Avvia una ricerca alla volta: una volta completata, il bonus resta attivo.</p>' +
       '<div class="realm-research-list">' + researches + '</div>';
     return;
   }
