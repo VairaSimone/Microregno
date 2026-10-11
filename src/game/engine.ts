@@ -1,10 +1,11 @@
 import {BOARD_SIZE,BUILDINGS,MAX_BUILDING_LEVEL} from './definitions';
 import {advanceCommunityMinute,createCommunityState,getSeason} from './community';
 import {advanceRealmMinute,createWorldState,ensureWorldState,realmModifiers,worldBuildingMultiplier} from './livingWorld';
+import {initialKingdomProgression,isBuildingEpochAvailable,getBuildingEpoch,synchronizeKingdomProgression,EPOCHS} from './progression';
 import type {BuildCheck,Building,BuildingType,GameState,Resource,Terrain} from './types';
 function random(seed:number):()=>number{let v=seed>>>0;return()=>{v=(v*1664525+1013904223)>>>0;return v/4294967296;};}
 export function generateTerrain(seed:number):Terrain[][]{const r=random(seed);const map:Terrain[][]=Array.from({length:BOARD_SIZE},()=>Array.from({length:BOARD_SIZE},()=>{const n=r();return n<.065?'water':n<.21?'forest':n<.275?'rock':'grass';}));for(let y=4;y<=7;y++)for(let x=4;x<=7;x++)map[y]![x]='grass';[[7,2],[8,2],[7,3],[8,3],[7,4]].forEach(([x,y])=>map[y]![x]='water');[[2,5],[2,6],[3,5],[9,7],[10,7],[9,8],[5,2],[5,3],[6,2]].forEach(([x,y])=>map[y]![x]='forest');[[9,2],[10,2],[9,3],[10,3],[8,8],[8,9]].forEach(([x,y])=>map[y]![x]='rock');return map;}
-export function createInitialState(seed=2310):GameState{const buildings=[{id:'town-hall-1',type:'townHall' as const,x:5,y:6,level:1}];return{version:1,seed,resources:{wood:42,stone:24,food:42,coins:18},population:5,gameMinutes:0,buildings,lastSavedAt:Date.now(),community:createCommunityState(seed,0),world:createWorldState(seed,5,0)};}
+export function createInitialState(seed=2310):GameState{const buildings=[{id:'town-hall-1',type:'townHall' as const,x:5,y:6,level:1}];return{version:1,seed,resources:{wood:42,stone:24,food:42,coins:18},population:5,gameMinutes:0,buildings,lastSavedAt:Date.now(),community:createCommunityState(seed,0),world:createWorldState(seed,5,0),progression:initialKingdomProgression()};}
 export function housingCapacity(s:GameState):number{return s.buildings.reduce((n,b)=>n+(BUILDINGS[b.type].housing??0)*b.level,0)+(s.community?.housingBonus??0);}
 export function resourceTotal(s:GameState):number{return Object.values(s.resources).reduce((a,b)=>a+b,0);}
 export const POPULATION_MILESTONES=[{population:8,reward:10},{population:12,reward:15},{population:18,reward:25},{population:24,reward:40}] as const;
@@ -20,6 +21,7 @@ if(type==='townHall')return{ok:false,reason:'Non puoi costruire un secondo munic
 if(s.buildings.some(b=>b.x===x&&b.y===y))return{ok:false,reason:'C’è già un edificio su questa casella.'};
 if(map[y]![x]!=='grass'){const t=map[y]![x]!;return{ok:false,reason:'Qui non si può costruire: '+(t==='water'?'c’è acqua.':t==='forest'?'c’è un bosco.':'c’è roccia.')};}
 const def=BUILDINGS[type];if(s.population<def.unlockedAt)return{ok:false,reason:'Servono almeno '+def.unlockedAt+' abitanti per sbloccare '+def.name+'.'};
+if(!isBuildingEpochAvailable(s,type))return{ok:false,reason:'Per costruire '+def.name+' devi prima raggiungere l’epoca '+EPOCHS[getBuildingEpoch(type)].name+'.'};
 for(const [r,n] of Object.entries(def.cost) as [Resource,number][])if(s.resources[r]<n)return{ok:false,reason:'Non hai abbastanza '+r+'.'};
 if(type==='sawmill'&&!near(map,x,y,'forest',3))return{ok:false,reason:'La segheria deve sorgere vicino a un bosco.'};
 if(type==='quarry'&&!near(map,x,y,'rock',3))return{ok:false,reason:'La cava deve sorgere vicino a una zona rocciosa.'};return{ok:true};}
@@ -72,5 +74,5 @@ if(processRealm)next=advanceRealmMinute(next);
 if(next.population===populationBeforeRealmStep&&next.gameMinutes%20===0&&next.resources.food>=18&&next.population<housingCapacity(next)&&(next.community?.morale??60)>=20)next=ensureWorldState({...next,population:next.population+1});
 (Object.keys(next.resources) as Resource[]).forEach(r=>next.resources[r]=Math.max(0,Math.round(next.resources[r]*100)/100));
 }
-return next;}
+return processRealm||processCommunity?synchronizeKingdomProgression(next).state:next;}
 export function formatGameClock(mins:number):string{const t=mins%1440;return'Giorno '+(Math.floor(mins/1440)+1)+' · '+String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');}

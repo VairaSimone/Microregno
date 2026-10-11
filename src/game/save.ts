@@ -2,6 +2,7 @@ import { BUILDINGS, BOARD_SIZE, MAX_BUILDING_LEVEL, OFFLINE_CAP_MINUTES } from '
 import { advanceTime, createInitialState } from './engine';
 import { ensureCommunity } from './community';
 import { ensureWorldState } from './livingWorld';
+import { synchronizeKingdomProgression } from './progression';
 import { localDateKey } from './challenge';
 import type { Building, BuildingType, ChallengeSave, GameState } from './types';
 
@@ -50,7 +51,7 @@ function sanitizeBuildings(value: unknown): Building[] {
   return buildings;
 }
 
-function normalizeSavedState(raw: GameState): GameState | null {
+function normalizeSavedState(raw: GameState, updateCampaign = true): GameState | null {
   const buildings = sanitizeBuildings(raw.buildings);
   if (!buildings.some((building) => building.type === 'townHall')) return null;
 
@@ -80,7 +81,8 @@ function normalizeSavedState(raw: GameState): GameState | null {
       hall.level++;
     }
   }
-  return ensureWorldState(state);
+  const withWorld = ensureWorldState(state);
+  return updateCampaign ? synchronizeKingdomProgression(withWorld).state : withWorld;
 }
 
 function read<T>(key: string): T | null {
@@ -151,7 +153,7 @@ export function loadChallengeSave(date = localDateKey()): ChallengeSave | null {
   const saved = read<ChallengeSave>(CHALLENGE + date);
   if (!saved || saved.date !== date || !valid(saved.state)
     || typeof saved.completed !== 'boolean' || !Number.isFinite(saved.score) || !Number.isFinite(saved.bestScore)) return null;
-  const state = normalizeSavedState(saved.state);
+  const state = normalizeSavedState(saved.state, false);
   if (!state) return null;
   return { ...saved, state };
 }

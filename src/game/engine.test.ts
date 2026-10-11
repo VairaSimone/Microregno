@@ -45,6 +45,7 @@ describe('simulazione Microregno',()=>{
     expect(canBuild(s,map,4,4,'sawmill').reason).toContain('6 abitanti');
     expect(canBuild(s,map,6,5,'market').reason).toContain('8 abitanti');
     s.population=6;
+    s.progression!.unlockedEpochs=['settlement','village'];
     expect(canBuild(s,map,4,4,'sawmill').ok).toBe(true);
     s.population=8;
     expect(canBuild(s,map,6,5,'market').ok).toBe(true);

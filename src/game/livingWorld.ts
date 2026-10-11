@@ -1,3 +1,4 @@
+import { isEpochUnlocked } from './progression';
 import { BUILDINGS } from './definitions';
 import { getSeason } from './community';
 import type {
@@ -332,7 +333,7 @@ export function ensureWorldState(state: GameState): GameState {
 
 const BUILDING_JOB: Partial<Record<BuildingType, Profession>> = {
   farm: 'farmer', sawmill: 'lumberjack', quarry: 'miner', market: 'merchant', mill: 'miller',
-  bakery: 'baker', school: 'scholar', watchtower: 'guard', workshop: 'artisan',
+  bakery: 'baker', school: 'scholar', watchtower: 'guard', workshop: 'artisan', university: 'scholar',
 };
 
 export const CITIZEN_ACTIVITY_LABELS: Record<import('./types').CitizenActivity, string> = {
@@ -724,7 +725,7 @@ export function advanceRealmMinute(input: GameState): GameState {
   if (nextWorld.activeResearch) {
     const definition = RESEARCH.find((entry) => entry.id === nextWorld.activeResearch);
     if (definition) {
-      nextWorld = { ...nextWorld, researchProgress: nextWorld.researchProgress + 0.24 + scholars * 0.43 + (nextWorld.completedProjects.includes('grand-archive') ? 0.12 : 0) };
+      nextWorld = { ...nextWorld, researchProgress: nextWorld.researchProgress + 0.24 + scholars * 0.43 + (nextWorld.completedProjects.includes('grand-archive') ? 0.12 : 0) + (state.buildings.some((building) => building.type === 'university') ? 0.45 : 0) };
       if (nextWorld.researchProgress >= definition.duration) {
         nextWorld = { ...nextWorld, researched: [...new Set([...nextWorld.researched, definition.id])], activeResearch: null, researchProgress: 0 };
         notes.push('Ricerca completata: ' + definition.name + '.');
@@ -848,6 +849,11 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     state: { ...state, population, resources, community, world: { ...world, chronicle: [message, ...world.chronicle].slice(0, 12) } },
     ok: true, message,
   });
+
+  if ((action.type === 'research' || action.type === 'expedition' || action.type === 'project' || action.type === 'diplomacy')
+    && !isEpochUnlocked(state, 'borough')) {
+    return fail('Queste decisioni si aprono nell’epoca del Borgo. Raggiungi 12 abitanti, apri un mercato e migliora un edificio.');
+  }
 
   if (action.type === 'assign') {
     const citizen = world.citizens.find((entry) => entry.id === action.citizenId);

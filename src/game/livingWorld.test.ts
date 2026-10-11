@@ -3,6 +3,10 @@ import { createInitialState, advanceTime, resourceRates } from './engine';
 import { advanceRealmMinute, canExploreRegion, createWorldState, getInterestGroups, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
 import type { Building } from './types';
 
+function unlockBorough(state: ReturnType<typeof createInitialState>): void {
+  state.progression!.unlockedEpochs = ['settlement', 'village', 'borough'];
+}
+
 describe('living world simulation', () => {
   it('creates persistent named citizens and safe migration from an old save', () => {
     const state = createInitialState(4102);
@@ -37,6 +41,7 @@ describe('living world simulation', () => {
 
   it('starts a research only when knowledge points are available', () => {
     const state = createInitialState();
+    unlockBorough(state);
     state.world!.researchPoints = 0;
     const denied = performRealmAction(state, { type: 'research', id: 'irrigation' });
     expect(denied.ok).toBe(false);
@@ -49,7 +54,7 @@ describe('living world simulation', () => {
   });
 
   it('keeps research locked until its building prerequisite exists', () => {
-    const state = createInitialState(); state.world!.researchPoints = 40;
+    const state = createInitialState(); unlockBorough(state); state.world!.researchPoints = 40;
     const denied = performRealmAction(state, { type: 'research', id: 'irrigation' });
     expect(denied.ok).toBe(false); expect(denied.message).toContain('Fattoria');
   });
@@ -106,7 +111,7 @@ describe('living world simulation', () => {
   });
 
   it('configures expedition crew, provisions, equipment and duration', () => {
-    const state = createInitialState(1234); state.resources.food = 120; state.world!.goods.tools = 2;
+    const state = createInitialState(1234); unlockBorough(state); state.resources.food = 120; state.world!.goods.tools = 2;
     const started = performRealmAction(state, { type: 'expedition', id: 'forest', scoutId: 'citizen-5', crewIds: ['citizen-5', 'citizen-1'], foodSupply: 14, durationFactor: 1.25, useTools: false });
     expect(started.ok).toBe(true); expect(started.state.world!.expeditions[0]!.eta).toBe(125);
     expect(started.state.resources.food).toBe(106); expect(started.state.world!.expeditions[0]!.crewIds).toEqual(['citizen-5', 'citizen-1']);
@@ -122,6 +127,7 @@ describe('living world simulation', () => {
 
   it('sends a scout to an available region and resolves a real expedition', () => {
     const state = createInitialState(1234);
+    unlockBorough(state);
     state.resources.food = 120;
     state.world!.goods.tools = 2;
     const started = performRealmAction(state, { type: 'expedition', id: 'forest' });
@@ -155,6 +161,7 @@ describe('living world simulation', () => {
 
   it('funds a multi-stage public project and activates a permanent benefit', () => {
     const state = createInitialState();
+    unlockBorough(state);
     state.buildings.push({ id: 'project-farm', type: 'farm', x: 4, y: 4, level: 1 });
     const first = performRealmAction(state, { type: 'project', id: 'aqueduct' });
     expect(first.ok).toBe(true);
@@ -182,6 +189,7 @@ describe('living world simulation', () => {
 
   it('unlocks a permanent diplomatic route only after relations improve', () => {
     const state = createInitialState();
+    unlockBorough(state);
     const faction = state.world!.factions[0]!;
     state.world!.factions[0] = { ...faction, relation: 60 };
     const treaty = performRealmAction(state, { type: 'diplomacy', id: faction.id, value: 'treaty' });

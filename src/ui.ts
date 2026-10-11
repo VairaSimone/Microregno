@@ -1,5 +1,6 @@
 import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
+import { EPOCHS,EPOCH_ORDER,getBuildingEpoch,getCharterRequirements,getCurrentEpochId,getEpochRequirements,isEpochUnlocked } from './game/progression';
 import { getSeason } from './game/community';
 import { canExploreRegion, CITIZEN_ACTIVITY_LABELS, getCitizenActivity, getCitizenWorkplace, getInterestGroups, projectRequirement, PROFESSION_LABELS, PROFESSIONS, PROJECTS, researchRequirement, RESEARCH, REGIONS, worldBuildingMultiplier } from './game/livingWorld';
 import type { GoodsBag, WorldState } from './game/types';
@@ -7,7 +8,7 @@ import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForB
 import type { BuildingType, GameSnapshot, Profession, Resource } from './game/types';
 
 const WORKPLACE_PROFESSION: Partial<Record<BuildingType, Profession>> = {
-  farm: 'farmer', sawmill: 'lumberjack', quarry: 'miner', market: 'merchant', mill: 'miller', bakery: 'baker', school: 'scholar', watchtower: 'guard', workshop: 'artisan',
+  farm: 'farmer', sawmill: 'lumberjack', quarry: 'miner', market: 'merchant', mill: 'miller', bakery: 'baker', school: 'scholar', watchtower: 'guard', workshop: 'artisan', university: 'scholar',
 };
 
 const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
@@ -56,6 +57,7 @@ interface TutorialStep {
 function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
   const state = snapshot.state;
   const has = (type: BuildingType): boolean => state.buildings.some((building) => building.type === type);
+  const hasEpoch = (id: 'village' | 'borough'): boolean => state.progression?.unlockedEpochs.includes(id) ?? false;
 
   return [
     {
@@ -77,31 +79,31 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
       done: has('house'),
     },
     {
-      key: 'grow-six',
-      title: '3 · Raggiungi 6 abitanti',
-      description: 'Lascia lavorare la fattoria e aspetta il prossimo abitante. La Segheria e la Cava si sbloccano a 6 abitanti.',
-      rule: 'Ogni 20 minuti di gioco arriva un abitante, se hai almeno 18 cibo e un posto abitativo libero. Il tempo scorre automaticamente.',
+      key: 'village',
+      title: '3 · Fonda il Villaggio',
+      description: 'Tieni le dispense rifornite e raggiungi 8 abitanti. Il Consiglio riconoscerà il primo vero centro abitato.',
+      rule: 'Il passaggio al Villaggio richiede una Fattoria, una Casa e 8 abitanti. Sblocca la filiera economica, il Mercato e le strade.',
       actionType: null,
-      actionLabel: 'Attendi il prossimo abitante',
-      done: state.population >= 6,
+      actionLabel: 'Attendi la crescita',
+      done: hasEpoch('village'),
     },
     {
       key: 'sawmill',
       title: '4 · Costruisci una Segheria',
-      description: 'Ora che hai 6 abitanti, costruisci la Segheria su erba vicino agli alberi. Il contorno verde indica una casella valida.',
-      rule: 'La Segheria costa 14 legname e 5 pietra e deve trovarsi entro 3 caselle da un bosco. Non si costruisce sopra l’albero.',
+      description: 'Nel Villaggio si sbloccano Segheria, Cava, Mercato e Strade. Posiziona la Segheria vicino a un bosco.',
+      rule: 'La Segheria deve sorgere su erba entro 3 caselle da un bosco. La posizione migliora la produzione di legname.',
       actionType: 'sawmill',
       actionLabel: 'Seleziona segheria',
       done: has('sawmill'),
     },
     {
-      key: 'population',
-      title: '5 · Porta il borgo a 8 abitanti',
-      description: 'Il villaggio può crescere da solo. Tieni le dispense rifornite e lascia passare il tempo di gioco.',
-      rule: 'A 8 abitanti si sblocca il Mercato. Costruire altre case aumenta la capienza; senza cibo sufficiente, la crescita si ferma.',
+      key: 'borough',
+      title: '5 · Preparati al Borgo',
+      description: 'Porta la popolazione a 12, apri il Mercato e migliora un edificio al livello 2 per dare al regno una nuova ambizione.',
+      rule: 'Il Borgo apre ricerca, diplomazia, spedizioni e grandi opere. Le nuove epoche non dipendono solo dalla popolazione.',
       actionType: null,
-      actionLabel: 'Lascia crescere il villaggio',
-      done: state.population >= 8,
+      actionLabel: 'Mostra requisiti del Borgo',
+      done: hasEpoch('borough'),
     },
   ];
 }
@@ -190,10 +192,9 @@ function renderBuildList(snapshot: GameSnapshot): void {
   const coreTypes = new Set<BuildingType>([
     'farm',
     'house',
-    ...(population >= 6 ? ['sawmill', 'quarry'] as BuildingType[] : []),
-    ...(population >= 8 ? ['market', 'road', 'mill', 'warehouse'] as BuildingType[] : []),
-    ...(population >= 10 ? ['bakery', 'school', 'workshop'] as BuildingType[] : []),
-    ...(population >= 12 ? ['watchtower'] as BuildingType[] : []),
+    ...(population >= 8 ? ['sawmill', 'quarry', 'market', 'road', 'mill', 'warehouse'] as BuildingType[] : []),
+    ...(population >= 12 ? ['bakery', 'school', 'workshop', 'watchtower'] as BuildingType[] : []),
+    ...(isEpochUnlocked(snapshot.state, 'city') ? ['university'] as BuildingType[] : []),
   ]);
   // Keep the first screen focused on the next sensible choices. The complete sandbox
   // catalogue remains available on demand; locked items are not the first thing a new
@@ -240,9 +241,12 @@ function renderBuildList(snapshot: GameSnapshot): void {
     title.textContent = definition.shortName;
 
     const cost = document.createElement('small');
-    cost.textContent = !unlocked
-      ? 'Sblocca a ' + definition.unlockedAt + ' abitanti'
-      : formatCost(definition.cost);
+    const requiredEpoch = getBuildingEpoch(type);
+    const lockDetails = [
+      ...(population < definition.unlockedAt ? [definition.unlockedAt + ' abitanti'] : []),
+      ...(!isEpochUnlocked(snapshot.state, requiredEpoch) ? ['epoca ' + EPOCHS[requiredEpoch].name] : []),
+    ];
+    cost.textContent = !unlocked ? 'Richiede ' + lockDetails.join(' · ') : formatCost(definition.cost);
 
     copy.append(title, cost);
 
@@ -275,9 +279,13 @@ function renderBuildList(snapshot: GameSnapshot): void {
       ? 'Catalogo completo: gli edifici bloccati indicano quanti abitanti servono per sbloccarli.'
       : population < 6
         ? 'Per iniziare bastano Fattoria e Casa: prima assicura il cibo, poi aumenta i posti abitativi.'
-        : population < 8
-          ? 'Ora puoi costruire una Segheria vicino agli alberi e una Cava vicino alle rocce.'
-          : 'Gli edifici avanzati si sbloccano con la popolazione. Usa il catalogo completo per consultarli tutti.';
+        : !isEpochUnlocked(snapshot.state, 'village')
+          ? 'Raggiungi 8 abitanti, con una Fattoria e una Casa, per fondare il Villaggio e sbloccare le prime botteghe.'
+          : !isEpochUnlocked(snapshot.state, 'borough')
+            ? 'Il Villaggio è nato: prepara il Borgo con 12 abitanti, un Mercato e un edificio al livello 2.'
+            : !isEpochUnlocked(snapshot.state, 'city')
+              ? 'Il Borgo apre ricerca, diplomazia e spedizioni: completa le prove per fondare la Città.'
+              : 'Prepara la Carta della Corona: grandi opere, alleanze, regioni e Università Reale.';
 
   $('map-instruction').textContent = snapshot.selectedBuildType
     ? 'Costruisci: ' + BUILDINGS[snapshot.selectedBuildType].name + ' · scegli una casella d’erba libera.'
@@ -371,107 +379,78 @@ function renderCitizenPanel(snapshot: GameSnapshot): void {
   }
 }
 
+function renderEpochPanel(snapshot: GameSnapshot): void {
+  const track = $('epoch-track');
+  const checklist = $('epoch-checklist');
+  track.innerHTML = '';
+  checklist.innerHTML = '';
+
+  if (snapshot.mode === 'challenge') {
+    $('epoch-title').textContent = 'Partita separata';
+    $('epoch-count').textContent = 'SFIDA';
+    $('epoch-summary').textContent = 'La sfida del giorno non modifica la campagna del regno. Torna a “Il mio regno” per continuare le epoche.';
+    $('epoch-story').textContent = 'La storia di Brumadoro resta nel salvataggio principale.';
+    $('epoch-progress').classList.add('challenge-epoch');
+    return;
+  }
+  $('epoch-progress').classList.remove('challenge-epoch');
+
+  const state = snapshot.state;
+  const current = getCurrentEpochId(state);
+  const currentIndex = EPOCH_ORDER.indexOf(current);
+  const complete = state.progression?.campaignComplete === true;
+  EPOCH_ORDER.forEach((id) => {
+    const step = document.createElement('div');
+    step.className = 'epoch-step' + (isEpochUnlocked(state, id) ? ' done' : '') + (id === current ? ' active' : '');
+    const icon = document.createElement('span');
+    icon.textContent = EPOCHS[id].icon;
+    const label = document.createElement('small');
+    label.textContent = EPOCHS[id].name;
+    step.append(icon, label);
+    track.append(step);
+  });
+
+  $('epoch-title').textContent = complete ? 'Carta della Corona' : EPOCHS[current].name;
+  $('epoch-count').textContent = complete ? 'CAMPAGNA CONCLUSA' : (currentIndex + 1) + '/4 EPOCHE';
+  $('epoch-summary').textContent = complete
+    ? 'Brumadoro è una città autonoma. Hai completato la campagna: il regno può continuare a prosperare in modalità libera.'
+    : current === 'city'
+      ? 'L’ultima impresa è la Carta della Corona: dimostra che la Città sa sostenere popolazione, opere pubbliche, rotte e conoscenza.'
+      : EPOCHS[current].summary;
+
+  // Detailed requirements are shown once in the objective list below.
+
+  const story = state.progression?.history[0] ?? EPOCHS.settlement.story;
+  $('epoch-story').textContent = complete
+    ? (state.progression?.history[0] ?? 'La Carta della Corona è stata firmata.')
+    : story;
+}
+
 function renderObjectives(snapshot: GameSnapshot): void {
   const host = $('objectives-list');
   host.innerHTML = '';
 
   const state = snapshot.state;
-  const farms = state.buildings.filter((building) => building.type === 'farm').length;
-  const markets = state.buildings.filter((building) => building.type === 'market').length;
-  const levelTwo = state.buildings.filter((building) => building.level >= 2).length;
-  const levelThree = state.buildings.filter((building) => building.level >= 3).length;
   let objectives: { label: string; done: boolean; value: string }[];
 
   if (snapshot.mode === 'challenge') {
+    const levelTwo = state.buildings.filter((building) => building.level >= 2).length;
+    const buildingCount = state.buildings.filter((building) => building.type !== 'townHall').length;
     objectives = [
-      {
-        label: 'Completa la missione',
-        done: snapshot.challengeCompleted,
-        value: snapshot.challengeProgress + '/' + snapshot.challenge.target,
-      },
-      {
-        label: 'Migliora un edificio',
-        done: levelTwo > 0,
-        value: levelTwo > 0 ? levelTwo + ' livello 2+' : 'Da migliorare',
-      },
-      {
-        label: 'Costruisci 3 edifici',
-        done: state.buildings.filter((building) => building.type !== 'townHall').length >= 3,
-        value: state.buildings.filter((building) => building.type !== 'townHall').length + '/3',
-      },
-    ];
-  } else if (state.population < 8) {
-    objectives = [
-      {
-        label: 'Raggiungi 8 abitanti',
-        done: state.population >= 8,
-        value: Math.min(8, state.population) + '/8',
-      },
-      {
-        label: 'Costruisci una fattoria',
-        done: farms > 0,
-        value: farms > 0 ? farms + (farms === 1 ? ' costruita' : ' costruite') : 'Da costruire',
-      },
-      {
-        label: 'Tieni almeno 18 cibo',
-        done: state.resources.food >= 18,
-        value: formatNumber(state.resources.food) + ' cibo',
-      },
-    ];
-  } else if (state.population < 12) {
-    objectives = [
-      {
-        label: 'Costruisci un mercato',
-        done: markets > 0,
-        value: markets > 0 ? markets + ' costruito' : 'Sbloccato a 8',
-      },
-      {
-        label: 'Migliora un edificio',
-        done: levelTwo > 0,
-        value: levelTwo > 0 ? levelTwo + ' livello 2+' : 'Da migliorare',
-      },
-      {
-        label: 'Raggiungi 12 abitanti',
-        done: state.population >= 12,
-        value: Math.min(12, state.population) + '/12',
-      },
-    ];
-  } else if (state.population < 18) {
-    objectives = [
-      {
-        label: 'Raggiungi 18 abitanti',
-        done: state.population >= 18,
-        value: Math.min(18, state.population) + '/18',
-      },
-      {
-        label: 'Migliora 3 edifici',
-        done: levelTwo >= 3,
-        value: levelTwo + '/3 al livello 2+',
-      },
-      {
-        label: 'Risparmia 50 monete',
-        done: state.resources.coins >= 50,
-        value: formatNumber(state.resources.coins) + '/50',
-      },
+      { label: 'Completa la missione', done: snapshot.challengeCompleted, value: snapshot.challengeProgress + '/' + snapshot.challenge.target },
+      { label: 'Migliora un edificio', done: levelTwo > 0, value: levelTwo > 0 ? levelTwo + ' livello 2+' : 'Da migliorare' },
+      { label: 'Costruisci 3 edifici', done: buildingCount >= 3, value: buildingCount + '/3' },
     ];
   } else {
-    objectives = [
-      {
-        label: 'Raggiungi 24 abitanti',
-        done: state.population >= 24,
-        value: Math.min(24, state.population) + '/24',
-      },
-      {
-        label: 'Porta 2 edifici al livello 3',
-        done: levelThree >= 2,
-        value: levelThree + '/2 al livello 3',
-      },
-      {
-        label: 'Accumula 100 monete',
-        done: state.resources.coins >= 100,
-        value: formatNumber(state.resources.coins) + '/100',
-      },
-    ];
+    const current = getCurrentEpochId(state);
+    const nextIndex = EPOCH_ORDER.indexOf(current) + 1;
+    const criteria = current === 'city' || state.progression?.campaignComplete
+      ? getCharterRequirements(state)
+      : getEpochRequirements(state, EPOCH_ORDER[nextIndex]!);
+    objectives = criteria.map((entry) => ({ label: entry.label, done: entry.done, value: entry.value }));
+    if (state.progression?.campaignComplete) {
+      objectives = [{ label: 'Carta della Corona firmata', done: true, value: 'Campagna completata' }, ...objectives];
+    }
   }
 
   let completed = 0;
@@ -479,22 +458,18 @@ function renderObjectives(snapshot: GameSnapshot): void {
     if (objective.done) completed += 1;
     const row = document.createElement('div');
     row.className = 'objective' + (objective.done ? ' done' : '');
-
     const marker = document.createElement('span');
     marker.className = 'objective-marker';
     marker.textContent = objective.done ? '✓' : '·';
-
     const label = document.createElement('span');
     label.textContent = objective.label;
-
     const value = document.createElement('small');
     value.textContent = objective.value;
-
     row.append(marker, label, value);
     host.append(row);
   });
 
-  $('objective-count').textContent = completed + '/3';
+  $('objective-count').textContent = completed + '/' + objectives.length;
   const capacity = housingCapacity(state);
   const nextMilestone = POPULATION_MILESTONES.find((milestone) => !(state.milestones ?? []).includes(milestone.population));
   const capacityNote = state.population >= capacity
@@ -1018,6 +993,7 @@ export function setupUI(): void {
     renderCitizenPanel(snapshot);
     renderTutorial(snapshot);
     renderBuildList(snapshot);
+    renderEpochPanel(snapshot);
     renderObjectives(snapshot);
     renderInspector(snapshot);
     const realmDialog = $('realm-dialog') as HTMLDialogElement;
