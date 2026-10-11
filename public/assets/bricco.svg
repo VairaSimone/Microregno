@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+<title id="title">Bricco, la volpe custode</title><desc id="desc">Una volpe arancione amichevole con sciarpa verde e una piccola foglia sulla testa.</desc>
+<defs>
+  <linearGradient id="fur" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4b45f"/><stop offset="1" stop-color="#d97936"/></linearGradient>
+  <linearGradient id="scarf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8eaf6c"/><stop offset="1" stop-color="#4e7a54"/></linearGradient>
+</defs>
+<ellipse cx="65" cy="116" rx="35" ry="7" fill="#6f8a67" opacity=".16"/>
+<path d="M25 50 18 17 Q17 10 25 16 L49 34 Q64 28 79 34 L103 16 Q111 11 109 21 L104 54 Q112 70 103 88 Q92 107 65 107 Q36 107 25 86 Q17 68 25 50Z" fill="url(#fur)" stroke="#a95f32" stroke-width="2"/>
+<path d="M25 25 44 43 30 61Z" fill="#f8d5a0"/><path d="M101 25 82 43 96 61Z" fill="#f8d5a0"/>
+<path d="M29 72 Q35 47 64 48 Q94 47 101 72 Q100 92 79 98 Q64 103 49 97 Q30 91 29 72Z" fill="#fff0d8"/>
+<ellipse cx="47" cy="66" rx="5" ry="7" fill="#3e4935"/><ellipse cx="81" cy="66" rx="5" ry="7" fill="#3e4935"/>
+<circle cx="48.5" cy="63.5" r="1.7" fill="#fff"/><circle cx="82.5" cy="63.5" r="1.7" fill="#fff"/>
+<path d="M59 76 Q64 72 69 76 Q68 82 64 82 Q60 82 59 76Z" fill="#583c34"/>
+<path d="M64 82 Q62 88 56 87 M64 82 Q66 88 72 87" fill="none" stroke="#8e5942" stroke-width="2" stroke-linecap="round"/>
+<circle cx="38" cy="79" r="4" fill="#e98e79" opacity=".75"/><circle cx="90" cy="79" r="4" fill="#e98e79" opacity=".75"/>
+<path d="M28 91 Q46 104 65 103 Q85 104 102 91 L95 109 Q65 124 35 109Z" fill="url(#scarf)" stroke="#3f6949" stroke-width="2"/>
+<path d="M70 104 83 120 87 103Z" fill="#739b62" stroke="#3f6949" stroke-width="1.5"/>
+<path d="M58 14 Q58 2 74 5 Q87 9 82 22 Q72 28 63 23Z" fill="#76a65e" stroke="#4d7b4b" stroke-width="1.8"/>
+<path d="M61 21 76 8" stroke="#dce8b5" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M39 45 Q63 35 88 45" fill="none" stroke="#f8cd81" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+</svg>

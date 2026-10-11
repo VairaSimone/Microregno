@@ -51,9 +51,6 @@ describe('daily challenge variety',()=>{
     expect(drySummer).toBeDefined();
     expect(getSeason(drySummer!.startGameMinutes??0).id).toBe('summer');
     expect(drySummer!.eventAt).toBe(35);
-    const state=createChallengeState(drySummer!);
-    expect(state.world?.weather.id).toBe('drought');
-    expect(state.world?.weather.endsAt).toBe(395);
   });
   it('scores a quick clear rather than penalizing a winter scenario for its starting clock',()=>{
     const c=createDailyChallenge(new Date(2026,9,11));

@@ -55,66 +55,114 @@ function publicAssetUrl(file: string): string {
 
 let latestSnapshot: GameSnapshot | null = null;
 
+type TutorialAction = 'build' | 'upgrade' | 'research' | 'exploration' | 'projects' | 'objectives' | 'challenge' | 'hint';
 interface TutorialStep {
   key: string;
   title: string;
   description: string;
   rule: string;
   actionType: BuildingType | null;
+  action: TutorialAction;
   actionLabel: string;
   done: boolean;
 }
 
+let tutorialExplainMore = false;
+let lastTutorialMessageKey = '';
+
 function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
   const state = snapshot.state;
   const has = (type: BuildingType): boolean => state.buildings.some((building) => building.type === type);
-  const hasEpoch = (id: 'village' | 'borough'): boolean => state.progression?.unlockedEpochs.includes(id) ?? false;
+  const hasEpoch = (id: 'village' | 'borough' | 'city'): boolean => state.progression?.unlockedEpochs.includes(id) ?? false;
+  const world = state.world;
+  const researched = world?.researched.length ?? 0;
+  const regions = world?.discoveredRegions.length ?? 0;
+  const projects = world?.completedProjects.length ?? 0;
 
   return [
     {
-      key: 'farm',
-      title: '1 · Metti in sicurezza il cibo',
-      description: 'Seleziona la Fattoria e piazzala su una casella d’erba libera. È la priorità del villaggio.',
-      rule: 'La fattoria produce cibo ogni minuto di gioco. Gli abitanti ne consumano 0,035 ciascuno al minuto.',
-      actionType: 'farm',
-      actionLabel: 'Seleziona fattoria',
-      done: has('farm'),
+      key: 'farm', title: '1 · Metti al sicuro il cibo',
+      description: 'Ciao, custode! Sono Bricco. Prima di tutto, costruiamo una Fattoria: senza cibo nessun borgo può crescere.',
+      rule: 'Scegli Fattoria nel pannello Costruisci, poi clicca una casella d’erba libera. Costa 10 legname e 3 pietra; ogni minuto produce cibo, se ha lavoratori.',
+      actionType: 'farm', action: 'build', actionLabel: 'Scegli la Fattoria', done: has('farm'),
     },
     {
-      key: 'house',
-      title: '2 · Fai spazio al villaggio',
-      description: 'Costruisci una Casa: aggiunge 6 posti abitativi. Ti serviranno posti liberi per far arrivare altri abitanti.',
-      rule: 'Costo della Casa: 12 legname e 5 pietra. I materiali vengono scalati solo quando la costruzione è valida.',
-      actionType: 'house',
-      actionLabel: 'Seleziona casa',
-      done: has('house'),
+      key: 'house', title: '2 · Diamo un tetto ai vicini',
+      description: 'Bene! Adesso prepara una Casa. Il Municipio ha già spazio per cinque abitanti, ma per crescere ci servono altri posti.',
+      rule: 'La Casa costa 12 legname e 5 pietra e aggiunge 6 posti. Per attirare nuovi abitanti tieni almeno 18 cibo e un posto libero.',
+      actionType: 'house', action: 'build', actionLabel: 'Scegli una Casa', done: has('house'),
     },
     {
-      key: 'village',
-      title: '3 · Fonda il Villaggio',
-      description: 'Tieni le dispense rifornite e raggiungi 8 abitanti. Il Consiglio riconoscerà il primo vero centro abitato.',
-      rule: 'Il passaggio al Villaggio richiede una Fattoria, una Casa e 8 abitanti. Sblocca la filiera economica, il Mercato e le strade.',
-      actionType: null,
-      actionLabel: 'Attendi la crescita',
-      done: hasEpoch('village'),
+      key: 'village', title: '3 · Facciamo nascere il Villaggio',
+      description: 'Ora osserva le risorse: il tempo scorre da solo. Lascia lavorare la Fattoria e conserva abbastanza cibo per le famiglie.',
+      rule: 'Il Villaggio si sblocca con 8 abitanti, una Fattoria e una Casa. Le stagioni cambiano raccolti e consumi; in inverno il cibo serve ancora di più.',
+      actionType: null, action: 'hint', actionLabel: 'Come faccio crescere la popolazione?', done: hasEpoch('village'),
     },
     {
-      key: 'sawmill',
-      title: '4 · Costruisci una Segheria',
-      description: 'Nel Villaggio si sbloccano Segheria, Cava, Mercato e Strade. Posiziona la Segheria vicino a un bosco.',
-      rule: 'La Segheria deve sorgere su erba entro 3 caselle da un bosco. La posizione migliora la produzione di legname.',
-      actionType: 'sawmill',
-      actionLabel: 'Seleziona segheria',
-      done: has('sawmill'),
+      key: 'industry', title: '4 · Apriamo una bottega produttiva',
+      description: 'Il Villaggio è nato! Ora possiamo produrre materiali invece di consumare soltanto le scorte iniziali. Cominciamo dalla Segheria.',
+      rule: 'La Segheria produce legname e rende meglio vicino al bosco; la Cava produce pietra vicino alla roccia. Servono lavoratori compatibili e posti di lavoro disponibili.',
+      actionType: 'sawmill', action: 'build', actionLabel: 'Scegli la Segheria', done: has('sawmill') || has('quarry'),
     },
     {
-      key: 'borough',
-      title: '5 · Preparati al Borgo',
-      description: 'Porta la popolazione a 12, apri il Mercato e migliora un edificio al livello 2 per dare al regno una nuova ambizione.',
-      rule: 'Il Borgo apre ricerca, diplomazia, spedizioni e grandi opere. Le nuove epoche non dipendono solo dalla popolazione.',
-      actionType: null,
-      actionLabel: 'Mostra requisiti del Borgo',
-      done: hasEpoch('borough'),
+      key: 'market', title: '5 · Apriamo il Mercato',
+      description: 'Legname e pietra sostengono le costruzioni, ma le monete pagano miglioramenti e decisioni importanti. Il Mercato aiuta l’economia.',
+      rule: 'Il Mercato si sblocca nel Villaggio e costa 18 legname e 10 pietra. Prima controlla la disponibilità delle risorse e scegli una casella libera.',
+      actionType: 'market', action: 'build', actionLabel: 'Scegli il Mercato', done: has('market'),
+    },
+    {
+      key: 'upgrade', title: '6 · Miglioriamo un edificio',
+      description: 'Non devi costruire all’infinito: puoi rendere più efficaci gli edifici che hai già. Selezionane uno sulla mappa e guarda il pannello Dettagli.',
+      rule: 'Seleziona un edificio, poi usa Migliora. I livelli aumentano l’efficacia, ma costano risorse e monete. Un edificio al livello 2 è necessario per fondare il Borgo.',
+      actionType: null, action: 'upgrade', actionLabel: 'Aiutami a migliorare un edificio', done: state.buildings.some((building) => building.level >= 2),
+    },
+    {
+      key: 'borough', title: '7 · Fondiamo il Borgo',
+      description: 'Sei vicino a un nuovo capitolo. Porta la popolazione a 12, costruisci il Mercato e migliora almeno un edificio al livello 2.',
+      rule: 'Apri “Campagna e obiettivi” per controllare ogni requisito. Quando nasce il Borgo si aprono la ricerca, la diplomazia, le spedizioni e le grandi opere.',
+      actionType: null, action: 'objectives', actionLabel: 'Mostrami gli obiettivi del Borgo', done: hasEpoch('borough'),
+    },
+    {
+      key: 'research', title: '8 · Scopri una nuova conoscenza',
+      description: 'La Sala del Regno contiene decisioni che non si vedono sulla mappa: ricerca, mestieri, leggi ed eventi. Apriamo la scheda Ricerca.',
+      rule: 'Scegli una ricerca, controllane requisiti e costo e lascia che il progresso avanzi. La Città richiederà due ricerche completate.',
+      actionType: null, action: 'research', actionLabel: 'Apri la Sala del Regno · Ricerca', done: researched >= 1,
+    },
+    {
+      key: 'exploration', title: '9 · Spingiamoci oltre la frontiera',
+      description: 'Una città non cresce solo con gli edifici. Le spedizioni portano risorse, conoscenza e accesso a nuovi territori.',
+      rule: 'Nella Sala del Regno apri Esplorazione. Scegli guida, equipaggio e scorte: inviare cittadini in spedizione li rende temporaneamente indisponibili per il lavoro.',
+      actionType: null, action: 'exploration', actionLabel: 'Apri Esplorazione', done: regions >= 1,
+    },
+    {
+      key: 'project', title: '10 · Completiamo una grande opera',
+      description: 'Le grandi opere sono investimenti a più fasi. Non basta iniziarle: bisogna finanziare tutti gli stadi per ottenere i benefici permanenti.',
+      rule: 'Apri la scheda Progetti nella Sala del Regno. Prima di investire controlla costo, materiali e risorse che ti serviranno per mantenere il borgo.',
+      actionType: null, action: 'projects', actionLabel: 'Apri i Progetti', done: projects >= 1,
+    },
+    {
+      key: 'city', title: '11 · Prepariamo la Città',
+      description: 'Il passaggio alla Città è una prova completa di gestione: popolazione, istruzione, ricerca, grandi opere e rotte devono crescere insieme.',
+      rule: 'Servono 18 abitanti, una Scuola, 2 ricerche, una grande opera, 2 regioni scoperte e un edificio al livello 3. La lista “Campagna e obiettivi” mostra i progressi aggiornati.',
+      actionType: null, action: 'objectives', actionLabel: 'Controlla i requisiti della Città', done: hasEpoch('city'),
+    },
+    {
+      key: 'university', title: '12 · Costruiamo l’Università Reale',
+      description: 'La Città apre la strada all’Università Reale: il centro della conoscenza e il simbolo della tua nuova epoca.',
+      rule: 'L’Università si sblocca nella Città e costa 30 legname, 24 pietra e 25 monete. Pianifica le scorte prima di piazzarla.',
+      actionType: 'university', action: 'build', actionLabel: 'Scegli l’Università Reale', done: has('university'),
+    },
+    {
+      key: 'charter', title: '13 · La Carta della Corona',
+      description: 'L’ultimo traguardo mette alla prova tutto ciò che hai imparato. La Corona richiede una città prospera, alleanze e opere durature.',
+      rule: 'Per completare la campagna servono 24 abitanti, due edifici al livello 3, tre grandi opere, due accordi diplomatici, tre regioni, l’Università e 100 monete.',
+      actionType: null, action: 'objectives', actionLabel: 'Controlla la Carta della Corona', done: state.progression?.campaignComplete === true,
+    },
+    {
+      key: 'challenge', title: '14 · Metti alla prova il regno',
+      description: 'Quando vuoi una sfida breve, prova la missione giornaliera. Cambia obiettivo e condizioni e ti permette di migliorare medaglie e record.',
+      rule: 'La sfida del giorno usa una partita indipendente: non consuma risorse e non cambia gli edifici del tuo regno principale. Medaglie e traguardi sono salvati nel profilo locale.',
+      actionType: null, action: 'challenge', actionLabel: 'Scopri la sfida del giorno', done: snapshot.playerProfile.records.length > 0,
     },
   ];
 }
@@ -133,16 +181,30 @@ function renderTutorial(snapshot: GameSnapshot): void {
   const count = $('tutorial-count');
   const stepsHost = $('tutorial-steps');
   const rule = $('tutorial-rule-copy');
+  const ruleTitle = $('tutorial-rule-title');
+  const rulePanel = $('tutorial-rule');
   const action = $('tutorial-action') as HTMLButtonElement;
+  const explain = $('tutorial-explain') as HTMLButtonElement;
+  const voice = $('tutorial-voice-label');
+  const progressNote = $('tutorial-progress-note');
 
   if (snapshot.mode === 'challenge') {
-    title.textContent = 'Una sfida separata';
-    copy.textContent = 'La sfida giornaliera usa una partita indipendente. Il tuo regno e la guida non vengono modificati.';
-    count.textContent = 'REGNO';
+    if (lastTutorialMessageKey !== 'challenge') tutorialExplainMore = false;
+    lastTutorialMessageKey = 'challenge';
+    title.textContent = 'Una missione alla volta';
+    count.textContent = 'SFIDA';
+    voice.textContent = 'Bricco · stratega delle missioni';
+    progressNote.textContent = 'La tua città principale è al sicuro';
+    copy.textContent = tutorialExplainMore
+      ? snapshot.challenge.condition + ' Ricompensa dichiarata: ' + snapshot.challenge.reward + '. Il punteggio migliore e le medaglie restano nel profilo locale.'
+      : 'Questa è la sfida di oggi: ' + snapshot.challenge.title + '. ' + snapshot.challenge.description + ' Io ti aiuto a leggere il vincolo e scegliere una strategia.';
     stepsHost.innerHTML = '';
-    rule.textContent = 'Torna a “Il mio regno” per continuare la guida e conservare i progressi della città principale.';
+    rulePanel.classList.add('hidden');
+    rule.textContent = snapshot.challenge.condition;
     action.disabled = false;
+    action.classList.remove('is-complete');
     action.textContent = 'Torna al mio regno';
+    explain.textContent = tutorialExplainMore ? 'Torna al consiglio iniziale' : 'Spiegami la regola della sfida';
     return;
   }
 
@@ -150,11 +212,21 @@ function renderTutorial(snapshot: GameSnapshot): void {
   const completedCount = steps.filter((step) => step.done).length;
   const currentIndex = steps.findIndex((step) => !step.done);
   const current = currentIndex < 0 ? null : steps[currentIndex]!;
-
-  count.textContent = completedCount + '/5';
+  const messageKey = current?.key ?? 'complete';
+  if (lastTutorialMessageKey !== messageKey) tutorialExplainMore = false;
+  lastTutorialMessageKey = messageKey;
+  count.textContent = completedCount + '/' + steps.length;
+  progressNote.textContent = current
+    ? 'Passo ' + (currentIndex + 1) + ' di ' + steps.length + ' · ' + completedCount + ' tappe completate'
+    : 'La guida base è completata · ora puoi esplorare liberamente';
   stepsHost.innerHTML = '';
 
-  steps.forEach((step, index) => {
+  const visibleStart = current
+    ? Math.max(0, Math.min(currentIndex - 1, steps.length - 3))
+    : Math.max(0, steps.length - 3);
+  const visibleSteps = steps.slice(visibleStart, Math.min(steps.length, visibleStart + 3));
+  visibleSteps.forEach((step, offset) => {
+    const index = visibleStart + offset;
     const row = document.createElement('div');
     row.className = 'tutorial-step' + (step.done ? ' done' : index === currentIndex ? ' current' : '');
 
@@ -167,32 +239,41 @@ function renderTutorial(snapshot: GameSnapshot): void {
     const heading = document.createElement('strong');
     heading.textContent = step.title;
     const status = document.createElement('small');
-    status.textContent = step.done ? 'Completato' : index === currentIndex ? 'Passo attuale' : 'Da fare';
+    status.textContent = step.done ? 'Completato' : index === currentIndex ? 'Adesso' : 'Prossimo';
     text.append(heading, status);
     row.append(marker, text);
     stepsHost.append(row);
   });
 
   if (!current) {
-    title.textContent = 'Il tuo primo borgo è nato';
-    copy.textContent = 'Ottimo lavoro. Hai capito il ciclo base: produrre cibo, aumentare la capienza, generare materiali e far crescere la popolazione.';
-    rule.textContent = 'Da qui puoi espanderti liberamente. Le sfide giornaliere sono facoltative e non toccano il tuo regno.';
+    title.textContent = 'Brumadoro è nelle tue mani';
+    voice.textContent = 'Bricco · un custode soddisfatto';
+    copy.textContent = tutorialExplainMore
+      ? 'Puoi continuare la campagna, esplorare territori, perfezionare le produzioni o affrontare la sfida del giorno. Io resto qui: apri “?” se vuoi rileggere le basi.'
+      : 'Ce l’hai fatta! Hai attraversato le tappe principali. Non devi seguire una ricetta: sperimenta, osserva le conseguenze e costruisci il regno che vuoi.';
+    ruleTitle.textContent = 'Il mio ultimo consiglio';
+    rule.textContent = 'Prima di una spesa importante guarda produzione e consumi, richieste dei cittadini e obiettivi della campagna. Le scorte crescono nel tempo, ma anche i bisogni.';
+    rulePanel.classList.toggle('hidden', tutorialExplainMore);
     action.textContent = 'Guida completata ✓';
     action.disabled = true;
     action.classList.add('is-complete');
+    explain.textContent = tutorialExplainMore ? 'Nascondi il consiglio' : 'Un ultimo consiglio';
     return;
   }
 
   title.textContent = current.title;
-  copy.textContent = current.description;
+  voice.textContent = tutorialExplainMore ? 'Bricco · te lo spiego meglio' : 'Bricco · al tuo fianco';
+  copy.textContent = tutorialExplainMore ? current.rule : current.description;
+  ruleTitle.textContent = 'Da ricordare';
   rule.textContent = current.rule;
+  rulePanel.classList.toggle('hidden', tutorialExplainMore);
   action.classList.remove('is-complete');
 
   const buildAlreadySelected = current.actionType !== null && snapshot.selectedBuildType === current.actionType;
-  action.textContent = buildAlreadySelected ? 'Ora clicca una casella libera sulla mappa' : current.actionLabel;
-  // Keep the control actionable even on waiting steps: it explains the exact condition
-  // instead of presenting a disabled button that looks broken.
+  action.textContent = buildAlreadySelected ? 'Ora scegli una casella verde' : current.actionLabel;
+  if (current.action === 'upgrade' && snapshot.selectedBuilding) action.textContent = 'Migliora l’edificio selezionato';
   action.disabled = false;
+  explain.textContent = tutorialExplainMore ? 'Torna al consiglio iniziale' : 'Perché è importante?';
 }
 
 function renderBuildList(snapshot: GameSnapshot): void {
@@ -1091,9 +1172,9 @@ export function setupUI(): void {
     // Do not send a one-shot game event before Phaser has emitted its first snapshot:
     // startup is asynchronous, so that event could otherwise be lost.
     if (latestSnapshot?.mode === 'challenge') dispatch('microregno:mode', 'kingdom');
-    if (latestSnapshot) {
+    if (latestSnapshot?.mode === 'kingdom') {
       const current = createTutorialSteps(latestSnapshot).find((step) => !step.done);
-      if (current?.actionType) dispatch('microregno:build', current.actionType);
+      if (current?.action === 'build' && current.actionType) dispatch('microregno:build', current.actionType);
     }
   });
   $('skip-tutorial').addEventListener('click', () => dialog.close());
@@ -1119,15 +1200,37 @@ export function setupUI(): void {
       return;
     }
     const current = createTutorialSteps(latestSnapshot).find((step) => !step.done);
-    if (current?.actionType) {
+    if (!current) return;
+
+    if (current.action === 'build' && current.actionType) {
       if (latestSnapshot.selectedBuildType === current.actionType) {
-        dispatch('microregno:notice', 'La costruzione è selezionata: ora clicca una casella libera con contorno verde sulla mappa.');
+        dispatch('microregno:notice', 'Perfetto: ora scegli una casella d’erba libera sulla mappa. I costi vengono scalati solo se la posizione è valida.');
       } else {
         dispatch('microregno:build', current.actionType);
       }
-    } else if (current) {
-      dispatch('microregno:notice', current.rule);
+    } else if (current.action === 'upgrade') {
+      if (latestSnapshot.selectedBuilding) {
+        dispatch('microregno:upgrade');
+      } else {
+        dispatch('microregno:notice', 'Clicca un edificio sulla mappa per aprire i dettagli, poi premi “Migliora”.');
+        $('game-mount').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else if (current.action === 'research' || current.action === 'exploration' || current.action === 'projects') {
+      realmTab = current.action === 'research' ? 'research' : current.action === 'exploration' ? 'exploration' : 'projects';
+      $('realm-dashboard-button').click();
+    } else if (current.action === 'objectives') {
+      document.querySelector('.objectives-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (current.action === 'challenge') {
+      dispatch('microregno:mode', 'challenge');
+    } else {
+      tutorialExplainMore = true;
+      renderTutorial(latestSnapshot);
     }
+  });
+
+  $('tutorial-explain').addEventListener('click', () => {
+    tutorialExplainMore = !tutorialExplainMore;
+    if (latestSnapshot) renderTutorial(latestSnapshot);
   });
 
   $('upgrade-button').addEventListener('click', () => dispatch('microregno:upgrade'));

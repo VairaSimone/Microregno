@@ -8,6 +8,7 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Economia, popolazione, costi, vincoli del terreno, bonus ambientali e sblocco del mercato.
 - Edifici migliorabili fino al livello 3: aumentano produzione o capienza e richiedono investimenti di risorse.
 - Campagna in quattro epoche (Insediamento, Villaggio, Borgo e Città): sblocchi persistenti, requisiti diversi, ricompense e cronaca della crescita.
+- Tutorial progressivo con la mascotte Bricco: i consigli cambiano in base agli edifici costruiti, alle epoche sbloccate e alle azioni disponibili; la guida resta accessibile durante la partita.
 - Carta della Corona come obiettivo finale: popolazione, edifici di livello 3, grandi opere, regioni esplorate, accordi diplomatici e Università Reale.
 - Università Reale sbloccata nella Città: aumenta la velocità di avanzamento della ricerca.
 - Traguardi di popolazione a 8, 12, 18 e 24 abitanti con ricompense una tantum in monete; gli obiettivi si aggiornano secondo l’epoca.

@@ -6,11 +6,27 @@
 <main class="layout">
 <aside class="left-column"><section class="panel mode-panel"><div class="kicker">IL TUO VIAGGIO</div><button id="kingdom-mode" class="mode-button active"><b>⌂</b><span><strong>Il mio regno</strong><small>Costruisci senza fretta</small></span><i>›</i></button><button id="challenge-mode" class="mode-button"><b>✦</b><span><strong>Sfida del giorno</strong><small>Una mappa, una missione</small></span><i>›</i></button></section>
 <section class="panel tutorial-panel" id="tutorial-panel">
-  <div class="panel-heading"><div><small class="eyebrow">GUIDA PASSO PER PASSO</small><h2 id="tutorial-title">Costruiamo un borgo</h2></div><span class="count" id="tutorial-count">0/4</span></div>
-  <p id="tutorial-copy">Segui i quattro passi per capire l'economia e far crescere il tuo insediamento.</p>
+  <div class="panel-heading">
+    <div><small class="eyebrow">BRICCO · GUIDA VIVA</small><h2 id="tutorial-title">Un piccolo regno, un passo alla volta</h2></div>
+    <span class="count" id="tutorial-count">0/14</span>
+  </div>
+  <div class="guide-conversation">
+    <div class="guide-mascot-wrap">
+      <img class="guide-mascot" src="./assets/bricco.svg" alt="Bricco, la volpe custode di Brumadoro" width="94" height="94" />
+      <span class="guide-mascot-name">BRICCO</span>
+    </div>
+    <div class="guide-bubble">
+      <span class="guide-bubble-label" id="tutorial-voice-label">Il tuo custode</span>
+      <p id="tutorial-copy" aria-live="polite">Ciao! Sono Bricco. Ti guiderò mentre giochi: niente lezioni infinite, solo il consiglio utile al momento giusto.</p>
+    </div>
+  </div>
+  <div class="tutorial-progress-note" id="tutorial-progress-note">Cominciamo dalle basi</div>
   <div id="tutorial-steps" class="tutorial-steps"></div>
-  <div class="tutorial-rule"><strong>Regola chiave</strong><span id="tutorial-rule-copy">Costruisci una fattoria: il cibo sostiene la crescita della popolazione.</span></div>
-  <button id="tutorial-action" class="primary tutorial-action">Seleziona fattoria</button>
+  <div class="tutorial-rule" id="tutorial-rule"><strong id="tutorial-rule-title">Il consiglio di Bricco</strong><span id="tutorial-rule-copy">Costruisci una fattoria: il cibo sostiene la crescita della popolazione.</span></div>
+  <div class="guide-actions">
+    <button id="tutorial-explain" class="secondary tutorial-explain" type="button">Perché è importante?</button>
+    <button id="tutorial-action" class="primary tutorial-action" type="button">Seleziona fattoria</button>
+  </div>
 </section>
 <section class="panel daily-panel living-panel" id="living-panel">
 <div id="community-content">
@@ -60,17 +76,17 @@
 <section class="panel inspector-panel"><div class="panel-heading"><div><small class="eyebrow">DETTAGLI</small><h2 id="inspector-title">Il territorio</h2></div></div><p id="inspector-copy">Seleziona un edificio sulla mappa per vederne i dettagli.</p><div id="inspector-stats"></div><button id="upgrade-button" class="primary hidden">Migliora edificio</button><button id="demolish-button" class="danger hidden">Demolisci edificio</button><button id="cancel-build" class="secondary hidden">Annulla costruzione</button></section></aside>
 </main><footer class="app-footer"><strong>MICROREGNO · Un piccolo mondo, una grande avventura</strong><div><button id="reset-game">Ricomincia il regno</button><span id="local-save-label">Dati salvati su questo dispositivo</span></div></footer></div>
 <div id="toast-region" role="status" aria-live="polite"></div>
-<dialog id="help-dialog"><div class="dialog-top"><small class="eyebrow">PRIMA PARTITA · 2 MINUTI PER CAPIRE</small><button id="close-help" class="icon-button" aria-label="Chiudi guida">×</button></div>
-<h2>Il tuo primo obiettivo: arrivare a 8 abitanti</h2>
-<p>Non devi costruire tutto subito. Parti da un villaggio di 5 persone: fai crescere il cibo, crea spazio per nuovi abitanti e sblocca gli edifici man mano che la comunità cresce.</p>
-<div class="help-grid">
-<div><b>01 · Costruisci una Fattoria</b><span>Nel pannello “Costruisci”, scegli Fattoria e poi clicca una casella verde libera sulla mappa. La fattoria produce cibo ogni minuto di gioco.</span></div>
-<div><b>02 · Aggiungi una Casa</b><span>La Casa costa 12 legname e 5 pietra, e aggiunge 6 posti abitativi. Il municipio ospita già i 5 abitanti iniziali.</span></div>
-<div><b>03 · Tieni piene le dispense</b><span>Servono almeno 18 unità di cibo e un posto libero perché arrivi un nuovo abitante. Il tempo di gioco scorre da solo.</span></div>
-<div><b>04 · Costruisci le prime botteghe</b><span>Quando nasce il Villaggio, a 8 abitanti, si sbloccano Segheria, Cava, Mercato e Strade. La posizione delle botteghe conta.</span></div>
+<dialog id="help-dialog"><div class="dialog-top"><small class="eyebrow">BRICCO · CUSTODE DI BRUMADORO</small><button id="close-help" class="icon-button" aria-label="Chiudi guida">×</button></div>
+<div class="guide-welcome">
+  <img src="./assets/bricco.svg" alt="" width="100" height="100" />
+  <div><h2>Ciao, custode! Io sono Bricco.</h2><p>Questo regno è tuo. Io ti starò accanto mentre costruisci: ti spiegherò le risorse quando serviranno, le epoche quando sarai pronto e le scelte importanti quando arriveranno.</p></div>
 </div>
-<p class="help-footnote"><strong>Il ciclo base è solo l’inizio:</strong> cibo → case → abitanti → produzioni. Poi dovrai far crescere il Villaggio, migliorare un edificio per diventare Borgo, completare ricerche e grandi opere, esplorare la frontiera e stringere accordi. La Città sblocca l’Università Reale; la campagna si conclude firmando la Carta della Corona. La Sfida del giorno resta separata dal regno.</p>
-<div class="dialog-actions"><button id="start-playing" class="primary">Inizia la guida</button><button id="skip-tutorial" class="secondary">Gioca liberamente</button></div>
+<div class="help-grid">
+  <div><b>🌱 Un passo alla volta</b><span>Niente manuale da imparare a memoria. La guida cambia quando completi un'azione o sblocchi una nuova possibilità.</span></div>
+  <div><b>🧭 Tu mantieni il controllo</b><span>Il consiglio evidenzia cosa fare, ma puoi ignorarlo, giocare liberamente e riaprirlo dal pannello in qualsiasi momento.</span></div>
+</div>
+<p class="help-footnote"><strong>Primo obiettivo:</strong> costruisci una Fattoria, aggiungi una Casa e porta il villaggio a 8 abitanti. Poi scopriremo insieme botteghe, richieste dei cittadini, ricerca, spedizioni e grandi opere.</p>
+<div class="dialog-actions"><button id="start-playing" class="primary">Inizia l'avventura con Bricco</button><button id="skip-tutorial" class="secondary">Preferisco esplorare da solo</button></div>
 </dialog>
 <dialog id="community-history-dialog">
   <div class="dialog-top"><small class="eyebrow">MEMORIA DEL BORGO</small><button id="close-community-history" class="icon-button" aria-label="Chiudi cronaca">×</button></div>

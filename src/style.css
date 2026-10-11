@@ -127,6 +127,40 @@ button:disabled { cursor: not-allowed; }
 .tutorial-panel { position: relative; border-color: #cdddc2; background: linear-gradient(155deg, #fffef8, #f7f8ed); box-shadow: 0 7px 23px rgba(54,86,44,.08); }
 .tutorial-panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #729765, #c4b46f); }
 .tutorial-panel > p { margin: 12px 0 14px; color: #6e7d6c; font-size: 11px; line-height: 1.65; }
+.guide-conversation {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  margin: 13px 0 11px;
+}
+.guide-mascot-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.guide-mascot { display: block; width: 78px; height: 78px; object-fit: contain; filter: drop-shadow(0 4px 2px rgba(69,78,50,.12)); animation: bricco-float 3.8s ease-in-out infinite; }
+.guide-mascot-name { color: #8c7745; font-size: 8px; font-weight: 900; letter-spacing: 1.3px; }
+.guide-bubble {
+  position: relative;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #dce6d1;
+  border-radius: 13px 13px 13px 4px;
+  background: linear-gradient(145deg, #fbfff4, #f5f7e9);
+  box-shadow: 0 3px 9px rgba(70,89,54,.05);
+}
+.guide-bubble::before { content: ''; position: absolute; left: -6px; bottom: 11px; width: 10px; height: 10px; background: #f9fcef; border-left: 1px solid #dce6d1; border-bottom: 1px solid #dce6d1; transform: rotate(45deg); }
+.guide-bubble-label { display: block; margin-bottom: 5px; color: #7e9568; font-size: 8px; font-weight: 900; letter-spacing: .65px; text-transform: uppercase; }
+.guide-bubble p { position: relative; margin: 0; color: #586b54; font-size: 10px; line-height: 1.65; }
+.tutorial-progress-note { margin: 0 0 8px; color: #94a08a; font-size: 9px; font-weight: 700; }
+.tutorial-panel .tutorial-rule { margin-top: 10px; }
+.guide-actions { display: grid; grid-template-columns: .9fr 1.1fr; gap: 7px; margin-top: 10px; }
+.guide-actions .primary, .guide-actions .secondary { min-width: 0; margin-top: 0; padding: 9px 7px; font-size: 10px; }
+.tutorial-explain { white-space: normal; line-height: 1.35; }
+.tutorial-action { white-space: normal; line-height: 1.35; }
+.guide-welcome { display: grid; grid-template-columns: 100px 1fr; gap: 14px; align-items: center; margin-top: 12px; }
+.guide-welcome img { width: 100px; height: 100px; object-fit: contain; }
+.guide-welcome h2 { margin-top: 0; }
+@keyframes bricco-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .guide-mascot { animation: none; } }
+
 .tutorial-steps { display: grid; gap: 7px; }
 .tutorial-step { display: flex; align-items: center; gap: 9px; padding: 8px 8px; border: 1px solid transparent; border-radius: 10px; background: rgba(238,240,228,.46); }
 .tutorial-step.current { border-color: #d5e1c8; background: #edf4e7; }
