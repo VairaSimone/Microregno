@@ -1078,6 +1078,80 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
 
 
 export function setupUI(): void {
+  const panelClasses = ['ui-panel-build','ui-panel-details','ui-panel-guide','ui-panel-village','ui-panel-goals','ui-panel-challenge'];
+  const panelButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-game-panel]'));
+  const setGamePanel = (panel: string | null, toggle = false): void => {
+    const currentlyOpen = panel ? document.body.classList.contains('ui-panel-' + panel) : false;
+    const next = panel && !(toggle && currentlyOpen) ? panel : null;
+    document.body.classList.remove(...panelClasses);
+    if (next) document.body.classList.add('ui-panel-' + next);
+    panelButtons.forEach((button) => {
+      const active = !!next && button.dataset.gamePanel === next;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
+  };
+  let cameraSettingsApplied = false;
+  let lastUiSelectedBuildingId: string | null = null;
+  let lastUiBuildType: BuildingType | null = null;
+  const settingsDialog = $('settings-dialog') as HTMLDialogElement;
+  const rotationSlider = $('rotation-sensitivity') as HTMLInputElement;
+  const rotationValue = $('rotation-sensitivity-value') as HTMLOutputElement;
+  const cameraHints = $('toggle-camera-hints') as HTMLInputElement;
+  const reducedMotion = $('toggle-reduced-motion') as HTMLInputElement;
+  const storedPreference = (key: string): string | null => { try { return localStorage.getItem(key); } catch { return null; } };
+  const savePreference = (key: string, value: string): void => { try { localStorage.setItem(key,value); } catch { /* Preferences are optional when storage is unavailable. */ } };
+  const savedSensitivity = Number(storedPreference('microregno:rotation-sensitivity') ?? 6);
+  rotationSlider.value = String(Number.isFinite(savedSensitivity) ? Math.min(12,Math.max(2,savedSensitivity)) : 6);
+  rotationValue.value = rotationSlider.value;
+  rotationValue.textContent = rotationSlider.value;
+  cameraHints.checked = storedPreference('microregno:camera-hints') !== 'false';
+  reducedMotion.checked = storedPreference('microregno:reduced-motion') === 'true';
+  document.body.classList.toggle('hide-camera-hints',!cameraHints.checked);
+  document.body.classList.toggle('reduce-motion-ui',reducedMotion.checked);
+  const dispatchCamera = (type: string, value?: number): void => dispatch('microregno:camera',{type,value});
+  $('game-menu-kingdom').addEventListener('click', () => { dispatch('microregno:mode','kingdom'); setGamePanel(null); });
+  $('game-menu-challenge').addEventListener('click', () => { dispatch('microregno:mode','challenge'); setGamePanel('challenge'); });
+  panelButtons.forEach((button) => button.addEventListener('click', () => setGamePanel(button.dataset.gamePanel ?? null,true)));
+  $('settings-button').addEventListener('click', () => { if (!settingsDialog.open) settingsDialog.showModal(); });
+  $('close-settings').addEventListener('click', () => settingsDialog.close());
+  $('close-settings-footer').addEventListener('click', () => settingsDialog.close());
+  $('settings-center').addEventListener('click', () => dispatchCamera('center'));
+  $('settings-reset').addEventListener('click', () => { settingsDialog.close(); $('reset-game').click(); });
+  rotationSlider.addEventListener('input', () => {
+    rotationValue.value = rotationSlider.value;
+    rotationValue.textContent = rotationSlider.value;
+    savePreference('microregno:rotation-sensitivity',rotationSlider.value);
+    dispatchCamera('sensitivity',Number(rotationSlider.value));
+  });
+  cameraHints.addEventListener('change', () => {
+    document.body.classList.toggle('hide-camera-hints',!cameraHints.checked);
+    savePreference('microregno:camera-hints',String(cameraHints.checked));
+  });
+  reducedMotion.addEventListener('change', () => {
+    document.body.classList.toggle('reduce-motion-ui',reducedMotion.checked);
+    savePreference('microregno:reduced-motion',String(reducedMotion.checked));
+  });
+  const fullscreenButton = $('fullscreen-toggle') as HTMLButtonElement;
+  const syncFullscreen = (): void => {
+    const fullscreen = !!document.fullscreenElement;
+    $('fullscreen-icon').textContent = fullscreen ? '⤢' : '⛶';
+    $('fullscreen-label').textContent = fullscreen ? 'Esci da schermo intero' : 'Schermo intero';
+    fullscreenButton.setAttribute('aria-label',fullscreen ? 'Esci da schermo intero' : 'Attiva schermo intero');
+    fullscreenButton.title = fullscreen ? 'Esci da schermo intero' : 'Schermo intero';
+  };
+  fullscreenButton.addEventListener('click', () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => showToast('Impossibile uscire dalla modalità a schermo intero.'));
+      return;
+    }
+    if (!document.documentElement.requestFullscreen) { showToast('Lo schermo intero non è supportato da questo browser.'); return; }
+    void document.documentElement.requestFullscreen().catch(() => showToast('Il browser non ha consentito lo schermo intero.'));
+  });
+  document.addEventListener('fullscreenchange',syncFullscreen);
+  [['camera-rotate-left','rotate-left'],['camera-rotate-right','rotate-right'],['camera-zoom-in','zoom-in'],['camera-zoom-out','zoom-out'],['camera-center','center']].forEach(([id,action]) => {
+    $(id!).addEventListener('click', () => dispatchCamera(action!));
+  });
   const realmDialog = $('realm-dialog') as HTMLDialogElement;
   const realmContent = $('realm-content');
   $('realm-dashboard-button').addEventListener('click', () => {
@@ -1194,8 +1268,8 @@ export function setupUI(): void {
     // If storage is unavailable, the tutorial remains reachable from the help button.
   }
 
-  $('kingdom-mode').addEventListener('click', () => dispatch('microregno:mode', 'kingdom'));
-  $('challenge-mode').addEventListener('click', () => dispatch('microregno:mode', 'challenge'));
+  $('kingdom-mode').addEventListener('click', () => { dispatch('microregno:mode', 'kingdom'); setGamePanel(null); });
+  $('challenge-mode').addEventListener('click', () => { dispatch('microregno:mode', 'challenge'); setGamePanel('challenge'); });
   $('challenge-retry').addEventListener('click', () => dispatch('microregno:challenge-retry'));
   $('center-map').addEventListener('click', () => dispatch('microregno:center'));
   $('cancel-build').addEventListener('click', () => dispatch('microregno:build', null));
@@ -1204,12 +1278,14 @@ export function setupUI(): void {
     if (!latestSnapshot) return;
     if (latestSnapshot.mode === 'challenge') {
       dispatch('microregno:mode', 'kingdom');
+      setGamePanel('guide');
       return;
     }
     const current = createTutorialSteps(latestSnapshot).find((step) => !step.done);
     if (!current) return;
 
     if (current.action === 'build' && current.actionType) {
+      setGamePanel('build');
       if (latestSnapshot.selectedBuildType === current.actionType) {
         dispatch('microregno:notice', 'Perfetto: ora scegli una casella d’erba libera sulla mappa. I costi vengono scalati solo se la posizione è valida.');
       } else {
@@ -1226,11 +1302,12 @@ export function setupUI(): void {
       realmTab = current.action === 'research' ? 'research' : current.action === 'exploration' ? 'exploration' : 'projects';
       $('realm-dashboard-button').click();
     } else if (current.action === 'community') {
-      $('living-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setGamePanel('village');
     } else if (current.action === 'objectives') {
-      document.querySelector('.objectives-panel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setGamePanel('goals');
     } else if (current.action === 'challenge') {
       dispatch('microregno:mode', 'challenge');
+      setGamePanel('challenge');
     } else {
       tutorialExplainMore = true;
       renderTutorial(latestSnapshot);
@@ -1259,6 +1336,15 @@ export function setupUI(): void {
   window.addEventListener('microregno:state', ((event: CustomEvent<GameSnapshot>) => {
     const snapshot = event.detail;
     latestSnapshot = snapshot;
+    if (!cameraSettingsApplied) { dispatchCamera('sensitivity',Number(rotationSlider.value)); cameraSettingsApplied = true; }
+    $('game-menu-kingdom').setAttribute('aria-pressed',String(snapshot.mode === 'kingdom'));
+    $('game-menu-challenge').setAttribute('aria-pressed',String(snapshot.mode === 'challenge'));
+    const selectedBuildingId = snapshot.selectedBuilding?.id ?? null;
+    if (selectedBuildingId && selectedBuildingId !== lastUiSelectedBuildingId) setGamePanel('details');
+    lastUiSelectedBuildingId = selectedBuildingId;
+    const selectedBuildType = snapshot.selectedBuildType ?? null;
+    if (selectedBuildType && selectedBuildType !== lastUiBuildType) setGamePanel('build');
+    lastUiBuildType = selectedBuildType;
     const state = snapshot.state;
 
     RESOURCES.forEach((resource) => {

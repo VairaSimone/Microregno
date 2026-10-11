@@ -1,9 +1,23 @@
 <!doctype html>
 <html lang="it"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#172d25"/><meta name="description" content="Costruisci un regno, gestisci le risorse e affronta una nuova sfida ogni giorno."/><title>Microregno — Una terra tutta tua</title><link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/></head>
 <body><div class="app-shell">
-<header class="topbar"><a class="brand" href="./"><span class="brand-mark">◆</span><span><strong>MICROREGNO</strong><small>Una terra tutta tua</small></span></a><div class="topbar-center"><i></i><span id="world-status">Il tuo regno è in pace</span></div><div class="topbar-actions"><span class="version-pill">PRE-RELEASE 0.1</span><button class="realm-launch-button" id="realm-dashboard-button" type="button">⚑ <span>Sala del Regno</span></button><button class="icon-button" id="help-button" aria-label="Come si gioca">?</button></div></header>
+<header class="topbar"><a class="brand" href="./"><span class="brand-mark">⚜</span><span><strong>MICROREGNO</strong><small>Una terra tutta tua</small></span></a><div class="topbar-center"><i></i><span id="world-status">Il tuo regno è in pace</span></div><div class="topbar-actions">
+<button class="realm-launch-button top-action-button" id="realm-dashboard-button" type="button" title="Apri il Consiglio del Regno"><span class="ui-glyph">♜</span><span>Sala del Regno</span></button>
+<button class="icon-button top-icon-button" id="help-button" type="button" aria-label="Apri la guida" title="Guida"><span>?</span><small>Guida</small></button>
+<button class="icon-button top-icon-button" id="settings-button" type="button" aria-label="Impostazioni" title="Impostazioni"><span>⚙</span><small>Opzioni</small></button>
+<button class="icon-button top-icon-button" id="fullscreen-toggle" type="button" aria-label="Attiva schermo intero" title="Schermo intero"><span id="fullscreen-icon">⛶</span><small id="fullscreen-label">Schermo intero</small></button>
+</div></header>
 <section class="resourcebar" aria-label="Risorse"><div class="resource-chip"><span class="symbol wood">♧</span><div><small>LEGNAME</small><strong id="resource-wood">42</strong></div><em id="rate-wood">—</em></div><div class="resource-chip"><span class="symbol stone">◆</span><div><small>PIETRA</small><strong id="resource-stone">24</strong></div><em id="rate-stone">—</em></div><div class="resource-chip"><span class="symbol food">✳</span><div><small>CIBO</small><strong id="resource-food">42</strong></div><em id="rate-food">—</em></div><div class="resource-chip"><span class="symbol coins">◉</span><div><small>MONETE</small><strong id="resource-coins">18</strong></div><em id="rate-coins">—</em></div><div class="resource-chip"><span class="symbol people">♟</span><div><small>ABITANTI</small><strong id="population-count">5 / 5</strong></div><em id="population-rate">villaggio</em></div></section>
 <main class="layout">
+<nav class="game-rail" aria-label="Menu del regno">
+  <button type="button" class="game-rail-button" id="game-menu-kingdom" data-mode="kingdom" aria-pressed="true" title="Torna al regno"><span class="rail-glyph">⚑</span><small>Regno</small></button>
+  <button type="button" class="game-rail-button" id="game-menu-challenge" data-mode="challenge" aria-pressed="false" title="Avvia la sfida del giorno"><span class="rail-glyph">✦</span><small>Sfida</small></button>
+  <span class="rail-separator" aria-hidden="true"></span>
+  <button type="button" class="game-rail-button" id="game-menu-build" data-game-panel="build" aria-pressed="false" title="Apri costruzioni"><span class="rail-glyph">⚒</span><small>Costruisci</small></button>
+  <button type="button" class="game-rail-button" id="game-menu-village" data-game-panel="village" aria-pressed="false" title="Apri il borgo e le richieste"><span class="rail-glyph">⌂</span><small>Borgo</small></button>
+  <button type="button" class="game-rail-button" id="game-menu-goals" data-game-panel="goals" aria-pressed="false" title="Apri la campagna"><span class="rail-glyph">♛</span><small>Obiettivi</small></button>
+  <button type="button" class="game-rail-button" id="game-menu-guide" data-game-panel="guide" aria-pressed="false" title="Consigli di Bricco"><span class="rail-glyph">✧</span><small>Bricco</small></button>
+</nav>
 <aside class="left-column"><section class="panel mode-panel"><div class="kicker">IL TUO VIAGGIO</div><button id="kingdom-mode" class="mode-button active"><b>⌂</b><span><strong>Il mio regno</strong><small>Costruisci senza fretta</small></span><i>›</i></button><button id="challenge-mode" class="mode-button"><b>✦</b><span><strong>Sfida del giorno</strong><small>Una mappa, una missione</small></span><i>›</i></button></section>
 <section class="panel tutorial-panel" id="tutorial-panel">
   <div class="panel-heading">
@@ -71,7 +85,17 @@
 </section>
 <section class="panel objectives-panel"><div class="panel-heading"><div><small class="eyebrow">IL DESTINO DI BRUMADORO</small><h2>Campagna e obiettivi</h2></div><span class="count" id="objective-count">0/3</span></div><div id="epoch-progress" class="epoch-progress"><div id="epoch-track" class="epoch-track"></div><div class="epoch-banner"><strong id="epoch-title">Insediamento</strong><span id="epoch-count">1/4 EPOCHE</span></div><p id="epoch-summary" class="epoch-summary">Prima viene la sopravvivenza: cibo stabile, una casa e spazio per chi arriverà.</p><div id="epoch-checklist" class="epoch-checklist"></div><p id="epoch-story" class="epoch-story">A Brumadoro cinque famiglie si raccolgono attorno al vecchio municipio.</p></div><div id="objectives-list"></div></section><div class="tip"><b>✦</b><p><strong>Un consiglio del custode</strong><br/><span id="tip-text">Una casa dà spazio a nuovi abitanti. Senza cibo, però, nessun villaggio può crescere.</span></p></div></aside>
 <section class="world-column"><div class="world-heading"><div><small class="eyebrow" id="world-eyebrow">IL TUO TERRITORIO</small><h1 id="world-title">Valle di Brumadoro</h1><p id="world-subtitle">Un piccolo inizio. Infinite possibilità.</p></div><button id="center-map" class="subtle-button">⌖ <span>Centra</span></button></div>
-<div class="world-frame"><div class="frame-top"><span>● Territorio conosciuto</span><span id="game-clock">Giorno 1 · 00:00</span></div><div id="game-mount" class="game-mount" aria-label="Mappa interattiva del regno"></div><div class="frame-bottom"><span id="map-instruction">Scegli un edificio, poi una casella libera.</span><span>◇ Casella selezionata</span></div></div><div class="world-footer"><span><i></i><span id="save-status">Salvataggio locale attivo</span></span><span id="world-population-note">Il villaggio è pronto a crescere.</span></div></section>
+<div class="world-frame"><div class="frame-top"><span>● Territorio conosciuto</span><span id="game-clock">Giorno 1 · 00:00</span></div><div id="game-mount" class="game-mount" aria-label="Mappa interattiva del regno"></div>
+<div class="camera-controls" aria-label="Controlli della visuale">
+<button type="button" id="camera-rotate-left" title="Ruota a sinistra" aria-label="Ruota a sinistra">↶</button>
+<button type="button" id="camera-rotate-right" title="Ruota a destra" aria-label="Ruota a destra">↷</button>
+<span class="camera-divider" aria-hidden="true"></span>
+<button type="button" id="camera-zoom-out" title="Allontana" aria-label="Riduci zoom">−</button>
+<button type="button" id="camera-zoom-in" title="Avvicina" aria-label="Aumenta zoom">+</button>
+<button type="button" id="camera-center" title="Centra la mappa" aria-label="Centra la mappa">⌖</button>
+</div>
+<div id="camera-help" class="camera-help">Trascina per spostarti · tasto destro per ruotare · rotella per zoom</div>
+<div class="frame-bottom"><span id="map-instruction">Scegli un edificio, poi una casella libera.</span><span>◇ Casella selezionata</span></div></div><div class="world-footer"><span><i></i><span id="save-status">Salvataggio locale attivo</span></span><span id="world-population-note">Il villaggio è pronto a crescere.</span></div></section>
 <aside class="right-column"><section class="panel build-panel"><div class="panel-heading"><div><small class="eyebrow">DARE FORMA AL REGNO</small><h2>Costruisci</h2></div><span class="hammer">⚒</span></div><p id="build-description">Scegli un edificio e decidi dove farlo sorgere.</p><div id="build-list"></div><div class="build-hint">ⓘ <span>Le segherie amano i boschi. Le cave preferiscono le rocce. La posizione conta.</span></div></section>
 <section class="panel inspector-panel"><div class="panel-heading"><div><small class="eyebrow">DETTAGLI</small><h2 id="inspector-title">Il territorio</h2></div></div><p id="inspector-copy">Seleziona un edificio sulla mappa per vederne i dettagli.</p><div id="inspector-stats"></div><button id="upgrade-button" class="primary hidden">Migliora edificio</button><button id="demolish-button" class="danger hidden">Demolisci edificio</button><button id="cancel-build" class="secondary hidden">Annulla costruzione</button></section></aside>
 </main><footer class="app-footer"><strong>MICROREGNO · Un piccolo mondo, una grande avventura</strong><div><button id="reset-game">Ricomincia il regno</button><span id="local-save-label">Dati salvati su questo dispositivo</span></div></footer></div>
@@ -111,4 +135,15 @@
   <div class="dialog-actions"><button id="close-realm-dialog-footer" class="primary">Torna al borgo</button></div>
 </dialog>
 
+<dialog id="settings-dialog" class="utility-dialog">
+<div class="dialog-top"><small class="eyebrow">MICROREGNO · PREFERENZE</small><button id="close-settings" class="icon-button" type="button" aria-label="Chiudi impostazioni">×</button></div>
+<h2>Impostazioni di gioco</h2><p class="utility-intro">Adatta la visuale al tuo modo di giocare. Le preferenze restano salvate su questo dispositivo.</p>
+<div class="settings-list">
+<label class="settings-slider" for="rotation-sensitivity"><span><strong>Sensibilità della rotazione</strong><small>Quanto velocemente gira la mappa quando trascini con il tasto destro.</small></span><output id="rotation-sensitivity-value" for="rotation-sensitivity">6</output><input id="rotation-sensitivity" type="range" min="2" max="12" step="1" value="6"/></label>
+<label class="settings-row" for="toggle-camera-hints"><span><strong>Mostra i suggerimenti dei comandi</strong><small>Promemoria per spostamento, rotazione e zoom.</small></span><input id="toggle-camera-hints" type="checkbox" checked/></label>
+<label class="settings-row" for="toggle-reduced-motion"><span><strong>Riduci le animazioni</strong><small>Movimenti dell'interfaccia più discreti.</small></span><input id="toggle-reduced-motion" type="checkbox"/></label>
+</div>
+<div class="camera-key-guide"><span><kbd>Tasto sinistro + trascina</kbd> Sposta la visuale</span><span><kbd>Tasto destro + trascina</kbd> Ruota il regno</span><span><kbd>Rotellina</kbd> Avvicina o allontana</span></div>
+<div class="dialog-actions settings-actions"><button id="settings-center" class="secondary" type="button">Reimposta visuale</button><button id="settings-reset" class="danger" type="button">Nuovo regno</button><button id="close-settings-footer" class="primary" type="button">Riprendi la partita</button></div>
+</dialog>
 <script type="module" src="./src/main.ts"></script></body></html>
