@@ -199,7 +199,7 @@ private drawVillagers():void{
 const walkTiles:Array<[number,number]>=[[4,6],[4,7],[5,7],[6,7],[6,6],[6,5],[5,5],[4,5],[5,4],[6,4]];
 const route=walkTiles.filter(([x,y])=>this.walkableTile(x,y));if(route.length<2)return;
 const coats=[0x8d5b45,0x416b8e,0x8b9b54,0x8a6aa5,0xb56b4b,0x4b7f74,0x6d8260,0x986b3f],hair=[0x4b3528,0x3d342c,0x7c5638,0x43372f,0x6a4934,0x302c2a,0x8b6546,0x554033],skins=[0xe7bf9a,0xc98f69,0xf0d0ad,0xb97859,0xe4b58d,0xd8a47c,0xf0c8a1,0xbd8767];
-const residents=(this.state.world?.citizens??[]).filter(c=>c.status==='resident').slice(0,24);
+const residents=(this.state.world?.citizens??[]).filter(c=>c.status==='resident').slice(0,12); // Keep the animated crowd light; population and simulation remain unchanged.
 const professionCoats:Record<string,number>={farmer:0x8b9850,lumberjack:0x836144,miner:0x666f79,merchant:0x466f9a,miller:0xb7a16a,baker:0xb96d4b,scholar:0x8276a5,scout:0x447d72,builder:0xa96a4a,guard:0x536b51,artisan:0x9b7751};
 for(let i=0;i<residents.length;i++){const tile=route[(i*2)%route.length]!,p=this.toScreen(tile[0],tile[1]),resident=residents[i]!,shadow=this.add.ellipse(0,0,10,4,0x314b39,.22),body=this.add.ellipse(0,-7,7,9,professionCoats[resident.profession]??coats[i%coats.length]),head=this.add.circle(0,-14,3.2,skins[i%skins.length]),cap=this.add.ellipse(0,-16,5.5,2.5,hair[i%hair.length]),person=this.add.container(p.x,p.y+4,[shadow,body,head,cap]).setDepth((tile[0]+tile[1])*10+7);this.objects.push(person);this.walkVillager(person,resident.id,{x:tile[0],y:tile[1]},1050+(i%4)*140,i);}
 }
