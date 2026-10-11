@@ -149,8 +149,10 @@ export function applyOfflineProgress(state: GameState, now = Date.now()): { stat
   return { state: copy, minutes };
 }
 
-export function loadChallengeSave(date = localDateKey()): ChallengeSave | null {
+export function loadChallengeSave(date = localDateKey(), challengeId?: string): ChallengeSave | null {
   const saved = read<ChallengeSave>(CHALLENGE + date);
+  // Challenge rules are date-seeded but versioned by their ID; never restore progress from a different mission.
+  if (challengeId && saved?.challengeId !== challengeId) return null;
   if (!saved || saved.date !== date || !valid(saved.state)
     || typeof saved.completed !== 'boolean' || !Number.isFinite(saved.score) || !Number.isFinite(saved.bestScore)) return null;
   const state = normalizeSavedState(saved.state, false);
