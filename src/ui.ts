@@ -3,7 +3,7 @@ import { buildingUnlocked } from './game/challenge';
 import { EPOCHS,EPOCH_ORDER,getBuildingEpoch,getCharterRequirements,getCurrentEpochId,getEpochRequirements,isEpochUnlocked } from './game/progression';
 import { getSeason } from './game/community';
 import { getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods } from './game/livingWorld';
-import { canColonizeRegion, canExploreRegion, frontierFoundingCost, frontierStructureAllowed, FRONTIER_GRID_SIZE, FRONTIER_STRUCTURES, isRoadConnectedToHub, CITIZEN_ACTIVITY_LABELS, getCitizenActivity, getCitizenWorkplace, getInterestGroups, projectRequirement, PROFESSION_LABELS, PROFESSIONS, PROJECTS, researchRequirement, RESEARCH, REGIONS, worldBuildingMultiplier } from './game/livingWorld';
+import { canColonizeRegion, canExploreRegion, frontierFoundingCost, frontierStructureAllowed, FRONTIER_GRID_SIZE, FRONTIER_STRUCTURES, CITIZEN_ACTIVITY_LABELS, getCitizenActivity, getCitizenWorkplace, getInterestGroups, projectRequirement, PROFESSION_LABELS, PROFESSIONS, PROJECTS, researchRequirement, RESEARCH, REGIONS, worldBuildingMultiplier } from './game/livingWorld';
 import type { GoodsBag, MarketResource, WorldState } from './game/types';
 import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
 import type { BuildingType, FrontierStructureType, GameSnapshot, Profession, RegionId, Resource } from './game/types';
