@@ -944,11 +944,22 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     if (choice.populationDelta) population = Math.max(0, population + choice.populationDelta);
     if (choice.populationDelta && choice.populationDelta > 0) {
       const profession = choice.profession ?? 'farmer';
-      world = addCitizenForState({ ...state, resources }, world);
-      citizens = world.citizens.map((citizen, index) => index === world.citizens.length - 1 ? { ...citizen, profession, skills: { ...citizen.skills, [profession]: 24 }, lastAction: 'È arrivato grazie a un evento del regno' } : citizen);
+      const firstNewCitizenIndex = world.citizens.length;
+      for (let index = 0; index < choice.populationDelta; index++) {
+        world = addCitizenForState({ ...state, resources }, world, profession);
+      }
+      citizens = world.citizens.map((citizen, index) => index >= firstNewCitizenIndex
+        ? { ...citizen, skills: { ...citizen.skills, [profession]: 24 }, lastAction: 'È arrivato grazie a un evento del regno' }
+        : citizen);
     }
     if (choice.populationDelta && choice.populationDelta < 0) citizens = citizens.slice(0, Math.max(0, citizens.length + choice.populationDelta));
-    world = { ...world, citizens, goods, activeEvent: null, queuedEvent: choice.chain ?? null, nextEventAt: state.gameMinutes + (choice.chain ? 75 : 300), researchPoints: world.researchPoints + (choice.researchDelta ?? 0), weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather };
+    const queuedEvent = choice.chain ?? world.queuedEvent ?? null;
+    const nextEventAt = choice.chain
+      ? state.gameMinutes + 75
+      : world.queuedEvent
+        ? Math.min(world.nextEventAt, state.gameMinutes + 75)
+        : state.gameMinutes + 300;
+    world = { ...world, citizens, goods, activeEvent: null, queuedEvent, nextEventAt, researchPoints: world.researchPoints + (choice.researchDelta ?? 0), weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather };
     community = applyCommunityEffects(community, choice.moodDelta ?? 0, choice.trustDelta ?? 0);
     return finish(event.title + ' — ' + choice.label + '. ' + choice.detail);
   }
