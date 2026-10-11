@@ -862,6 +862,7 @@ dialog p strong { color: #38583b; }
 .realm-meter-track i,.realm-progress-track i{height:100%;display:block;border-radius:999px;background:#7aab73}
 .realm-citizen-footer{border-top:1px solid #edf0e6;margin-top:10px;padding-top:8px;display:flex;justify-content:space-between;gap:8px;font-size:10px;color:#718071}
 .realm-citizen-footer b{color:#52684e;white-space:nowrap}
+.realm-citizen-story{display:block;margin-top:8px;padding:8px 10px;border-radius:8px;background:#f7f5ed;color:#6d705f;font-size:10px;line-height:1.5}
 .realm-goods-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:12px 0}
 .realm-good{background:#f0f1e8;border-radius:9px;padding:9px;display:flex;flex-direction:column;gap:4px}
 .realm-good small{font-size:9px;color:#77836e}
