@@ -12,7 +12,7 @@ const SPRITES:Record<BuildingType,string>={townHall:'town-hall',house:'house',fa
 function publicAssetBase():string{const page=new URL(window.location.href);const finalSegment=page.pathname.split('/').pop()??'';if(!page.pathname.endsWith('/')&&!finalSegment.includes('.'))page.pathname+='/';return new URL('assets/',page).toString();}
 export class KingdomScene extends Phaser.Scene{
 private state!:GameState;private kingdom!:GameState;private mode:GameMode='kingdom';private challenge!:DailyChallenge;private terrain!:Terrain[][];
-private ambience!:Phaser.GameObjects.Graphics;private board!:Phaser.GameObjects.Graphics;private groundDetail!:Phaser.GameObjects.Graphics;private hover!:Phaser.GameObjects.Graphics;private objects:Phaser.GameObjects.GameObject[]=[];private visualTweens:Phaser.Tweens.Tween[]=[];private currentLightingPhase='';
+private ambience!:Phaser.GameObjects.Graphics;private board!:Phaser.GameObjects.Graphics;private groundDetail!:Phaser.GameObjects.Graphics;private hover!:Phaser.GameObjects.Graphics;private objects:Phaser.GameObjects.GameObject[]=[];private visualTweens:Phaser.Tweens.Tween[]=[];private currentLightingPhase='';private reduceMotion=false;
 private buildType:BuildingType|null=null;private selectedId:string|null=null;private villagerTweens=new Map<Phaser.GameObjects.Container,Phaser.Tweens.Tween>();private completed=false;private best=0;private savedAt=0;private ox=512;private oy=88;private profile:PlayerProfile=loadPlayerProfile();private challengeEventTriggered=false;private dragState:{button:number;startX:number;startY:number;lastX:number;lastY:number;startRotation:number;moved:boolean}|null=null;private cameraTouched=false;private rotationSensitivity=.006;private cameraRotation=0;
 constructor(){super('KingdomScene');}
 preload():void{this.load.setPath(publicAssetBase());this.load.on('loaderror',(file:{key:string})=>{window.dispatchEvent(new CustomEvent('microregno:notice',{detail:'Grafica non caricata: '+file.key+'. Controlla la cartella public/assets.'}));});[['town-hall','town-hall.svg'],['house','house.svg'],['farm','farm.svg'],['sawmill','sawmill.svg'],['quarry','quarry.svg'],['market','market.svg'],['road','road.svg'],['mill','mill.svg'],['bakery','bakery.svg'],['warehouse','warehouse.svg'],['school','school.svg'],['watchtower','watchtower.svg'],['workshop','workshop.svg'],['university','university.svg'],['orchard','orchard.svg'],['fishingHut','fishingHut.svg'],['herbGarden','herbGarden.svg'],['inn','inn.svg'],['ironworks','ironworks.svg'],['observatory','observatory.svg'],['tree','tree.svg'],['rock','rock.svg'],['leaf','leaf.svg']].forEach(([k,p])=>this.load.image(k!,p!));}
@@ -22,6 +22,7 @@ create():void{
   this.board=this.add.graphics().setDepth(0);
   this.groundDetail=this.add.graphics().setDepth(1);
   this.hover=this.add.graphics().setDepth(1000);
+  this.reduceMotion=document.body.classList.contains('reduce-motion-ui');
   this.challenge=createDailyChallenge();
   this.profile=loadPlayerProfile();
   const offline=applyOfflineProgress(loadKingdom());
@@ -178,6 +179,7 @@ window.addEventListener('microregno:upgrade',(()=>{if(!this.selectedId)return;if
 window.addEventListener('microregno:challenge-retry',(()=>{if(this.mode!=='challenge')return;this.challenge=createDailyChallenge();const previous=loadChallengeSave(this.challenge.date,this.challenge.id);this.profile=loadPlayerProfile();this.state=applyProfileBonuses(createChallengeState(this.challenge),this.profile);this.completed=false;this.challengeEventTriggered=false;this.best=previous?.bestScore??this.best;this.buildType=null;this.selectedId=null;const saved=saveChallenge({date:this.challenge.date,challengeId:this.challenge.id,state:this.state,completed:false,score:0,bestScore:this.best,eventTriggered:false});this.reportSaveStatus(saved,'challenge');this.terrain=generateTerrain(this.challenge.seed);this.redraw();this.emit();this.notice('Una nuova pagina dell’Archivio si apre. Puoi migliorare il record; le memorie e le medaglie già conquistate restano con te.');}) as EventListener);
 window.addEventListener('microregno:reset',(()=>{resetKingdom();this.kingdom=createInitialState();this.state=this.kingdom;this.mode='kingdom';this.buildType=null;this.selectedId=null;this.completed=false;this.best=0;this.terrain=generateTerrain(this.state.seed);const saved=saveKingdom(this.kingdom);this.savedAt=Date.now();this.reportSaveStatus(saved,'kingdom');this.redraw();this.emit();this.notice('La campana è ancora nascosta sotto il Municipio. Cinque famiglie, cinque luci da ritrovare: comincia il Patto.');}) as EventListener);
 window.addEventListener('microregno:center',(()=>{this.centerCamera(true);this.redraw();}) as EventListener);
+window.addEventListener('microregno:motion',((e:CustomEvent<boolean>)=>{this.reduceMotion=!!e.detail;this.redraw();}) as EventListener);
 window.addEventListener('microregno:camera',((e:CustomEvent<{type:string;value?:number}>)=>{
   const action=e.detail,camera=this.cameras.main;
   if(action.type==='rotate-left'){this.cameraRotation-=Math.PI/4;camera.setRotation(this.cameraRotation);this.cameraTouched=true;}
@@ -311,7 +313,7 @@ private redraw():void{
       if(hash%3===0){
         const shimmer=this.add.ellipse(p.x+(hash%11)-5,p.y-5,8,1.5,isNight?0x9bbacb:0xf2ffec,isNight?.28:.58).setDepth((x+y)*10+5);
         this.objects.push(shimmer);
-        this.visualTweens.push(this.tweens.add({targets:shimmer,x:shimmer.x+13,alpha:0,scaleX:1.8,duration:1900+(hash%5)*190,delay:hash%640,repeat:-1,ease:'Sine.inOut'}));
+        if(!this.reduceMotion)this.visualTweens.push(this.tweens.add({targets:shimmer,x:shimmer.x+13,alpha:0,scaleX:1.8,duration:1900+(hash%5)*190,delay:hash%640,repeat:-1,ease:'Sine.inOut'}));
       }
       return;
     }
@@ -382,7 +384,7 @@ private redraw():void{
       const scale=.91+(hash%5)*.035;
       const o=this.add.image(p.x,p.y-22,'tree').setDisplaySize(61*scale,76*scale).setTint(treeTint).setOrigin(.5,.83).setRotation(((hash%7)-3)*.018).setDepth((x+y)*10+3);
       this.objects.push(o);
-      if(hash%3===0){
+      if(hash%3===0&&!this.reduceMotion){
         const sway=this.tweens.add({targets:o,rotation:o.rotation+(hash%2?.027:-.027),y:o.y-1.4,duration:2100+(hash%5)*220,delay:hash%370,yoyo:true,repeat:-1,ease:'Sine.inOut'});
         this.visualTweens.push(sway);
       }
@@ -464,11 +466,11 @@ private drawBuildingTierDetails(p:{x:number;y:number},building:GameState['buildi
     const ringY=p.y-height*.54;
     const ring=this.add.ellipse(p.x,ringY,32+level*4,7+level,0xffffff,0).setStrokeStyle(1.3,level>=5?0xf4d98a:0x9fd6dc,phase==='night'?.92:.7).setDepth(depth+2);
     this.objects.push(ring);
-    this.visualTweens.push(this.tweens.add({targets:ring,scaleX:1.1,scaleY:.82,duration:2600+building.level*220,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
+    if(!this.reduceMotion)this.visualTweens.push(this.tweens.add({targets:ring,scaleX:1.1,scaleY:.82,duration:2600+building.level*220,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
     if(level>=5){
       const second=this.add.ellipse(p.x,ringY,42,8,0xffffff,0).setStrokeStyle(1,0xf3d58a,.65).setDepth(depth+2);
       this.objects.push(second);
-      this.visualTweens.push(this.tweens.add({targets:second,scaleX:.82,scaleY:1.25,duration:3400,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
+      if(!this.reduceMotion)this.visualTweens.push(this.tweens.add({targets:second,scaleX:.82,scaleY:1.25,duration:3400,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
     }
   }
 }
@@ -480,7 +482,7 @@ private drawChimneySmoke(p:{x:number;y:number},building:GameState['buildings'][n
   for(let i=0;i<puffs;i++){
     const puff=this.add.ellipse(chimneyX+i*2,chimneyY-i*5,4.5+i,6+i,phase==='night'?0xb6c5d0:0xe1e7dc,phase==='night'?.2:.24).setDepth(depth+9);
     this.objects.push(puff);
-    this.visualTweens.push(this.tweens.add({
+    if(!this.reduceMotion)this.visualTweens.push(this.tweens.add({
       targets:puff,x:puff.x+3+i*2,y:puff.y-18-i*3,alpha:0,scaleX:1.65,scaleY:1.7,
       duration:2200+i*460,delay:(hash%7)*115+i*520,repeat:-1,ease:'Sine.inOut'
     }));
@@ -491,9 +493,9 @@ private drawBuildingLights(p:{x:number;y:number},building:GameState['buildings']
   const outer=this.add.circle(lx,ly,10.5,0xffbc55,phase==='night'?.15:.09).setDepth(depth+2);
   const inner=this.add.circle(lx,ly,3.4,0xffebad,phase==='night'?.7:.48).setDepth(depth+3);
   this.objects.push(outer,inner);
-  this.visualTweens.push(this.tweens.add({targets:outer,alpha:phase==='night'?.25:.14,scaleX:1.22,scaleY:1.22,duration:1200+(hash%4)*180,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
+  if(!this.reduceMotion)this.visualTweens.push(this.tweens.add({targets:outer,alpha:phase==='night'?.25:.14,scaleX:1.22,scaleY:1.22,duration:1200+(hash%4)*180,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
   if(building.type==='townHall'||building.type==='market'||building.type==='observatory'){
-    this.visualTweens.push(this.tweens.add({targets:inner,alpha:phase==='night'?.95:.7,scaleX:1.25,scaleY:1.25,duration:1650,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
+    if(!this.reduceMotion)this.visualTweens.push(this.tweens.add({targets:inner,alpha:phase==='night'?.95:.7,scaleX:1.25,scaleY:1.25,duration:1650,yoyo:true,repeat:-1,ease:'Sine.inOut'}));
   }
 }
 private drawMarketStalls(p:{x:number;y:number},depth:number,phase:'day'|'twilight'|'night'):void{

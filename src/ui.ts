@@ -1153,6 +1153,7 @@ export function setupUI(): void {
   });
   reducedMotion.addEventListener('change', () => {
     document.body.classList.toggle('reduce-motion-ui',reducedMotion.checked);
+    dispatch('microregno:motion',reducedMotion.checked);
     savePreference('microregno:reduced-motion',String(reducedMotion.checked));
   });
   const fullscreenButton = $('fullscreen-toggle') as HTMLButtonElement;
