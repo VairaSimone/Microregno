@@ -1,6 +1,6 @@
 import { BUILDINGS, BUILD_ORDER, formatCost, MAX_BUILDING_LEVEL, RESOURCE_LABELS } from './game/definitions';
 import { buildingUnlocked } from './game/challenge';
-import { getAchievementProgress } from './game/profile';
+import { getAchievementProgress, getChallengeArchive } from './game/profile';
 import { EPOCHS,EPOCH_ORDER,getBuildingEpoch,getCharterRequirements,getCurrentEpochId,getEpochRequirements,isEpochUnlocked } from './game/progression';
 import { getSeason } from './game/community';
 import { getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods } from './game/livingWorld';
@@ -486,6 +486,42 @@ function renderChallengeRewards(snapshot: GameSnapshot): void {
     row.append(header, detail, reward, track);
     achievementsHost.append(row);
   });
+
+  const archiveHost = $('challenge-records');
+  archiveHost.innerHTML = '';
+  const archive = getChallengeArchive(profile, 8);
+  $('challenge-record-count').textContent = profile.records.length + (profile.records.length === 1 ? ' risultato' : ' risultati');
+  if (!archive.length) {
+    const empty = document.createElement('p');
+    empty.className = 'challenge-collection-empty';
+    empty.textContent = 'Qui troverai i migliori risultati delle sfide completate. Ogni record conserva il punteggio migliore raggiunto in quella giornata.';
+    archiveHost.append(empty);
+  } else {
+    const categoryNames = { population: 'Popolazione', resources: 'Risorse', farms: 'Fattorie', housing: 'Abitazioni' } as const;
+    const tierNames = { bronze: 'Bronzo', silver: 'Argento', gold: 'Oro' } as const;
+    archive.forEach(record => {
+      const row = document.createElement('article');
+      row.className = 'challenge-record-row ' + record.tier;
+      const copy = document.createElement('div');
+      copy.className = 'challenge-record-copy';
+      const title = document.createElement('strong');
+      title.textContent = record.title;
+      const elapsed = Math.max(0, Math.floor(record.achievedInMinutes));
+      const duration = elapsed >= 60 ? Math.floor(elapsed / 60) + ' h ' + String(elapsed % 60).padStart(2, '0') + ' min' : elapsed + ' min';
+      const detail = document.createElement('small');
+      detail.textContent = record.date + ' · ' + categoryNames[record.category] + ' · ' + duration;
+      copy.append(title, detail);
+      const result = document.createElement('div');
+      result.className = 'challenge-record-score';
+      const score = document.createElement('strong');
+      score.textContent = record.bestScore.toLocaleString('it-IT') + ' pt';
+      const tier = document.createElement('small');
+      tier.textContent = 'Medaglia ' + tierNames[record.tier];
+      result.append(score, tier);
+      row.append(copy, result);
+      archiveHost.append(row);
+    });
+  }
 }
 
 function renderObjectives(snapshot: GameSnapshot): void {
