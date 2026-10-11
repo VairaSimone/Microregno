@@ -267,7 +267,7 @@ private redraw():void{
         this.groundDetail.lineBetween(p.x+3-shift*.4,p.y+2,p.x+11-shift*.4,p.y+2);
         if(hash%4===0)this.groundDetail.fillStyle(0xf2f4d7,.35),this.groundDetail.fillCircle(p.x+8,p.y-7,1.2);
       }
-      continue;
+      return;
     }
     const neighbours=[
       {x:x+1,y,edge:[points[1]!,points[2]!]},
