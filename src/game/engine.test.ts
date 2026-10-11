@@ -13,8 +13,10 @@ describe('simulazione Microregno',()=>{
       population:6,
       resources:{...house.state.resources,food:200},
     });
+    populated.gameMinutes=119;
     populated.world!.citizens.forEach((citizen)=>{citizen.happiness=5;});
-    const afterDeparture=advanceTime(populated,120);
+    const afterDeparture=advanceTime(populated,1);
+    expect(afterDeparture.gameMinutes).toBe(120);
     expect(afterDeparture.population).toBe(5);
     expect(afterDeparture.world!.citizens).toHaveLength(5);
   });
