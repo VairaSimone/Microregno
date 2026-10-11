@@ -47,6 +47,23 @@ describe('save resilience', () => {
     expect(loaded.population).toBe(5);
   });
 
+  it('falls back to a playable state when a corrupted save has no population', () => {
+    const state = createInitialState(447);
+    const corrupted = {
+      ...state,
+      population: 0,
+      resources: { wood: 0, stone: 0, food: 0, coins: 0 },
+      world: { ...state.world!, citizens: [] },
+    } as unknown as GameState;
+    installStorage({ [KINGDOM_KEY]: JSON.stringify(corrupted) });
+
+    const loaded = loadKingdom();
+
+    expect(loaded.population).toBe(5);
+    expect(loaded.world?.citizens).toHaveLength(5);
+    expect(loaded.resources.food).toBeGreaterThan(0);
+  });
+
   it('falls back safely when the stored save has no valid town hall', () => {
     const state = createInitialState(333);
     const corrupted = { ...state, buildings: [null, { id: 'bad', type: 'townHall', x: 5, y: 6, level: 0 }] } as unknown as GameState;
