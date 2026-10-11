@@ -28,7 +28,7 @@ Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popol
 - Mappa della frontiera con regioni scoperte, spedizioni possibili e territori ancora coperti dalla nebbia; eventi climatici temporanei, inclusa la siccità che rallenta i raccolti e avvia storie di recupero.
 - Obiettivi, record locali, demolizione con rimborso parziale e interfaccia responsive.
 - Sfide giornaliere a quattro percorsi (popolazione, risorse, fattorie, abitazioni), con scenari iniziali, vincoli e avvenimenti che modificano le scorte.
-- Medaglie di bronzo/argento/oro, archivio delle vittorie, record giornalieri e obiettivi permanenti salvati nel profilo locale indipendentemente dal regno.
+- Medaglie di bronzo/argento/oro, archivio visibile delle ultime sfide (data, categoria, punteggio migliore, tempo e grado), record giornalieri e obiettivi permanenti salvati nel profilo locale indipendentemente dal regno.
 - Rigioca la sfida del giorno per migliorare il punteggio e il grado della medaglia; le vittorie duplicate non duplicano ricompense, ma migliorano il record.
 - Traguardi permanenti che sbloccano bonus reali alle scorte iniziali delle sfide future. Le classifiche sono locali e non richiedono un account o un backend.
 
