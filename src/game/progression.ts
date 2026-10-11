@@ -235,7 +235,7 @@ export function synchronizeKingdomProgression(input: GameState): ProgressionUpda
   const migrateStoryEntry = (entry: string): string => {
     if (entry.startsWith('A Brumadoro cinque famiglie')) return EPOCHS.settlement.story;
     if (entry.startsWith('È nato un nuovo Consiglio del Regno.')) {
-      return 'Tre notti dopo il rintocco sotto il Municipio, nasce il Consiglio di Brumadoro. Bricco custodisce una mappa con cinque stelle mancanti; gli abitanti saranno i primi a decidere se il Patto merita di rinascere.';
+      return 'Tre notti dopo il rintocco sotto il Municipio, nasce il Consiglio di Brumadoro. Bricco custodisce una mappa con cinque stelle mancanti e apre la cronaca delle Cinque Luci: gli abitanti saranno i primi a decidere se il Patto merita di rinascere.';
     }
     if (entry.startsWith('👑 La Carta della Corona è firmata.') || entry.startsWith('🔔 LA CAMPANA DELL’ALBA')) return FINAL_CHRONICLE_ENTRY;
     const epoch = EPOCH_ORDER.map((id) => EPOCHS[id]).find((candidate) => entry.startsWith(candidate.icon + ' ' + candidate.name + ':'));
