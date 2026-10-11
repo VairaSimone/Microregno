@@ -98,4 +98,49 @@ describe('permanent single-player rewards',()=>{
     expect(profile.records.map(record=>record.date)).toEqual(before);
     expect(getChallengeArchive(profile,0)).toEqual([]);
   });
+
+  it('updates archived challenge and achievement text to the Five Lights narrative without changing IDs or rewards', () => {
+    const challenge = createDailyChallenge(new Date('2026-10-11T12:00:00'));
+    const migrated = normalizePlayerProfile({
+      ...createPlayerProfile(),
+      records: [{
+        date: challenge.date,
+        challengeId: challenge.id,
+        title: 'Una casa per tutti',
+        category: challenge.category,
+        score: 2800,
+        bestScore: 3200,
+        completedAt: '2026-10-11T12:00:00.000Z',
+        medalId: challenge.medalId,
+        tier: 'silver',
+        achievedInMinutes: 18,
+      }],
+      medals: [{
+        id: challenge.id,
+        name: challenge.reward,
+        description: 'Completata',
+        icon: '⌂',
+        tier: 'silver',
+        date: challenge.date,
+        challengeTitle: 'Una casa per tutti',
+        earnedAt: '2026-10-11T12:00:00.000Z',
+      }],
+      achievements: [{
+        id: 'first-victory',
+        name: 'La prima impresa',
+        description: 'Completa la tua prima sfida giornaliera.',
+        rewardId: 'founder-title',
+        rewardName: 'Titolo: Pioniere di Brumadoro',
+        unlockedAt: '2026-10-11T12:00:00.000Z',
+      }],
+    });
+    expect(migrated.records[0]?.challengeId).toBe(challenge.id);
+    expect(migrated.records[0]?.title).toBe(challenge.title);
+    expect(migrated.medals[0]?.id).toBe(challenge.id);
+    expect(migrated.medals[0]?.challengeTitle).toBe(challenge.title);
+    expect(migrated.achievements[0]?.id).toBe('first-victory');
+    expect(migrated.achievements[0]?.name).toBe('Il primo rintocco');
+    expect(migrated.achievements[0]?.rewardId).toBe('founder-title');
+    expect(migrated.achievements[0]?.rewardName).toBe('Titolo: Custode della Prima Luce');
+  });
 });

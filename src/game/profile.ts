@@ -1,5 +1,5 @@
 import type {ChallengeCategory,ChallengeMedal,ChallengeRecord,DailyChallenge,GameState,PlayerAchievement,PlayerProfile} from './types';
-import {challengeCategory,localDateKey,medalTier} from './challenge';
+import {challengeCategory,createDailyChallenge,localDateKey,medalTier} from './challenge';
 
 const PROFILE_KEY='microregno:player-profile:v1';
 const BONUS:Record<string,Partial<GameState['resources']>>={
@@ -21,13 +21,13 @@ interface AchievementDefinition {
 }
 const categoryCount=(profile:PlayerProfile):number=>new Set(profile.records.map(record=>record.category)).size;
 export const ACHIEVEMENTS:AchievementDefinition[]=[
-  {id:'first-victory',name:'La prima impresa',description:'Completa la tua prima sfida giornaliera.',rewardId:'founder-title',rewardName:'Titolo: Pioniere di Brumadoro',target:1,progress:p=>Math.min(1,p.totalCompleted)},
-  {id:'three-trials',name:'Una buona abitudine',description:'Completa 3 sfide in giorni diversi.',rewardId:'granary-blessing',rewardName:'Benedizione della dispensa: +6 cibo iniziale',target:3,progress:p=>Math.min(3,p.totalCompleted)},
-  {id:'five-trials',name:'Custode instancabile',description:'Completa 5 sfide in giorni diversi.',rewardId:'forester-mark',rewardName:'Sigillo del boscaiolo: +6 legname iniziale',target:5,progress:p=>Math.min(5,p.totalCompleted)},
-  {id:'ten-trials',name:'Leggenda di Brumadoro',description:'Completa 10 sfide in giorni diversi.',rewardId:'stonekeeper-mark',rewardName:'Sigillo della cava: +6 pietra iniziale',target:10,progress:p=>Math.min(10,p.totalCompleted)},
-  {id:'four-paths',name:'Maestro dei quattro sentieri',description:'Vinci una sfida di popolazione, risorse, fattorie e abitazioni.',rewardId:'royal-favor',rewardName:'Favore reale: +4 monete iniziali',target:4,progress:p=>Math.min(4,categoryCount(p))},
-  {id:'first-gold',name:'Medaglia d’oro',description:'Ottieni una medaglia d’oro con almeno 4.500 punti.',rewardId:'golden-banner',rewardName:'Stendardo dorato: +3 monete iniziali',target:4500,progress:p=>Math.min(4500,Math.max(0,...p.records.map(r=>r.bestScore)))},
-  {id:'three-day-streak',name:'Tre albe consecutive',description:'Completa una sfida per tre giorni consecutivi.',rewardId:'crown-signet',rewardName:'Sigillo della Corona: +5 cibo iniziale',target:3,progress:p=>Math.min(3,p.bestStreak)}
+  {id:'first-victory',name:'Il primo rintocco',description:'Completa la tua prima prova e raccogli il primo frammento della cronaca.',rewardId:'founder-title',rewardName:'Titolo: Custode della Prima Luce',target:1,progress:p=>Math.min(1,p.totalCompleted)},
+  {id:'three-trials',name:'Tre luci custodite',description:'Completa tre prove in giorni diversi e dimostra costanza nel proteggere il Patto.',rewardId:'granary-blessing',rewardName:'Dono della Veglia: +6 cibo iniziale',target:3,progress:p=>Math.min(3,p.totalCompleted)},
+  {id:'five-trials',name:'Guardiano delle Radici',description:'Completa cinque prove in giorni diversi e custodisci le risorse della valle.',rewardId:'forester-mark',rewardName:'Marchio delle Radici: +6 legname iniziale',target:5,progress:p=>Math.min(5,p.totalCompleted)},
+  {id:'ten-trials',name:'Voce del Passo',description:'Completa dieci prove in giorni diversi e ricomponi le memorie delle montagne.',rewardId:'stonekeeper-mark',rewardName:'Sigillo del Passo: +6 pietra iniziale',target:10,progress:p=>Math.min(10,p.totalCompleted)},
+  {id:'four-paths',name:'Le quattro strade',description:'Vinci una prova di popolazione, risorse, fattorie e abitazioni: il Patto richiede equilibrio.',rewardId:'royal-favor',rewardName:'Moneta del Patto: +4 monete iniziali',target:4,progress:p=>Math.min(4,categoryCount(p))},
+  {id:'first-gold',name:'Le Cinque Luci',description:'Ottieni una medaglia d’oro con almeno 4.500 punti e fai brillare il nome di Brumadoro.',rewardId:'golden-banner',rewardName:'Stendardo delle Cinque Luci: +3 monete iniziali',target:4500,progress:p=>Math.min(4500,Math.max(0,...p.records.map(r=>r.bestScore)))},
+  {id:'three-day-streak',name:'Il richiamo dell’Alba',description:'Completa una sfida per tre giorni consecutivi: le valli iniziano a rispondere al rintocco.',rewardId:'crown-signet',rewardName:'Sigillo dell’Alba: +5 cibo iniziale',target:3,progress:p=>Math.min(3,p.bestStreak)}
 ];
 
 export function createPlayerProfile():PlayerProfile{
@@ -42,14 +42,25 @@ export function normalizePlayerProfile(value:unknown):PlayerProfile{
     &&(['population','resources','farms','housing'] as string[]).includes(String(r.category))
     &&Number.isFinite(r.score)&&Number.isFinite(r.bestScore)&&typeof r.completedAt==='string'
     &&typeof r.medalId==='string'&&(['bronze','silver','gold'] as string[]).includes(String(r.tier))
-    &&Number.isFinite(r.achievedInMinutes)).slice(-500):[];
+    &&Number.isFinite(r.achievedInMinutes)).slice(-500).map((record) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(record.date)) return record;
+      const currentChallenge = createDailyChallenge(new Date(record.date + 'T12:00:00'));
+      return currentChallenge.id === record.challengeId ? { ...record, title: currentChallenge.title } : record;
+    }):[];
+  const canonicalChallengeTitles = new Map(records.map((record) => [record.challengeId, record.title]));
   const medals:ChallengeMedal[]=Array.isArray(raw.medals)?raw.medals.filter((m):m is ChallengeMedal=>isObject(m)
     &&typeof m.id==='string'&&typeof m.name==='string'&&typeof m.description==='string'&&typeof m.icon==='string'
     &&(['bronze','silver','gold'] as string[]).includes(String(m.tier))&&typeof m.date==='string'
-    &&typeof m.challengeTitle==='string'&&typeof m.earnedAt==='string').slice(-500):[];
+    &&typeof m.challengeTitle==='string'&&typeof m.earnedAt==='string').slice(-500).map((medal) => ({
+      ...medal, challengeTitle: canonicalChallengeTitles.get(medal.id) ?? medal.challengeTitle,
+    })):[];
   const achievements:PlayerAchievement[]=Array.isArray(raw.achievements)?raw.achievements.filter((a):a is PlayerAchievement=>isObject(a)
     &&typeof a.id==='string'&&typeof a.name==='string'&&typeof a.description==='string'
-    &&typeof a.rewardId==='string'&&typeof a.rewardName==='string'&&typeof a.unlockedAt==='string'): [];
+    &&typeof a.rewardId==='string'&&typeof a.rewardName==='string'&&typeof a.unlockedAt==='string')
+    .map((achievement) => {
+      const current = ACHIEVEMENTS.find((definition) => definition.id === achievement.id);
+      return current ? { ...achievement, name: current.name, description: current.description, rewardName: current.rewardName } : achievement;
+    }): [];
   const unlockedRewards=Array.isArray(raw.unlockedRewards)?raw.unlockedRewards.filter((id):id is string=>typeof id==='string'&&Object.hasOwn(BONUS,id)||id==='founder-title'):[];
   const lastCompletedDate=typeof raw.lastCompletedDate==='string'?raw.lastCompletedDate:null;
   const totalCompleted=Number.isFinite(raw.totalCompleted)

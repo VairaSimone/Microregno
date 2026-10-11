@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="it"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#172d25"/><meta name="description" content="Costruisci un regno, gestisci le risorse e affronta una nuova sfida ogni giorno."/><title>Microregno — Una terra tutta tua</title><link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/></head>
+<html lang="it"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="theme-color" content="#172d25"/><meta name="description" content="Una campana sepolta, cinque luci perdute e un Patto da ricomporre. Costruisci Brumadoro e riscrivi la storia delle cinque valli."/><title>Microregno — Il Patto delle Cinque Luci</title><link rel="icon" href="./assets/favicon.svg" type="image/svg+xml"/></head>
 <body><div class="app-shell">
-<header class="topbar"><a class="brand" href="./"><span class="brand-mark">⚜</span><span><strong>MICROREGNO</strong><small>Una terra tutta tua</small></span></a><div class="topbar-center"><i></i><span id="world-status">Il tuo regno è in pace</span></div><div class="topbar-actions">
+<header class="topbar"><a class="brand" href="./"><span class="brand-mark">⚜</span><span><strong>MICROREGNO</strong><small>Il Patto delle Cinque Luci</small></span></a><div class="topbar-center"><i></i><span id="world-status">La campana attende sotto il Municipio</span></div><div class="topbar-actions">
 <button class="realm-launch-button top-action-button" id="realm-dashboard-button" type="button" title="Apri il Consiglio del Regno"><span class="ui-glyph">♜</span><span>Sala del Regno</span></button>
 <button class="icon-button top-icon-button" id="help-button" type="button" aria-label="Apri la guida" title="Guida"><span>?</span><small>Guida</small></button>
 <button class="icon-button top-icon-button" id="settings-button" type="button" aria-label="Impostazioni" title="Impostazioni"><span>⚙</span><small>Opzioni</small></button>
@@ -21,7 +21,7 @@
 <aside class="left-column"><section class="panel mode-panel"><div class="kicker">IL TUO VIAGGIO</div><button id="kingdom-mode" class="mode-button active"><b>⌂</b><span><strong>Il mio regno</strong><small>Costruisci senza fretta</small></span><i>›</i></button><button id="challenge-mode" class="mode-button"><b>✦</b><span><strong>Sfida del giorno</strong><small>Una mappa, una missione</small></span><i>›</i></button></section>
 <section class="panel tutorial-panel" id="tutorial-panel">
   <div class="panel-heading">
-    <div><small class="eyebrow">BRICCO · GUIDA VIVA</small><h2 id="tutorial-title">Un piccolo regno, un passo alla volta</h2></div>
+    <div><small class="eyebrow">BRICCO · GUIDA VIVA</small><h2 id="tutorial-title">Il rintocco sotto il Municipio</h2></div>
     <span class="count" id="tutorial-count">0/15</span>
   </div>
   <div class="guide-conversation">
@@ -30,13 +30,13 @@
       <span class="guide-mascot-name">BRICCO</span>
     </div>
     <div class="guide-bubble">
-      <span class="guide-bubble-label" id="tutorial-voice-label">Il tuo custode</span>
-      <p id="tutorial-copy" aria-live="polite">Ciao! Sono Bricco. Ti guiderò mentre giochi: niente lezioni infinite, solo il consiglio utile al momento giusto.</p>
+      <span class="guide-bubble-label" id="tutorial-voice-label">Bricco · custode dell’Archivio</span>
+      <p id="tutorial-copy" aria-live="polite">Ciao, custode. Sono Bricco, apprendista degli antichi Custodi. Tre notti fa una campana ha suonato sotto il Municipio. Ho trovato una mappa con cinque stelle cancellate e una promessa spezzata. Aiutami a scoprire perché le valli hanno smesso di parlarsi.</p>
     </div>
   </div>
-  <div class="tutorial-progress-note" id="tutorial-progress-note">Cominciamo dalle basi</div>
+  <div class="tutorial-progress-note" id="tutorial-progress-note">Volume I · Il primo rintocco</div>
   <div id="tutorial-steps" class="tutorial-steps"></div>
-  <div class="tutorial-rule" id="tutorial-rule"><strong id="tutorial-rule-title">Il consiglio di Bricco</strong><span id="tutorial-rule-copy">Costruisci una fattoria: il cibo sostiene la crescita della popolazione.</span></div>
+  <div class="tutorial-rule" id="tutorial-rule"><strong id="tutorial-rule-title">Il primo giuramento</strong><span id="tutorial-rule-copy">Costruisci una fattoria: la prima luce del Patto è il pane condiviso.</span></div>
   <div class="guide-actions">
     <button id="tutorial-explain" class="secondary tutorial-explain" type="button">Perché è importante?</button>
     <button id="tutorial-action" class="primary tutorial-action" type="button">Seleziona fattoria</button>
@@ -44,17 +44,17 @@
 </section>
 <section class="panel daily-panel living-panel" id="living-panel">
 <div id="community-content">
-  <div class="panel-heading"><div><small class="eyebrow" id="community-eyebrow">VOCI DAL BORGO · PRIMAVERA</small><h2 id="community-title">Una richiesta in piazza</h2></div><div class="community-panel-actions"><button id="community-history-button" class="history-trigger" type="button" aria-label="Apri la cronaca del borgo" title="Cronaca del borgo">▤</button><span class="sun-badge" id="season-badge" title="Stagione attuale">🌱</span></div></div>
-  <p id="community-description">Gli abitanti iniziano a portare al Consiglio piccoli problemi e nuove occasioni.</p>
+  <div class="panel-heading"><div><small class="eyebrow" id="community-eyebrow">LA CRONACA · PRIMAVERA</small><h2 id="community-title">Una voce nella cronaca</h2></div><div class="community-panel-actions"><button id="community-history-button" class="history-trigger" type="button" aria-label="Apri la cronaca del borgo" title="Cronaca del borgo">▤</button><span class="sun-badge" id="season-badge" title="Stagione attuale">🌱</span></div></div>
+  <p id="community-description">Tre notti fa la campana ha suonato sotto il Municipio. Ora ogni abitante potrebbe custodire un frammento della sua storia.</p>
   <div class="season-note" id="community-season-note">La stagione influenza raccolto e scorte.</div>
   <div class="progress-label"><span id="community-person">ADA · FORNAIA</span><strong id="community-deadline">Scade tra 03:00</strong></div>
   <div id="community-options" class="community-options"></div>
   <div class="community-stats"><span>Umore <b id="community-morale">60</b></span><span>Fiducia <b id="community-trust">50</b></span><span>Aiuti <b id="community-fulfilled">0</b></span></div>
-  <p class="community-outcome" id="community-outcome">Le prime decisioni del Consiglio daranno forma alla comunità.</p>
+  <p class="community-outcome" id="community-outcome">Le decisioni di oggi entreranno nella cronaca e insegneranno alle cinque valli se possono fidarsi l’una dell’altra.</p>
 </div>
 <div id="challenge-content" class="hidden">
   <div class="panel-heading"><div><small class="eyebrow">SFIDA DI OGGI</small><h2 id="challenge-title">Una nuova alba</h2></div><span class="sun-badge">✦</span></div>
-  <p id="challenge-description">Ogni grande regno comincia con una piccola decisione.</p>
+  <p id="challenge-description">Ogni prova conserva una pagina dimenticata della storia delle Cinque Luci.</p>
   <div class="progress-label"><span>Progresso</span><strong id="challenge-progress-label">0 / 10</strong></div>
   <div class="progress-track"><span id="challenge-progress-fill"></span></div>
   <div class="daily-foot"><span id="challenge-date">SFIDA GIORNALIERA</span><span id="challenge-best">Record: —</span></div>
@@ -83,7 +83,7 @@
   </div>
 </div>
 </section>
-<section class="panel objectives-panel"><div class="panel-heading"><div><small class="eyebrow">IL DESTINO DI BRUMADORO</small><h2>Campagna e obiettivi</h2></div><span class="count" id="objective-count">0/3</span></div><div id="epoch-progress" class="epoch-progress"><div id="epoch-track" class="epoch-track"></div><div class="epoch-banner"><strong id="epoch-title">Insediamento</strong><span id="epoch-count">1/4 EPOCHE</span></div><p id="epoch-summary" class="epoch-summary">Prima viene la sopravvivenza: cibo stabile, una casa e spazio per chi arriverà.</p><div id="epoch-checklist" class="epoch-checklist"></div><p id="epoch-story" class="epoch-story">A Brumadoro cinque famiglie si raccolgono attorno al vecchio municipio.</p></div><div id="objectives-list"></div></section><div class="tip"><b>✦</b><p><strong>Un consiglio del custode</strong><br/><span id="tip-text">Una casa dà spazio a nuovi abitanti. Senza cibo, però, nessun villaggio può crescere.</span></p></div></aside>
+<section class="panel objectives-panel"><div class="panel-heading"><div><small class="eyebrow">IL PATTO DELLE CINQUE LUCI</small><h2>La cronaca di Brumadoro</h2></div><span class="count" id="objective-count">0/3</span></div><div id="epoch-progress" class="epoch-progress"><div id="epoch-track" class="epoch-track"></div><div class="epoch-banner"><strong id="epoch-title">Insediamento</strong><span id="epoch-count">1/6 EPOCHE</span></div><p id="epoch-summary" class="epoch-summary">Cinque famiglie hanno trovato riparo sotto il Municipio. Prima che la campana sepolta si zittisca di nuovo, Brumadoro deve imparare a vivere.</p><div id="epoch-checklist" class="epoch-checklist"></div><p id="epoch-story" class="epoch-story">PROLOGO · Tre notti fa, la campana sepolta sotto il Municipio ha suonato dopo trecento anni. Bricco ha trovato una mappa con cinque stelle cancellate e una frase: “Quando le cinque luci torneranno, la Corona non comanderà il popolo: sarà il popolo a custodire la Corona.”</p></div><div id="objectives-list"></div></section><div class="tip"><b>✦</b><p><strong>Un consiglio del custode</strong><br/><span id="tip-text">Prima promessa: nessuna famiglia dovrà affrontare l’inverno senza pane e riparo.</span></p></div></aside>
 <section class="world-column"><div class="world-heading"><div><small class="eyebrow" id="world-eyebrow">IL TUO TERRITORIO</small><h1 id="world-title">Valle di Brumadoro</h1><p id="world-subtitle">Un piccolo inizio. Infinite possibilità.</p></div><button id="center-map" class="subtle-button">⌖ <span>Centra</span></button></div>
 <div class="world-frame"><div class="frame-top"><span>● Territorio conosciuto</span><span id="game-clock">Giorno 1 · 00:00</span></div><div id="game-mount" class="game-mount" aria-label="Mappa interattiva del regno"></div>
 <div class="camera-controls" aria-label="Controlli della visuale">
@@ -95,27 +95,27 @@
 <button type="button" id="camera-center" title="Centra la mappa" aria-label="Centra la mappa">⌖</button>
 </div>
 <div id="camera-help" class="camera-help">Trascina per spostarti · tasto destro per ruotare · rotella per zoom</div>
-<div class="frame-bottom"><span id="map-instruction">Scegli un edificio, poi una casella libera.</span><span>◇ Casella selezionata</span></div></div><div class="world-footer"><span><i></i><span id="save-status">Salvataggio locale attivo</span></span><span id="world-population-note">Il villaggio è pronto a crescere.</span></div></section>
+<div class="frame-bottom"><span id="map-instruction">Ogni costruzione ricuce un frammento del Patto.</span><span>◇ Casella selezionata</span></div></div><div class="world-footer"><span><i></i><span id="save-status">Salvataggio locale attivo</span></span><span id="world-population-note">Il villaggio è pronto a crescere.</span></div></section>
 <aside class="right-column"><section class="panel build-panel"><div class="panel-heading"><div><small class="eyebrow">DARE FORMA AL REGNO</small><h2>Costruisci</h2></div><span class="hammer">⚒</span></div><p id="build-description">Scegli un edificio e decidi dove farlo sorgere.</p><div id="build-list"></div><div class="build-hint">ⓘ <span>Le segherie amano i boschi. Le cave preferiscono le rocce. La posizione conta.</span></div></section>
 <section class="panel inspector-panel"><div class="panel-heading"><div><small class="eyebrow">DETTAGLI</small><h2 id="inspector-title">Il territorio</h2></div></div><p id="inspector-copy">Seleziona un edificio sulla mappa per vederne i dettagli.</p><div id="inspector-stats"></div><button id="upgrade-button" class="primary hidden">Migliora edificio</button><button id="demolish-button" class="danger hidden">Demolisci edificio</button><button id="cancel-build" class="secondary hidden">Annulla costruzione</button></section></aside>
-</main><footer class="app-footer"><strong>MICROREGNO · Un piccolo mondo, una grande avventura</strong><div><button id="reset-game">Ricomincia il regno</button><span id="local-save-label">Dati salvati su questo dispositivo</span></div></footer></div>
+</main><footer class="app-footer"><strong>MICROREGNO · Il Patto delle Cinque Luci</strong><div><button id="reset-game">Ricomincia il regno</button><span id="local-save-label">Dati salvati su questo dispositivo</span></div></footer></div>
 <div id="toast-region" role="status" aria-live="polite"></div>
 <dialog id="help-dialog"><div class="dialog-top"><small class="eyebrow">BRICCO · CUSTODE DI BRUMADORO</small><button id="close-help" class="icon-button" aria-label="Chiudi guida">×</button></div>
 <div class="guide-welcome">
   <img src="./assets/bricco.svg" alt="" width="100" height="100" />
-  <div><h2>Ciao, custode! Io sono Bricco.</h2><p>Questo regno è tuo. Io ti starò accanto mentre costruisci: ti spiegherò le risorse quando serviranno, le epoche quando sarai pronto e le scelte importanti quando arriveranno.</p></div>
+  <div><h2>Il rintocco non è stato un caso.</h2><p>Tre notti fa la campana ha suonato sotto il Municipio, dove non esiste una torre. Sono Bricco, custode dell’Archivio delle Cinque Luci. Nella pietra ho trovato una mappa antica e una promessa spezzata: cinque regioni, cinque voci, un Patto che nessun sovrano avrebbe dovuto possedere. Tu guiderai Brumadoro per scoprire chi lo divise e perché.</p></div>
 </div>
 <div class="help-grid">
-  <div><b>🌱 Un passo alla volta</b><span>Niente manuale da imparare a memoria. La guida cambia quando completi un'azione o sblocchi una nuova possibilità.</span></div>
-  <div><b>🧭 Tu mantieni il controllo</b><span>Il consiglio evidenzia cosa fare, ma puoi ignorarlo, giocare liberamente e riaprirlo dal pannello in qualsiasi momento.</span></div>
+  <div><b>🔔 Ogni scelta lascia una traccia</b><span>Le richieste dei cittadini, i frammenti scoperti e le grandi opere entrano nella cronaca. La storia prende forma mentre Brumadoro cresce.</span></div>
+  <div><b>🧭 Nessuna valle è sola</b><span>Puoi scegliere la via da seguire: proteggere i boschi, aprire rotte, finanziare la ricerca o ascoltare le persone. Il Patto si ricostruisce con decisioni, non con ordini.</span></div>
 </div>
-<p class="help-footnote"><strong>Primo obiettivo:</strong> costruisci una Fattoria, aggiungi una Casa e porta il villaggio a 8 abitanti. Poi scopriremo insieme botteghe, richieste dei cittadini, ricerca, spedizioni e grandi opere.</p>
+<p class="help-footnote"><strong>Il primo passo:</strong> assicura cibo e riparo alle cinque famiglie. Poi seguiremo le cinque stelle attraverso Bosco delle Radici, Passo delle Rocce, Lago degli Specchi, Rovine della Corona e Terre di Confine, finché la Carta non potrà essere firmata da tutte le valli.</p>
 <div class="dialog-actions"><button id="start-playing" class="primary">Inizia l'avventura con Bricco</button><button id="skip-tutorial" class="secondary">Preferisco esplorare da solo</button></div>
 </dialog>
 <dialog id="community-history-dialog">
   <div class="dialog-top"><small class="eyebrow">MEMORIA DEL BORGO</small><button id="close-community-history" class="icon-button" aria-label="Chiudi cronaca">×</button></div>
   <h2>La cronaca di Brumadoro</h2>
-  <p id="community-history-summary">Ogni decisione contribuisce a costruire la fiducia del villaggio.</p>
+  <p id="community-history-summary">Ogni decisione lascia una traccia nella memoria di Brumadoro. La fiducia si conquista ascoltando anche chi porta una storia diversa.</p>
   <div id="community-history-list" class="community-history-list"></div>
   <div class="dialog-actions"><button id="close-community-history-footer" class="primary">Torna al borgo</button></div>
 </dialog>
@@ -123,7 +123,7 @@
 <dialog id="realm-dialog" class="realm-dialog">
   <div class="dialog-top"><small class="eyebrow">GESTIONE STRATEGICA · FRONTIERA VIVENTE</small><button id="close-realm-dialog" class="icon-button" aria-label="Chiudi Sala del Regno">×</button></div>
   <h2>Il Consiglio del Regno</h2>
-  <p class="realm-dialog-intro">I cittadini hanno bisogni e competenze; l’economia reagisce ai lavoratori; gli eventi aprono nuove storie. Le decisioni importanti vengono conservate nella cronaca.</p>
+  <p class="realm-dialog-intro">Ogni cittadino custodisce un ricordo e ogni territorio una versione diversa della leggenda. Nel Consiglio potrai ascoltare le voci, ricercare i frammenti del Patto, inviare spedizioni e decidere se Brumadoro unirà le valli attraverso la fiducia.</p>
   <nav id="realm-tabs" class="realm-tabs" aria-label="Sezioni della Sala del Regno">
     <button type="button" data-tab="citizens" class="active" aria-selected="true">Cittadini & Economia</button>
     <button type="button" data-tab="laws" aria-selected="false">Leggi</button>

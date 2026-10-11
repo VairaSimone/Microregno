@@ -89,4 +89,21 @@ describe('campagna e progressione per epoche', () => {
     expect(updated.state.progression?.campaignComplete).toBe(false);
     expect(getCurrentEpochId(updated.state)).toBe('settlement');
   });
+
+  it('migrates old narrative entries to the Five Lights chronicle without resetting progress', () => {
+    const state = createInitialState(782);
+    state.progression!.history = [
+      'A Brumadoro cinque famiglie si raccolgono attorno al vecchio municipio. Le scorte sono limitate e il futuro dipende dalle prime decisioni.',
+      '🏘️ Villaggio: old chapter text',
+    ];
+    state.world!.chronicle = ['È nato un nuovo Consiglio del Regno. I cittadini ora hanno bisogni, mestieri e ambizioni.'];
+    const updated = synchronizeKingdomProgression(state);
+    expect(updated.state.progression?.history[0]).toContain('PROLOGO');
+    expect(updated.state.progression?.history[0]).toContain('cinque stelle cancellate');
+    expect(updated.state.progression?.history[1]).toContain('CAPITOLO I');
+    expect(updated.state.world?.chronicle[0]).toContain('Cinque Luci');
+    expect(updated.state.progression?.unlockedEpochs).toEqual(['settlement']);
+    expect(updated.state.population).toBe(state.population);
+    expect(updated.state.resources).toEqual(state.resources);
+  });
 });

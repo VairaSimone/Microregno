@@ -1,16 +1,26 @@
 # Microregno
 
-Gestionale fantasy 2D nel browser: costruisci un regno, gestisci risorse e popolazione, affronta una sfida diversa ogni giorno.
+Avventura fantasy gestionale nel browser. Una campana sepolta risuona sotto il Municipio di Brumadoro: ricostruisci la storia delle cinque valli, sviluppa il regno e firma il Patto delle Cinque Luci.
+
+
+
+## La storia: Il Patto delle Cinque Luci
+
+Tre notti fa, una campana ha suonato sotto le fondamenta del Municipio di Brumadoro. Nessuna torre la custodisce, eppure il suo rintocco si è sentito in tutta la valle. Bricco, una volpe custode di un archivio dimenticato, trova una mappa con cinque stelle cancellate e una frase: *«Quando le cinque luci torneranno, la Corona non comanderà il popolo: sarà il popolo a custodire la Corona.»*
+
+La campagna segue Brumadoro da un insediamento di cinque famiglie fino a un Impero capace di riunire Bosco delle Radici, Passo delle Rocce, Lago degli Specchi, Rovine della Corona e Terre di Confine. Le spedizioni, le ricerche, le richieste degli abitanti e le grandi opere fanno emergere frammenti della stessa storia. Selvalunga, Porto Salmastra e Rocciacupa custodiscono ricordi diversi: ascoltarli tutti sarà più importante che imporre una sola versione.
+
+Il mistero della campana viene raccontato attraverso le sei epoche, gli eventi concatenati e la cronaca persistente. La Carta della Corona non è una semplice ricompensa: è la promessa che le cinque regioni potranno restare unite senza perdere la propria voce.
 
 ## Funzionalità
 - Mappa a griglia con proiezione isometrica leggera e terreno generato proceduralmente.
 - Sprite SVG originali per municipio, case, fattoria, segheria, cava, mercato, sei nuovi edifici civici e produttivi, strade, alberi e rocce.
 - Economia, popolazione, costi, vincoli del terreno, bonus ambientali e sblocco del mercato.
-- Edifici migliorabili fino al livello 3: aumentano produzione o capienza e richiedono investimenti di risorse.
-- Campagna in quattro epoche (Insediamento, Villaggio, Borgo e Città): sblocchi persistenti, requisiti diversi, ricompense e cronaca della crescita.
+- Edifici migliorabili fino al livello 5, con cantieri a tempo: una casa richiede 10 secondi, una fattoria 12, una grande istituzione anche 75 secondi; i potenziamenti diventano più lunghi salendo di livello.
+- Campagna in sei epoche (Insediamento, Villaggio, Borgo, Città, Metropoli e Impero): cinque capitoli narrativi, requisiti crescenti, ricompense e cronaca persistente.
 - Tutorial progressivo con la mascotte Bricco: i consigli cambiano in base agli edifici costruiti, alle epoche sbloccate e alle azioni disponibili; la guida resta accessibile durante la partita.
-- Carta della Corona come obiettivo finale: popolazione, edifici di livello 3, grandi opere, regioni esplorate, accordi diplomatici e Università Reale.
-- Università Reale sbloccata nella Città: aumenta la velocità di avanzamento della ricerca.
+- Il Patto delle Cinque Luci come obiettivo finale: 60 abitanti, sei edifici al livello 5, quattro grandi opere, quattro accordi o rotte, tutte le cinque regioni, Università al livello 5, Osservatorio al livello 3 e 500 monete.
+- Università Reale sbloccata nella Città e Osservatorio sbloccato nella Metropoli: la conoscenza permette di ricomporre la mappa stellare.
 - Traguardi di popolazione a 8, 12, 18 e 24 abitanti con ricompense una tantum in monete; gli obiettivi si aggiornano secondo l’epoca.
 - Piccoli abitanti animati percorrono il centro del villaggio e gli edifici migliorati mostrano il loro livello sulla mappa.
 - Salvataggio locale, progressione offline limitata, regno persistente e sfida giornaliera.
@@ -46,14 +56,16 @@ Il primo obiettivo è portare il borgo a **8 abitanti**. La guida in gioco segue
 - Seleziona un edificio nel pannello a destra, poi clicca una casella libera sulla mappa.
 - Verde = posizione valida; rosso = posizione non valida.
 - La segheria richiede un bosco vicino; la cava richiede roccia vicina.
-- Il Villaggio si fonda a 8 abitanti se hai almeno una Fattoria e una Casa: sblocca Segheria, Cava, Mercato, Strade, Mulino e Magazzino.
-- Il Borgo si fonda a 12 abitanti con un Mercato e un edificio migliorato: sblocca scuola, ricerca, spedizioni, diplomazia e grandi opere.
-- La Città richiede 18 abitanti, una scuola, due ricerche, un progetto completato, due regioni scoperte e un edificio di livello 3; sblocca l’Università Reale.
-- Per firmare la Carta della Corona servono 24 abitanti, due edifici al livello 3, tre grandi opere, due accordi diplomatici, tre regioni scoperte, un’Università Reale e 100 monete.
+- Il Villaggio si fonda a 8 abitanti con una Fattoria e una Casa: sblocca le prime botteghe e la possibilità di riaprire i sentieri.
+- Il Borgo si fonda a 12 abitanti con un Mercato e un edificio al livello 2: sblocca scuola, ricerca, spedizioni, diplomazia e grandi opere.
+- La Città richiede 18 abitanti, una Scuola, due ricerche, una grande opera, due regioni scoperte e un edificio al livello 3; sblocca l’Università Reale.
+- La Metropoli richiede 28 abitanti, l’Università Reale, quattro ricerche, due grandi opere, tre regioni, due edifici al livello 4 e tre edifici specializzati.
+- L’Impero richiede 45 abitanti, quattro edifici al livello 5, tutte le quattro grandi opere, cinque ricerche, quattro regioni, tre accordi o rotte, Osservatorio e 350 monete.
+- La Carta della Corona si firma con 60 abitanti, sei edifici al livello 5, tutte le grandi opere, quattro accordi o rotte, cinque regioni, Università al livello 5, Osservatorio al livello 3 e 500 monete.
 - Il municipio ospita i 5 abitanti iniziali; costruisci una casa o migliora il municipio per aumentare la capienza.
 - La popolazione cresce ogni 20 minuti di gioco se ci sono almeno 18 unità di cibo e posti abitativi liberi.
 - Fattorie vicine all'acqua e segherie vicine ai boschi producono di più; le statistiche mostrano i bonus reali.
-- Gli edifici si possono migliorare fino al livello 3 dal pannello Dettagli; i miglioramenti costano anche monete, che diventano una risorsa da pianificare.
+- Gli edifici si possono migliorare fino al livello 5 dal pannello Dettagli. Ogni potenziamento costa materiali e monete e richiede un cantiere; la produzione del nuovo livello inizia quando i lavori terminano.
 - Il regno principale è persistente. La sfida giornaliera è opzionale e ha un salvataggio separato. Il profilo delle medaglie e dei traguardi è indipendente dal salvataggio del regno e resta anche se inizi una nuova città.
 - Ogni sfida mostra la propria regola speciale; alcuni scenari iniziano in inverno o con scorte ridotte, altri vietano demolizioni o strade, mentre eventi temporizzati possono aggiungere o consumare risorse. Le medaglie del giorno si possono migliorare ripetendo la stessa missione.
 - Ogni richiesta presenta tre risposte: pagare o scambiare risorse, aiutare la comunità o conservare le scorte. Le richieste scadono dopo 3 minuti reali; ignorarle abbassa umore e fiducia.

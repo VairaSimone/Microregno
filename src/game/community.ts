@@ -3,10 +3,10 @@ import { ensureWorldState } from './livingWorld';
 import type { Building, CommunityState, CitizenRequest, CitizenRequestOption, GameState, Profession, Resource, ResourceBag, SeasonInfo } from './types';
 
 export const SEASONS: SeasonInfo[] = [
-  { id: 'spring', name: 'Primavera', icon: '🌱', description: 'I campi ripartono: le fattorie producono il 10% in più.', farmMultiplier: 1.1, foodConsumptionMultiplier: 1 },
-  { id: 'summer', name: 'Estate', icon: '☀️', description: 'Giornate lunghe e raccolti regolari. La comunità lavora al ritmo normale.', farmMultiplier: 1, foodConsumptionMultiplier: 1 },
-  { id: 'autumn', name: 'Autunno', icon: '🍂', description: 'È il tempo del raccolto: le fattorie producono il 35% in più.', farmMultiplier: 1.35, foodConsumptionMultiplier: 1 },
-  { id: 'winter', name: 'Inverno', icon: '❄️', description: 'La terra riposa: i campi rallentano e gli abitanti consumano il 50% di cibo in più.', farmMultiplier: 0.55, foodConsumptionMultiplier: 1.5 },
+  { id: 'spring', name: 'Primavera', icon: '🌱', description: 'La rugiada illumina i cinque segni incisi sui sassi. La terra si risveglia e le fattorie producono il 10% in più.', farmMultiplier: 1.1, foodConsumptionMultiplier: 1 },
+  { id: 'summer', name: 'Estate', icon: '☀️', description: 'Le strade si riempiono di mercanti e messaggeri. Le fattorie lavorano al ritmo normale mentre le valli si preparano alla fiera.', farmMultiplier: 1, foodConsumptionMultiplier: 1 },
+  { id: 'autumn', name: 'Autunno', icon: '🍂', description: 'La valle offre il suo raccolto più generoso: le fattorie producono il 35% in più, e le dispense possono prepararsi al gelo.', farmMultiplier: 1.35, foodConsumptionMultiplier: 1 },
+  { id: 'winter', name: 'Inverno', icon: '❄️', description: 'La campana tace sotto la neve. I campi producono appena il 55% del normale e il consumo di cibo aumenta del 50%: è tempo di ricordarsi del Patto.', farmMultiplier: 0.55, foodConsumptionMultiplier: 1.5 },
 ];
 
 export function getSeason(gameMinutes: number): SeasonInfo {
@@ -54,7 +54,7 @@ function linkRequestToCitizen(request: CitizenRequest, state?: GameState, prefer
   const description = request.description.replace(/\b(?:Ada|Berto|Neri|Mira|Lina|Elio)\b/g, citizen.name);
   const rivals = residents.filter((other) => other.id !== citizen.id &&
     (other.profession === citizen.profession || (!!citizen.workplaceId && citizen.workplaceId === other.workplaceId)));
-  const rival = request.title === 'Una lite in piazza' && !request.rivalId && rivals.length
+  const rival = request.title === 'La disputa sul simbolo' && !request.rivalId && rivals.length
     ? rivals[Math.abs((state?.seed ?? 0) + request.id.length * 11) % rivals.length]
     : undefined;
   const rivalExists = request.rivalId && residents.some((other) => other.id === request.rivalId);
@@ -73,27 +73,27 @@ function buildRequest(seed: number, number: number, gameMinutes: number, state?:
       id: seed + '-request-' + number,
       citizen: 'Ada',
       role: 'Fornaia',
-      title: food < 18 ? 'Le dispense sono quasi vuote' : 'Una mano alla dispensa',
+      title: food < 18 ? 'Il pane per la Veglia sta finendo' : 'La Veglia della Campana',
       description: food < 18
-        ? 'Ada è preoccupata: se le scorte finiscono, il borgo smetterà di crescere. Puoi aiutarla oppure conservare quel poco che resta.'
-        : 'Ada vuole preparare pane per le famiglie che faticano ad arrivare a sera. Le tue scorte sono sufficienti, ma ogni aiuto ha un costo.',
+        ? 'Ada sta preparando il pane per la prima Veglia della Campana. Le scorte sono quasi vuote: se il borgo non si aiuta, la prima luce resterà spenta.'
+        : 'Ada racconta che, secondo sua nonna, durante la Veglia nessuna casa doveva restare senza pane. Vuole mantenere viva la promessa, senza svuotare del tutto le dispense.',
       deadline: gameMinutes + 180,
       options: [
-        option('share-food', 'Condividi le scorte', 'Spendi 8 cibo · umore e fiducia aumentano', { food: 8 }, {}, 12, 10),
-        option('barter-bread', 'Baratta legna per pane', 'Spendi 5 legname, ricevi 10 cibo', { wood: 5 }, { food: 10 }, 5, 5),
-        option('keep-food', 'Tieni tutto per il borgo', 'Non costa nulla, ma qualcuno resterà deluso', {}, {}, -7, -5),
+        option('share-food', 'Dividi il pane della Veglia', 'Spendi 8 cibo · umore e fiducia aumentano', { food: 8 }, {}, 12, 10),
+        option('barter-bread', 'Scambia legna per provviste', 'Spendi 5 legname, ricevi 10 cibo', { wood: 5 }, { food: 10 }, 5, 5),
+        option('keep-food', 'Custodisci le scorte', 'Non costa nulla, ma qualcuno resterà deluso', {}, {}, -7, -5),
       ],
     }),
     () => ({
       id: seed + '-request-' + number,
       citizen: 'Berto',
       role: 'Falegname',
-      title: 'Il tetto della locanda perde',
-      description: 'La pioggia ha danneggiato il tetto della locanda. Berto può ripararlo, ma ha bisogno di materiali o di un piccolo compenso.',
+      title: 'Il segno sotto le tegole',
+      description: 'Berto ha trovato una stella incisa su una vecchia trave della locanda. La pioggia ha scoperto il simbolo, ma il tetto rischia di crollare prima che gli scribi possano esaminarlo.',
       deadline: gameMinutes + 180,
       options: [
-        option('roof-wood', 'Dona il legname', 'Spendi 6 legname · la locanda riapre prima', { wood: 6 }, {}, 9, 7),
-        option('roof-coins', 'Paga il falegname', 'Spendi 5 monete · lavoro garantito', { coins: 5 }, {}, 5, 8),
+        option('roof-wood', 'Salva la trave incisa', 'Spendi 6 legname · la locanda riapre prima', { wood: 6 }, {}, 9, 7),
+        option('roof-coins', 'Paga il restauratore', 'Spendi 5 monete · lavoro garantito', { coins: 5 }, {}, 5, 8),
         option('roof-later', 'Rimanda la riparazione', 'Conservi le risorse, perdi un po’ di fiducia', {}, {}, -8, -7),
       ],
     }),
@@ -101,12 +101,12 @@ function buildRequest(seed: number, number: number, gameMinutes: number, state?:
       id: seed + '-request-' + number,
       citizen: 'Neri',
       role: 'Mercante itinerante',
-      title: 'Un mercante alla porta',
-      description: 'Neri offre uno scambio rapido. È un buon modo per rimediare a una carenza, ma non tutte le offerte sono vantaggiose.',
+      title: 'Il rame di Porto Salmastra',
+      description: 'Neri è arrivato da Porto Salmastra con una moneta di rame incisa da entrambi i lati. Offre uno scambio e, in cambio, una storia sul rintocco che si sente sul Lago degli Specchi.',
       deadline: gameMinutes + 180,
       options: [
-        option('trade-buy-food', 'Compra provviste', 'Spendi 6 monete, ricevi 14 cibo', { coins: 6 }, { food: 14 }, 5, 4),
-        option('trade-sell-wood', 'Vendi legname', 'Spendi 7 legname, ricevi 10 monete', { wood: 7 }, { coins: 10 }, 2, 2),
+        option('trade-buy-food', 'Compra le provviste del viaggio', 'Spendi 6 monete, ricevi 14 cibo', { coins: 6 }, { food: 14 }, 5, 4),
+        option('trade-sell-wood', 'Scambia legname con il porto', 'Spendi 7 legname, ricevi 10 monete', { wood: 7 }, { coins: 10 }, 2, 2),
         option('trade-decline', 'Rifiuta l’offerta', 'Nessun costo, nessun guadagno', {}, {}, 0, 0),
       ],
     }),
@@ -114,15 +114,15 @@ function buildRequest(seed: number, number: number, gameMinutes: number, state?:
       id: seed + '-request-' + number,
       citizen: 'Mira',
       role: 'Nuova arrivata',
-      title: hasRoom ? 'Una famiglia cerca casa' : 'Una famiglia cerca un posto',
+      title: hasRoom ? 'Una famiglia porta il segno delle cinque luci' : 'Una famiglia chiede rifugio',
       description: hasRoom
-        ? 'Mira e suo fratello hanno raggiunto la valle. Se li accogli, darai una mano a una famiglia e il borgo guadagnerà un nuovo abitante.'
-        : 'Mira è arrivata nella valle, ma le case sono al completo. Puoi aiutarla a preparare un alloggio oppure spiegarle che servirà tempo.',
+        ? 'Mira e suo fratello hanno lasciato le Terre di Confine dopo aver trovato un sigillo con cinque stelle. Cercano un tetto e un luogo dove raccontare ciò che hanno visto.'
+        : 'Mira ha attraversato le Terre di Confine con un sigillo antico, ma le case sono al completo. Puoi aprire loro un rifugio oppure chiedere di attendere, anche se la strada è lunga.',
       deadline: gameMinutes + 180,
       options: [
-        ...(hasRoom ? [option('newcomer-welcome', 'Accogli la famiglia', 'Spendi 8 cibo e aggiungi un abitante', { food: 8 }, {}, 9, 11, 1)] : []),
-        option('newcomer-shelter', 'Prepara un alloggio', 'Spendi 8 legname e 3 pietra · crea 2 posti e accogli un abitante', { wood: 8, stone: 3 }, {}, 7, 7, 1, 2),
-        option('newcomer-wait', 'Chiedi di aspettare', 'Conservi i materiali, ma la fiducia cala', {}, {}, -4, -5),
+        ...(hasRoom ? [option('newcomer-welcome', 'Accogli i portatori del sigillo', 'Spendi 8 cibo e aggiungi un abitante', { food: 8 }, {}, 9, 11, 1)] : []),
+        option('newcomer-shelter', 'Costruisci un rifugio per il viaggio', 'Spendi 8 legname e 3 pietra · crea 2 posti e accogli un abitante', { wood: 8, stone: 3 }, {}, 7, 7, 1, 2),
+        option('newcomer-wait', 'Chiedi di attendere la risposta del Consiglio', 'Conservi i materiali, ma la fiducia cala', {}, {}, -4, -5),
       ],
     }),
     () => ({
@@ -130,27 +130,27 @@ function buildRequest(seed: number, number: number, gameMinutes: number, state?:
       citizen: 'Lina',
       role: 'Custode della piazza',
       title: 'Una lite in piazza',
-      description: 'Due bottegai discutono per lo spazio del mercato. Una mediazione costa tempo o monete; ignorare la lite è gratuito, ma lascia strascichi.',
+      description: 'Due bottegai litigano per una pietra incisa con una stella, trovata sotto il selciato. Entrambi la rivendicano; una mediazione può salvare il reperto e la fiducia del borgo.',
       deadline: gameMinutes + 180,
       options: [
-        option('mediate-coins', 'Media con una piccola spesa', 'Spendi 4 monete · la piazza si calma', { coins: 4 }, {}, 8, 10),
-        option('mediate-wood', 'Costruisci due banchi', 'Spendi 5 legname per separare le botteghe', { wood: 5 }, {}, 6, 6),
-        option('mediate-ignore', 'Lascia che si arrangino', 'Nessun costo, la disputa resta aperta', {}, {}, -6, -9),
+        option('mediate-coins', 'Media davanti al sigillo', 'Spendi 4 monete · la piazza si calma', { coins: 4 }, {}, 8, 10),
+        option('mediate-wood', 'Libera la piazza per il reperto', 'Spendi 5 legname per separare le botteghe', { wood: 5 }, {}, 6, 6),
+        option('mediate-ignore', 'Lascia che la lite continui', 'Nessun costo, la disputa resta aperta', {}, {}, -6, -9),
       ],
     }),
     () => ({
       id: seed + '-request-' + number,
       citizen: 'Elio',
       role: 'Capo delle scorte',
-      title: season.id === 'winter' ? 'Prepariamoci al gelo' : 'Il magazzino ha bisogno di scorte',
+      title: season.id === 'winter' ? 'La lunga notte della campana' : 'Prepariamo le scorte per la Veglia',
       description: season.id === 'winter'
-        ? 'L’inverno riduce il raccolto e aumenta il consumo di cibo. Elio propone di distribuire provviste ora o razionarle per i giorni più freddi.'
-        : 'Elio suggerisce di accumulare una piccola riserva prima che il tempo cambi. Una scorta oggi può evitare problemi domani.',
+        ? 'Il gelo si avvicina e, con esso, la notte in cui la campana ha suonato. Elio propone di distribuire provviste ora o conservarle per i giorni più duri.'
+        : 'Elio ha trovato una nota nell’antico registro delle scorte: “Una luce non si accende se la dispensa della valle vicina è vuota”. Suggerisce di fare riserva prima che cambi il tempo.',
       deadline: gameMinutes + 180,
       options: [
-        option('stock-generous', 'Apri le dispense', 'Spendi 12 cibo · forte aumento di umore e fiducia', { food: 12 }, {}, 12, 8),
-        option('stock-ration', 'Distribuisci razioni', 'Spendi 5 cibo · aiuto più contenuto', { food: 5 }, {}, 4, 4),
-        option('stock-save', 'Conserva tutto', 'Risparmi ora, ma la comunità se ne ricorderà', {}, {}, -7, -6),
+        option('stock-generous', 'Condividi le scorte del Consiglio', 'Spendi 12 cibo · forte aumento di umore e fiducia', { food: 12 }, {}, 12, 8),
+        option('stock-ration', 'Distribuisci razioni per la notte', 'Spendi 5 cibo · aiuto più contenuto', { food: 5 }, {}, 4, 4),
+        option('stock-save', 'Metti le provviste al sicuro', 'Risparmi ora, ma la comunità se ne ricorderà', {}, {}, -7, -6),
       ],
     }),
   ];
@@ -173,7 +173,7 @@ export function createCommunityState(seed: number, gameMinutes = 0, state?: Game
     nextRequestAt: gameMinutes + 180,
     activeRequest: buildRequest(seed, 0, gameMinutes, state),
     history: [],
-    lastOutcome: 'Il borgo è giovane. Le prime scelte del Consiglio daranno forma alla comunità.',
+    lastOutcome: 'La campana è ancora nascosta, ma il borgo comincia a ricordare. Le prime decisioni del Consiglio entreranno nella cronaca delle Cinque Luci.',
   };
 }
 
@@ -227,7 +227,7 @@ export function advanceCommunityMinute(state: GameState): GameState {
   const current = currentState.activeRequest ? { ...currentState, activeRequest: linkRequestToCitizen(currentState.activeRequest, state) } : currentState;
   if (current.activeRequest && state.gameMinutes >= current.activeRequest.deadline) {
     const expiredRequest = current.activeRequest;
-    const note = expiredRequest.citizen + ' non ha ricevuto risposta. La fiducia ne risente.';
+    const note = expiredRequest.citizen + ' non ha ricevuto risposta prima del rintocco. La fiducia ne risente e la promessa di ascoltarsi si incrina.';
     const world = state.world ? {
       ...state.world,
       citizens: state.world.citizens.map((citizen) => citizen.id === expiredRequest.citizenId ? {

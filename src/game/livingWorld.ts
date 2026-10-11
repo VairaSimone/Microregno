@@ -16,20 +16,20 @@ export const PROFESSION_LABELS: Record<Profession, string> = {
 export const PROFESSIONS = Object.keys(PROFESSION_LABELS) as Profession[];
 
 export const RESEARCH: ResearchDefinition[] = [
-  { id: 'irrigation', name: 'Irrigazione', path: 'Agricoltura', description: 'Le fattorie producono di più e resistono meglio alle stagioni difficili.', cost: 18, duration: 180, requiredBuildings: ['farm'], resourceCost: { wood: 2, stone: 2 } },
-  { id: 'tools', name: 'Utensili efficienti', path: 'Artigianato', description: 'Gli edifici produttivi rendono il 12% in più.', cost: 22, duration: 210, requiredBuildings: ['workshop'], resourceCost: { wood: 4 } },
-  { id: 'trade', name: 'Reti commerciali', path: 'Commercio', description: 'Il mercato rende di più e gli accordi esteri generano più monete.', cost: 24, duration: 220, requiredBuildings: ['market'], requiresResearch: ['tools'], resourceCost: { wood: 3, coins: 3 } },
-  { id: 'education', name: 'Scuola dei maestri', path: 'Conoscenza', description: 'Gli studiosi accelerano le ricerche e le competenze crescono più velocemente.', cost: 20, duration: 190, requiredBuildings: ['school'], requiresResearch: ['tools'], requiredProfession: 'scholar', minSkill: 8, resourceCost: { wood: 3, coins: 2 } },
-  { id: 'cartography', name: 'Cartografia', path: 'Esplorazione', description: 'Sblocca spedizioni più lontane e permette due spedizioni contemporanee.', cost: 26, duration: 250, requiredBuildings: ['school'], requiresResearch: ['education'], requiredProfession: 'scout', minSkill: 12, resourceCost: { wood: 5, coins: 3 } },
-  { id: 'forestry', name: 'Silvicoltura', path: 'Natura', description: 'La gestione protetta dei boschi sacrifica meno produzione.', cost: 21, duration: 190, requiredBuildings: ['sawmill'], requiresResearch: ['irrigation'], resourceCost: { wood: 3 } },
+  { id: 'irrigation', name: 'Canali della Prima Luce', path: 'Agricoltura', description: 'Riattiva gli antichi canali che portavano acqua alle cinque valli; le fattorie diventano più produttive e resistono meglio alle stagioni difficili.', cost: 18, duration: 180, requiredBuildings: ['farm'], resourceCost: { wood: 2, stone: 2 } },
+  { id: 'tools', name: 'La lega del fabbro', path: 'Artigianato', description: 'La tecnica usata per fondere il bronzo della campana migliora gli attrezzi: gli edifici produttivi rendono il 12% in più.', cost: 22, duration: 210, requiredBuildings: ['workshop'], resourceCost: { wood: 4 } },
+  { id: 'trade', name: 'Rotte delle tre insegne', path: 'Commercio', description: 'Riapri le strade che univano Selvalunga, Porto Salmastra e Rocciacupa: il mercato rende di più e gli accordi generano più monete.', cost: 24, duration: 220, requiredBuildings: ['market'], requiresResearch: ['tools'], resourceCost: { wood: 3, coins: 3 } },
+  { id: 'education', name: 'Le cronache dei Custodi', path: 'Conoscenza', description: 'Gli studiosi confrontano tre versioni della stessa leggenda e imparano a distinguere la memoria dalla propaganda; ricerca e competenze avanzano più in fretta.', cost: 20, duration: 190, requiredBuildings: ['school'], requiresResearch: ['tools'], requiredProfession: 'scholar', minSkill: 8, resourceCost: { wood: 3, coins: 2 } },
+  { id: 'cartography', name: 'Mappa delle Cinque Luci', path: 'Esplorazione', description: 'Ricostruisci la carta stellare ritrovata da Bricco: potrai raggiungere territori più lontani e inviare due spedizioni contemporaneamente.', cost: 26, duration: 250, requiredBuildings: ['school'], requiresResearch: ['education'], requiredProfession: 'scout', minSkill: 12, resourceCost: { wood: 5, coins: 3 } },
+  { id: 'forestry', name: 'Patto delle Radici', path: 'Natura', description: 'Il Bosco delle Radici non è una riserva da svuotare: impara dai suoi custodi a proteggere la foresta senza fermare ogni raccolto.', cost: 21, duration: 190, requiredBuildings: ['sawmill'], requiresResearch: ['irrigation'], resourceCost: { wood: 3 } },
 ];
 
 export const REGIONS: Array<{ id: RegionId; name: string; description: string; duration: number; requirement: string | null }> = [
-  { id: 'forest', name: 'Bosco antico', description: 'Legname, erbe e tracce di viaggiatori.', duration: 100, requirement: null },
-  { id: 'mountains', name: 'Passo delle rocce', description: 'Cave dimenticate, pietra e strumenti abbandonati.', duration: 135, requirement: 'forest' },
-  { id: 'lake', name: 'Lago velato', description: 'Pesce, piante medicinali e una rotta per i mercanti.', duration: 120, requirement: 'forest' },
-  { id: 'ancient-ruins', name: 'Rovine della Corona', description: 'Resti di una civiltà e conoscenze sepolte.', duration: 180, requirement: 'cartography' },
-  { id: 'borderlands', name: 'Terre di confine', description: 'Nuove comunità, merci rare e opportunità diplomatiche.', duration: 210, requirement: 'cartography' },
+  { id: 'forest', name: 'Bosco delle Radici', description: 'Il primo frammento è nascosto fra alberi più vecchi del Municipio. Qui i guardiani ricordano il Patto come una promessa di protezione, non di possesso.', duration: 100, requirement: null },
+  { id: 'mountains', name: 'Passo delle Rocce', description: 'Tra cave abbandonate e pietre segnate dalle stelle si trova la via percorsa un tempo dai messaggeri della Corona.', duration: 135, requirement: 'forest' },
+  { id: 'lake', name: 'Lago degli Specchi', description: 'Di notte il lago riflette una costellazione che non compare in nessun atlante. I pescatori custodiscono la seconda versione della leggenda.', duration: 120, requirement: 'forest' },
+  { id: 'ancient-ruins', name: 'Rovine della Corona', description: 'Sotto le pietre giace il testo originale del Patto e la storia del sovrano che volle trasformare un richiamo d’aiuto in un ordine.', duration: 180, requirement: 'cartography' },
+  { id: 'borderlands', name: 'Terre di Confine', description: 'Famiglie in cammino, mercanti e sentinelle vivono tra cinque strade. Qui il Patto deve dimostrare di poter proteggere anche chi non appartiene a nessuna corte.', duration: 210, requirement: 'cartography' },
 ];
 
 export const FRONTIER_GRID_SIZE = 5;
@@ -37,13 +37,13 @@ export const FRONTIER_STRUCTURES: Record<FrontierStructureType, {
   name: string; icon: string; description: string; cost: Partial<ResourceBag>;
   allowedRegions: RegionId[]; output: Resource | 'research' | 'stability' | null; amount: number;
 }> = {
-  outpost: { name: 'Avamposto', icon: '⌂', description: 'Punto sicuro da cui amministrare il territorio.', cost: {}, allowedRegions: REGIONS.map((region) => region.id), output: null, amount: 0 },
-  lumberCamp: { name: 'Campo boschivo', icon: '🪵', description: 'Raccoglie legname dalle riserve locali.', cost: { wood: 8, stone: 2 }, allowedRegions: ['forest', 'borderlands'], output: 'wood', amount: 5 },
-  quarry: { name: 'Cava di frontiera', icon: '⛏', description: 'Estrae pietra dalle riserve minerarie locali.', cost: { wood: 8, stone: 5 }, allowedRegions: ['mountains', 'ancient-ruins'], output: 'stone', amount: 4 },
-  fishery: { name: 'Peschiera', icon: '🐟', description: 'Raccoglie cibo dalle acque e dalle rive.', cost: { wood: 8, food: 4 }, allowedRegions: ['lake'], output: 'food', amount: 6 },
-  tradingPost: { name: 'Posto commerciale', icon: '⚖', description: 'Genera monete e consolida gli scambi regionali.', cost: { wood: 10, stone: 6, coins: 4 }, allowedRegions: ['lake', 'borderlands'], output: 'coins', amount: 3 },
-  archive: { name: 'Archivio delle rovine', icon: '📜', description: 'Trasforma le scoperte locali in conoscenza per il regno.', cost: { wood: 12, stone: 12, coins: 8 }, allowedRegions: ['ancient-ruins'], output: 'research', amount: 3 },
-  watchtower: { name: 'Torre di frontiera', icon: '♜', description: 'Riduce le incursioni e aiuta il territorio a riprendersi.', cost: { wood: 10, stone: 8 }, allowedRegions: REGIONS.map((region) => region.id), output: 'stability', amount: 0.8 },
+  outpost: { name: 'Avamposto', icon: '⌂', description: 'Il primo segno della presenza di Brumadoro: un rifugio da cui ascoltare i residenti, proteggere le riserve e ricucire il Patto.', cost: {}, allowedRegions: REGIONS.map((region) => region.id), output: null, amount: 0 },
+  lumberCamp: { name: 'Campo boschivo', icon: '🪵', description: 'Raccoglie legname senza dimenticare i vecchi sentieri dei guardiani. Il Bosco delle Radici si rigenera soltanto se la colonia rispetta i suoi tempi.', cost: { wood: 8, stone: 2 }, allowedRegions: ['forest', 'borderlands'], output: 'wood', amount: 5 },
+  quarry: { name: 'Cava di frontiera', icon: '⛏', description: 'Estrae pietra dalle vene segnate con stelle antiche; alcune rocce potrebbero provenire dalle fondamenta della campana.', cost: { wood: 8, stone: 5 }, allowedRegions: ['mountains', 'ancient-ruins'], output: 'stone', amount: 4 },
+  fishery: { name: 'Peschiera', icon: '🐟', description: 'I pescatori seguono i riflessi delle cinque stelle. La peschiera sostiene i villaggi sul lago e i messaggeri di passaggio.', cost: { wood: 8, food: 4 }, allowedRegions: ['lake'], output: 'food', amount: 6 },
+  tradingPost: { name: 'Posto commerciale', icon: '⚖', description: 'Un banco neutrale dove nessuna insegna prevale sulle altre. Gli scambi fanno incontrare popoli che hanno smesso di fidarsi.', cost: { wood: 10, stone: 6, coins: 4 }, allowedRegions: ['lake', 'borderlands'], output: 'coins', amount: 3 },
+  archive: { name: 'Archivio delle rovine', icon: '📜', description: 'Custodisce le iscrizioni delle Rovine della Corona e restituisce al Consiglio le parole perdute del Patto.', cost: { wood: 12, stone: 12, coins: 8 }, allowedRegions: ['ancient-ruins'], output: 'research', amount: 3 },
+  watchtower: { name: 'Torre di frontiera', icon: '♜', description: 'Una torre di guardia serve a chiamare aiuto, non a imporre obbedienza. La sua luce può avvisare le altre valli di un pericolo.', cost: { wood: 10, stone: 8 }, allowedRegions: REGIONS.map((region) => region.id), output: 'stability', amount: 0.8 },
 };
 
 const FRONTIER_PROFILES: Record<RegionId, {
@@ -93,10 +93,10 @@ function createFrontierTerritory(region: RegionId, gameMinutes: number): Frontie
 }
 
 export const PROJECTS: Array<{ id: ProjectId; name: string; description: string; stages: Array<Partial<ResourceBag>> }> = [
-  { id: 'aqueduct', name: 'Acquedotto del borgo', description: 'Stabilizza i raccolti e migliora l’efficienza agricola.', stages: [{ wood: 10, stone: 8 }, { wood: 14, stone: 12, coins: 8 }, { stone: 18, coins: 14 }] },
-  { id: 'stone-bridge', name: 'Ponte di pietra', description: 'Apre una rotta stabile verso le terre di confine.', stages: [{ wood: 12, stone: 6 }, { wood: 16, stone: 14, coins: 8 }, { stone: 20, coins: 15 }] },
-  { id: 'artisan-quarter', name: 'Quartiere artigiano', description: 'Botteghe coordinate e cittadini che imparano più in fretta.', stages: [{ wood: 16, stone: 10 }, { wood: 18, stone: 18, coins: 10 }, { wood: 20, stone: 20, coins: 15 }] },
-  { id: 'grand-archive', name: 'Grande archivio', description: 'Una raccolta di mappe e manuali rende lo studio più efficiente.', stages: [{ wood: 12, stone: 14 }, { stone: 16, coins: 12 }, { wood: 8, stone: 22, coins: 18 }] },
+  { id: 'aqueduct', name: 'Acquedotto della Prima Luce', description: 'Riporta l’acqua nei canali che univano i campi delle cinque valli: il primo pilastro del Patto era che nessuna comunità affrontasse la siccità da sola.', stages: [{ wood: 10, stone: 8 }, { wood: 14, stone: 12, coins: 8 }, { stone: 18, coins: 14 }] },
+  { id: 'stone-bridge', name: 'Ponte delle Promesse', description: 'Ricostruisce il passaggio che il vecchio sovrano fece abbattere per isolare le valli. Il ponte restituisce al Patto un percorso sicuro.', stages: [{ wood: 12, stone: 6 }, { wood: 16, stone: 14, coins: 8 }, { stone: 20, coins: 15 }] },
+  { id: 'artisan-quarter', name: 'Quartiere dei Sigilli', description: 'Artigiani e apprendisti restaurano gli emblemi delle cinque comunità e si tramandano le tecniche perdute.', stages: [{ wood: 16, stone: 10 }, { wood: 18, stone: 18, coins: 10 }, { wood: 20, stone: 20, coins: 15 }] },
+  { id: 'grand-archive', name: 'Archivio delle Cinque Voci', description: 'Le cronache di ogni valle vengono conservate senza cancellarne le differenze. La verità del Patto nasce dal confronto, non da una sola versione della storia.', stages: [{ wood: 12, stone: 14 }, { stone: 16, coins: 12 }, { wood: 8, stone: 22, coins: 18 }] },
 ];
 
 const NAMES = ['Ada', 'Berto', 'Mira', 'Neri', 'Lina', 'Elio', 'Rina', 'Timo', 'Ivo', 'Sera', 'Dario', 'Nadia', 'Gio', 'Alba', 'Piero', 'Zara', 'Orso', 'Tessa', 'Lupo', 'Marta', 'Enea', 'Bruna', 'Ciro', 'Noemi'];
@@ -229,7 +229,7 @@ export function createWorldState(seed: number, population = 5, gameMinutes = 0):
   return {
     version: 1, nextCitizenId: citizens.length + 1, citizens, goods: { ...DEFAULT_GOODS },
     policies: { ...DEFAULT_POLICIES }, researchPoints: 25, activeResearch: null, researchProgress: 0,
-    researched: [], expeditions: [], discoveredRegions: [], chronicle: ['È nato un nuovo Consiglio del Regno. I cittadini ora hanno bisogni, mestieri e ambizioni.'],
+    researched: [], expeditions: [], discoveredRegions: [], chronicle: ['Tre notti dopo il rintocco sotto il Municipio, nasce il Consiglio di Brumadoro. Bricco custodisce una mappa con cinque stelle mancanti; gli abitanti saranno i primi a decidere se il Patto merita di rinascere.'],
     activeEvent: null, nextEventAt: gameMinutes + 240, queuedEvent: null, eventQueue: [],
     projectStages: { aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 },
     market: createMarketState(gameMinutes), forestHealth: 100, weather: { id: 'clear', endsAt: 0 },
@@ -656,60 +656,60 @@ function eventTemplate(id: string, gameMinutes: number, seed = 2310, actor?: Cit
     description: actor ? description + ' ' + actor.name + ' (' + PROFESSION_LABELS[actor.profession] + ') è coinvolto direttamente e ricorderà la risposta del Consiglio.' : description,
     choices, startedAt: gameMinutes, ...(actor ? { citizenId: actor.id } : {}),
   });
-  if (id === 'caravan-rescue') return event(id, 'La carovana è salva', 'La spedizione ha trovato i carri dispersi. Ora bisogna decidere come usare le merci recuperate.', [
+  if (id === 'caravan-rescue') return event(id, 'Le ruote sono tornate sulla strada', 'La spedizione ha ritrovato il convoglio incastrato in un vecchio passaggio. Tra le merci c’è un frammento inciso con cinque stelle: il Consiglio deve decidere se tenere il carico o condividerlo.', [
     { id: 'take-cargo', label: 'Accetta il carico', detail: 'Ottieni legname, pietra e monete.', reward: { wood: 6, stone: 4, coins: 10 }, researchDelta: 5, trustDelta: 2 },
     { id: 'share-cargo', label: 'Condividi le provviste', detail: 'Rinunci a una parte del bottino e guadagni fiducia.', cost: { food: 5 }, trustDelta: 8, moodDelta: 6 },
   ]);
-  if (id === 'drought-recovery') return event(id, 'La pioggia è tornata', 'Le nuvole si sono aperte. Le riserve d’acqua e il lavoro dei contadini possono salvare la stagione.', [
+  if (id === 'drought-recovery') return event(id, 'La valle ricorda l’acqua', 'La pioggia ritorna e riempie i canali antichi. Per la prima volta dopo settimane, il suono della campana non sembra un avvertimento, ma un ringraziamento.', [
     { id: 'celebrate-rain', label: 'Festeggia il raccolto', detail: 'Il borgo recupera provviste e morale.', reward: { food: 16 }, moodDelta: 7, trustDelta: 4 },
     { id: 'save-rain', label: 'Conserva le riserve', detail: 'Ricevi meno cibo, ma prepari il magazzino.', reward: { food: 9, wood: 3 }, moodDelta: 2, trustDelta: 2 },
   ]);
-  if (id === 'ruins-found') return event(id, 'Le rovine parlano', 'Gli esploratori hanno portato tavolette con simboli antichi. Il Consiglio può finanziare lo studio o sigillare il sito.', [
+  if (id === 'ruins-found') return event(id, 'Le pietre ricordano', 'Gli esploratori hanno riportato tavolette con il sigillo incompleto della Corona. Il Consiglio può finanziare lo studio o proteggere il sito finché gli studiosi non siano pronti.', [
     { id: 'study-tablets', label: 'Studia le tavolette', detail: 'Spendi materiali per guadagnare conoscenza e monete. I testi resteranno consultabili nel territorio.', cost: { wood: 6, stone: 5 }, reward: { coins: 12 }, researchDelta: 18, chain: 'archive-clue', frontierPerk: 'archive-network' },
     { id: 'seal-site', label: 'Proteggi le rovine', detail: 'Nessun costo e una comunità più fiduciosa.', trustDelta: 6, moodDelta: 2 },
   ]);
-  if (id === 'archive-clue') return event(id, 'Una mappa dimenticata', 'La ricerca rivela una strada antica verso le terre di confine. Una nuova via commerciale potrebbe cambiare il regno.', [
+  if (id === 'archive-clue') return event(id, 'La carta che non indica un trono', 'Gli scribi scoprono che la mappa non conduce a un palazzo, ma a cinque comunità. Un nuovo percorso commerciale potrebbe riunirle senza sottometterle.', [
     { id: 'fund-map', label: 'Finanzia la spedizione', detail: 'Spendi monete per aprire una nuova rotta.', cost: { coins: 10 }, reward: { coins: 4, stone: 4 }, researchDelta: 10, trustDelta: 4 },
     { id: 'keep-secret', label: 'Tieni il segreto', detail: 'Conserva i materiali e migliora la sicurezza.', reward: { wood: 3 }, moodDelta: 1, trustDelta: -1 },
   ]);
-  if (id === 'forest-expedition') return event(id, 'Il patto della radura', 'La squadra ha trovato un bosco antico. I taglialegna locali chiedono se il regno proteggerà la radura o firmerà un contratto di raccolta intensiva.', [
+  if (id === 'forest-expedition') return event(id, 'Il giuramento delle radici', 'La squadra ha raggiunto il Bosco delle Radici e trovato il primo segno della campana. I guardiani chiedono se Brumadoro manterrà i boschi vivi o consumerà in fretta ciò che resta.', [
     { id: 'protect-grove', label: 'Proteggi la radura', detail: 'Le riserve forestali cresceranno più lentamente, ma la colonia sarà meno esposta agli incendi.', moodDelta: 4, trustDelta: 5, frontierPerk: 'forest-reserve' },
     { id: 'commercial-grove', label: 'Firma il contratto forestale', detail: 'I campi boschivi produrranno più legname, a costo di un rischio ambientale maggiore.', reward: { wood: 8 }, moodDelta: -2, trustDelta: -2, frontierPerk: 'forest-contract' },
   ]);
-  if (id === 'mountain-expedition') return event(id, 'I diritti del passo', 'I minatori hanno trovato un valico sicuro e una vena di pietra. Il Consiglio può privilegiare sicurezza o estrazione.', [
+  if (id === 'mountain-expedition') return event(id, 'La porta di pietra', 'Sotto il Passo delle Rocce, i minatori hanno trovato pietre con lo stesso marchio del bronzo. La via può essere protetta per i viaggiatori o sfruttata per arricchire le cave.', [
     { id: 'secure-pass', label: 'Metti in sicurezza il passo', detail: 'Una rete di ripari ridurrà gli effetti delle frane.', moodDelta: 3, trustDelta: 5, frontierPerk: 'mountain-shelters' },
     { id: 'grant-mining-charter', label: 'Concedi la licenza mineraria', detail: 'Le cave di frontiera estrarranno più pietra dalle riserve conosciute.', reward: { stone: 8 }, moodDelta: -1, trustDelta: 1, frontierPerk: 'mountain-charter' },
   ]);
-  if (id === 'lake-expedition') return event(id, 'Gli abitanti del lago', 'I pescatori del Lago velato conoscono i canali, ma non si fidano ancora del Consiglio. Puoi condividere i vantaggi o imporre dazi al traghetto.', [
+  if (id === 'lake-expedition') return event(id, 'Il riflesso della seconda luce', 'I pescatori del Lago degli Specchi conoscono il secondo segno della costellazione. Chiedono se il Consiglio vuole collaborare oppure tassare una strada d’acqua che appartiene a tutti.', [
     { id: 'lake-cooperative', label: 'Accordo con i pescatori', detail: 'Le peschiere renderanno di più e il territorio recupererà più rapidamente.', moodDelta: 5, trustDelta: 5, frontierPerk: 'lake-cooperative' },
     { id: 'lake-tolls', label: 'Imponi un dazio al traghetto', detail: 'I posti commerciali al lago guadagneranno più monete, ma la cooperazione sarà fragile.', reward: { coins: 7 }, moodDelta: -2, trustDelta: -3, frontierPerk: 'lake-tolls' },
   ]);
-  if (id === 'border-expedition') return event(id, 'Una frontiera senza legge', 'Oltre il confine si incontrano mercanti, famiglie in transito e predoni. Il Consiglio deve scegliere tra commerciare apertamente o fortificare la strada.', [
+  if (id === 'border-expedition') return event(id, 'Il confine delle promesse', 'Oltre le Terre di Confine si incontrano mercanti, famiglie senza patria e predoni. Il Consiglio deve scegliere se costruire fiducia attraverso gli scambi o difendere la strada senza chiuderla al mondo.', [
     { id: 'border-customs', label: 'Apri una dogana', detail: 'I posti commerciali produrranno più monete e renderanno stabile lo scambio con Porto Salmastra.', moodDelta: 3, trustDelta: 4, frontierPerk: 'border-customs' },
     { id: 'border-watch', label: 'Fortifica il confine', detail: 'Le torri ridurranno il rischio delle incursioni e aumenteranno la stabilità locale.', cost: { wood: 5, stone: 4 }, moodDelta: 2, trustDelta: 3, frontierPerk: 'border-watch' },
   ]);
   const choiceSets: RealmEvent[] = [
-    event('drought', 'Settimane senza pioggia', 'La terra è secca e i contadini temono un raccolto scarso. Il Consiglio deve scegliere fra investire, comprare scorte o razionare.', [
+    event('drought', 'Il cielo si è dimenticato della valle', 'Da settimane le nuvole ignorano Brumadoro. I vecchi sostengono che la campana suonasse per chiamare le valli in soccorso durante la siccità. Il Consiglio deve scegliere fra investire, comprare scorte o razionare.', [
       { id: 'irrigate-fields', label: 'Ripara i canali', detail: 'Spendi materiali e prepari una ripresa futura.', cost: { wood: 8, stone: 6 }, moodDelta: -1, trustDelta: 3, chain: 'drought-recovery' },
       { id: 'buy-stores', label: 'Compra provviste', detail: 'Spendi monete per mettere al sicuro il cibo.', cost: { coins: 9 }, reward: { food: 17 }, moodDelta: 3, trustDelta: 2 },
       { id: 'ration-stores', label: 'Raziona le scorte', detail: 'Conservi risorse, ma gli abitanti sono contrariati.', reward: { food: 5 }, moodDelta: -6, trustDelta: -4 },
     ]),
-    event('caravan', 'Una carovana è scomparsa', 'Un mercante non è arrivato alla data prevista. I suoi soci offrono una ricompensa a chi cerca i carri.', [
+    event('caravan', 'Il convoglio che seguiva le stelle', 'Un convoglio diretto al Passo non è arrivato. Le sue ruote seguivano segni incisi sulle pietre; i compagni offrono una ricompensa a chi lo cerca.', [
       { id: 'send-scouts', label: 'Invia esploratori', detail: 'Spendi provviste e avvia una storia che può portare ricompense.', cost: { food: 6 }, moodDelta: 2, trustDelta: 2, chain: 'caravan-rescue' },
       { id: 'salvage-tracks', label: 'Segui le tracce', detail: 'Raccogli materiali lungo la strada, ma non tutti apprezzeranno.', reward: { wood: 5 }, moodDelta: -1, trustDelta: -2 },
       { id: 'leave-caravan', label: 'Non rischiare', detail: 'Nessun costo, ma i mercanti si ricorderanno della scelta.', moodDelta: -3, trustDelta: -4 },
     ]),
-    event('wanderer', 'Un viandante cerca rifugio', 'Una persona con esperienza di viaggio chiede ospitalità. Può diventare un esploratore, ma servono cibo o monete.', [
+    event('wanderer', 'Il custode senza insegna', 'Un viandante porta una spilla senza stemma e conosce sentieri che non compaiono sulle mappe. Offre di guidare le spedizioni, se Brumadoro gli darà ospitalità.', [
       { id: 'welcome-wanderer', label: 'Accoglilo', detail: 'Spendi cibo e aumenta la popolazione di uno, se c’è posto.', cost: { food: 6 }, populationDelta: 1, moodDelta: 5, trustDelta: 4, profession: 'scout' },
       { id: 'hire-guide', label: 'Assumilo come guida', detail: 'Paga una piccola somma e guadagni conoscenza di viaggio.', cost: { coins: 8 }, reward: { food: 3 }, researchDelta: 8, trustDelta: 2 },
       { id: 'send-away', label: 'Invitalo a proseguire', detail: 'Conservi le risorse, ma perdi un’occasione.', moodDelta: -4, trustDelta: -3 },
     ]),
-    event('wolves', 'Ululati vicino ai campi', 'Un branco si avvicina alle stalle. Le guardie chiedono supporto prima che gli animali si spingano verso il villaggio.', [
+    event('wolves', 'Ombre sul confine dei campi', 'Un branco si aggira vicino alle stalle e i viandanti temono che le strade siano insicure. Le guardie chiedono sostegno prima che la paura interrompa i viaggi.', [
       { id: 'night-patrol', label: 'Organizza una pattuglia', detail: 'Spendi monete e rendi più sicure le strade.', cost: { coins: 8 }, moodDelta: 3, trustDelta: 3 },
       { id: 'protect-livestock', label: 'Metti al sicuro le scorte', detail: 'Usa legname e cibo per proteggere i magazzini.', cost: { wood: 5, food: 4 }, reward: { food: 2 }, moodDelta: 2, trustDelta: 1 },
       { id: 'ignore-wolves', label: 'Non intervenire', detail: 'Nessuna spesa, ma la paura rimane.', moodDelta: -8, trustDelta: -6 },
     ]),
-    event('fair', 'Arriva la fiera itinerante', 'Banchi colorati riempiono la strada. È un’occasione per vendere materiali e investire nelle relazioni commerciali.', [
+    event('fair', 'La fiera delle tre insegne', 'Le tre comunità vicine hanno mandato mercanti alla stessa fiera per la prima volta in anni. È un’occasione per scambiare materiali e ricucire relazioni.', [
       { id: 'sponsor-fair', label: 'Finanzia la fiera', detail: 'Investi monete per attirare mercanti e visitatori.', cost: { coins: 8 }, reward: { coins: 15 }, moodDelta: 4, trustDelta: 5 },
       { id: 'sell-timber', label: 'Vendi legname', detail: 'Scambia risorse con i mercanti.', cost: { wood: 7 }, reward: { coins: 12 }, trustDelta: 2 },
       { id: 'skip-fair', label: 'Continua il lavoro', detail: 'Non spendi nulla e non ottieni bonus.', moodDelta: 0, trustDelta: 0 },
@@ -815,11 +815,11 @@ function housing(state: GameState): number {
 
 function expeditionReward(region: RegionId): { resources: Partial<ResourceBag>; goods: Partial<GoodsBag>; note: string; research: number } {
   const rewards: Record<RegionId, { resources: Partial<ResourceBag>; goods: Partial<GoodsBag>; note: string; research: number }> = {
-    forest: { resources: { wood: 12, food: 5 }, goods: { grain: 4, medicine: 1 }, note: 'La spedizione ha trovato un bosco ricco di legname e piante utili.', research: 2 },
+    forest: { resources: { wood: 12, food: 5 }, goods: { grain: 4, medicine: 1 }, note: 'La spedizione ha trovato un bosco ricco di legname e piante utili. Sotto una radice affiora il segno della Prima Luce.', research: 2 },
     mountains: { resources: { stone: 12, wood: 2 }, goods: { tools: 1 }, note: 'La squadra torna con pietra e attrezzi recuperati dal passo.', research: 5 },
     lake: { resources: { food: 15, coins: 3 }, goods: { medicine: 2, grain: 3 }, note: 'Il lago offre cibo, erbe e una nuova rotta da ricordare.', research: 4 },
     'ancient-ruins': { resources: { stone: 7, coins: 12 }, goods: { tools: 1 }, note: 'Gli esploratori hanno mappato rovine antiche e riportato documenti.', research: 18 },
-    borderlands: { resources: { wood: 5, stone: 5, coins: 16 }, goods: { tools: 1, medicine: 1 }, note: 'La spedizione ha incontrato nuovi commercianti oltre il confine.', research: 10 },
+    borderlands: { resources: { wood: 5, stone: 5, coins: 16 }, goods: { tools: 1, medicine: 1 }, note: 'La spedizione ha incontrato nuovi commercianti oltre il confine. Portano notizie di una campana che, anche lontano da Brumadoro, si sente nelle notti senza stelle.', research: 10 },
   };
   return rewards[region];
 }

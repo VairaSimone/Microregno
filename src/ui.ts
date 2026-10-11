@@ -16,13 +16,13 @@ const WORKPLACE_PROFESSION: Partial<Record<BuildingType, Profession>> = {
 
 const RESOURCES: Resource[] = ['wood', 'stone', 'food', 'coins'];
 const CHALLENGE_REWARDS = [
-  { id: 'founder-title', name: 'Pioniere di Brumadoro', detail: 'Titolo storico permanente del profilo locale.', icon: '✦', status: 'TITOLO' },
-  { id: 'granary-blessing', name: 'Benedizione della dispensa', detail: '+6 cibo all’inizio di ogni nuova sfida.', icon: '♧', status: 'ATTIVA' },
-  { id: 'forester-mark', name: 'Sigillo del boscaiolo', detail: '+6 legname all’inizio di ogni nuova sfida.', icon: '♢', status: 'ATTIVA' },
-  { id: 'stonekeeper-mark', name: 'Sigillo della cava', detail: '+6 pietra all’inizio di ogni nuova sfida.', icon: '◆', status: 'ATTIVA' },
-  { id: 'royal-favor', name: 'Favore reale', detail: '+4 monete all’inizio di ogni nuova sfida.', icon: '♛', status: 'ATTIVA' },
-  { id: 'golden-banner', name: 'Stendardo dorato', detail: '+3 monete all’inizio di ogni nuova sfida.', icon: '⚑', status: 'ATTIVA' },
-  { id: 'crown-signet', name: 'Sigillo della Corona', detail: '+5 cibo all’inizio di ogni nuova sfida.', icon: '♕', status: 'ATTIVA' },
+  { id: 'founder-title', name: 'Custode della Prima Luce', detail: 'Titolo permanente per chi ha risposto al primo rintocco.', icon: '✦', status: 'TITOLO' },
+  { id: 'granary-blessing', name: 'Dono della Veglia', detail: '+6 cibo all’inizio di ogni nuova prova del Patto.', icon: '♧', status: 'ATTIVA' },
+  { id: 'forester-mark', name: 'Marchio delle Radici', detail: '+6 legname all’inizio di ogni nuova prova del Patto.', icon: '♢', status: 'ATTIVA' },
+  { id: 'stonekeeper-mark', name: 'Sigillo del Passo', detail: '+6 pietra all’inizio di ogni nuova prova del Patto.', icon: '◆', status: 'ATTIVA' },
+  { id: 'royal-favor', name: 'Moneta del Patto', detail: '+4 monete all’inizio di ogni nuova prova del Patto.', icon: '♛', status: 'ATTIVA' },
+  { id: 'golden-banner', name: 'Stendardo delle Cinque Luci', detail: '+3 monete all’inizio di ogni nuova prova del Patto.', icon: '⚑', status: 'ATTIVA' },
+  { id: 'crown-signet', name: 'Sigillo dell’Alba', detail: '+5 cibo all’inizio di ogni nuova prova del Patto.', icon: '♕', status: 'ATTIVA' },
 ] as const;
 const TUTORIAL_SEEN_KEY = 'microregno:tutorial-seen:v2';
 let renderedRequestId: string | null | undefined;
@@ -82,105 +82,105 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
 
   return [
     {
-      key: 'farm', title: '1 · Metti al sicuro il cibo',
-      description: 'Ciao, custode! Sono Bricco. Prima di tutto, costruiamo una Fattoria: senza cibo nessun borgo può crescere.',
-      rule: 'Scegli Fattoria nel pannello Costruisci, poi clicca una casella d’erba libera. Costa 10 legname e 3 pietra; il cantiere dura 12 secondi, poi inizierà a produrre cibo con lavoratori.',
+      key: 'farm', title: '1 · Il rintocco sotto il Municipio',
+      description: 'Ciao, custode. Sono Bricco, ultimo apprendista degli antichi Custodi. Tre notti fa una campana ha suonato sotto il Municipio, dove non esiste alcuna torre. Ho trovato una mappa con cinque stelle cancellate e una promessa spezzata. Prima di cercarne il significato, dobbiamo garantire il pane a chi vive qui.',
+      rule: 'Scegli Fattoria nel pannello Costruisci e clicca una casella d’erba libera. Costa 10 legname e 3 pietra; il cantiere dura 12 secondi. Quando sarà pronta, con lavoratori compatibili aiuterà a sfamare Brumadoro e i viandanti.',
       actionType: 'farm', action: 'build', actionLabel: 'Scegli la Fattoria', done: has('farm'),
     },
     {
-      key: 'house', title: '2 · Diamo un tetto ai vicini',
-      description: 'Bene! Adesso prepara una Casa. Il Municipio ha già spazio per cinque abitanti, ma per crescere ci servono altri posti.',
-      rule: 'La Casa costa 12 legname e 5 pietra, il cantiere dura 10 secondi e aggiunge 6 posti solo quando è terminata. Per attirare nuovi abitanti tieni almeno 18 cibo e un posto libero.',
+      key: 'house', title: '2 · La luce del focolare',
+      description: 'La prima luce non è una stella nel cielo, ma una finestra illuminata. Costruiamo una Casa: le cronache dicono che nessun viandante poteva essere respinto se c’era un tetto libero.',
+      rule: 'La Casa costa 12 legname e 5 pietra; il cantiere dura 10 secondi e aggiunge 6 posti solo al termine. Per attirare nuovi abitanti tieni almeno 18 cibo e un posto libero: un Patto che non sa nutrire i suoi ospiti è soltanto una scritta sulla pietra.',
       actionType: 'house', action: 'build', actionLabel: 'Scegli una Casa', done: has('house'),
     },
     {
-      key: 'village', title: '3 · Facciamo nascere il Villaggio',
-      description: 'Ora osserva le risorse: il tempo scorre da solo. Lascia lavorare la Fattoria e conserva abbastanza cibo per le famiglie.',
-      rule: 'Il Villaggio si sblocca con 8 abitanti, una Fattoria e una Casa. Le stagioni cambiano raccolti e consumi; in inverno il cibo serve ancora di più.',
+      key: 'village', title: '3 · La prima scheggia',
+      description: 'Mentre la valle riprende fiato, una scheggia di bronzo riaffiora nel campo. Porta incisa una stella, identica a una delle cinque cancellate sulla mappa. La campana non è una leggenda: il suo segreto è legato a queste terre.',
+      rule: 'Il Villaggio si sblocca con 8 abitanti, una Fattoria e una Casa. Le stagioni cambiano raccolti e consumi; in inverno il cibo serve ancora di più. Conserva la scheggia: è il primo indizio del Patto delle Cinque Luci.',
       actionType: null, action: 'hint', actionLabel: 'Come faccio crescere la popolazione?', done: hasEpoch('village'),
     },
     {
-      key: 'industry', title: '4 · Apriamo una bottega produttiva',
-      description: 'Il Villaggio è nato! Ora possiamo produrre materiali invece di consumare soltanto le scorte iniziali. Cominciamo dalla Segheria.',
-      rule: 'La Segheria produce legname e rende meglio vicino al bosco; la Cava produce pietra vicino alla roccia. Servono lavoratori compatibili e posti di lavoro disponibili.',
+      key: 'industry', title: '4 · La voce del Bosco delle Radici',
+      description: 'La scheggia reca il simbolo di un albero. Bricco riconosce il segno del Bosco delle Radici, dove i guardiani proteggevano i sentieri che univano le valli. Per proseguire, dobbiamo imparare a produrre senza impoverire il bosco.',
+      rule: 'La Segheria produce legname e rende meglio vicino al bosco; la Cava produce pietra vicino alla roccia. Servono lavoratori compatibili e posti di lavoro disponibili. Le vecchie strade si ricostruiscono con materiali, ma prima di tutto con fiducia.',
       actionType: 'sawmill', action: 'build', actionLabel: 'Scegli la Segheria', done: has('sawmill') || has('quarry'),
     },
     {
-      key: 'market', title: '5 · Apriamo il Mercato',
-      description: 'Legname e pietra sostengono le costruzioni, ma le monete pagano miglioramenti e decisioni importanti. Il Mercato aiuta l’economia.',
-      rule: 'Il Mercato si sblocca nel Villaggio e costa 18 legname e 10 pietra. Prima controlla la disponibilità delle risorse e scegli una casella libera.',
+      key: 'market', title: '5 · Il mercato delle promesse',
+      description: 'Un emissario di Porto Salmastra racconta che tre comunità si sono separate dopo una disputa sulla Corona. Al Mercato non scambieremo soltanto merci: potremo ricominciare a scambiarci notizie.',
+      rule: 'Il Mercato si sblocca nel Villaggio e costa 18 legname e 10 pietra. Controlla le scorte prima di scegliere una casella libera: una rotta commerciale nasce quando entrambe le parti possono fidarsi.',
       actionType: 'market', action: 'build', actionLabel: 'Scegli il Mercato', done: has('market'),
     },
     {
-      key: 'community', title: '6 · Ascoltiamo i cittadini',
-      description: 'Un regno non è fatto soltanto di edifici: le persone chiedono aiuto, propongono scambi e reagiscono alle decisioni del Consiglio.',
-      rule: 'Leggi le richieste nel pannello della comunità e valuta costi e conseguenze. Le richieste ignorate abbassano umore e fiducia; questi valori influenzano crescita, produzione e monete.',
+      key: 'community', title: '6 · Le voci dietro il Patto',
+      description: 'La mappa di Bricco non può raccontare tutta la storia. La conoscono anche Ada, Berto, Mira e gli altri abitanti: ogni richiesta è un pezzo di memoria, e ogni risposta dice che tipo di regno vogliamo essere.',
+      rule: 'Leggi le richieste nel pannello della comunità e valuta costi e conseguenze. Le richieste ignorate abbassano umore e fiducia; questi valori influenzano crescita, produzione e monete. La cronaca del borgo conserva ciò che il Consiglio decide.',
       actionType: null, action: 'community', actionLabel: 'Mostrami le richieste in piazza',
       done: (state.community?.fulfilledRequests ?? 0) > 0 || (state.community?.ignoredRequests ?? 0) > 0,
     },
     {
-      key: 'upgrade', title: '7 · Miglioriamo un edificio',
-      description: 'Non devi costruire all’infinito: puoi rendere più efficaci gli edifici che hai già. Selezionane uno sulla mappa e guarda il pannello Dettagli.',
-      rule: 'Seleziona un edificio, poi usa Migliora. I livelli aumentano l’efficacia, ma costano risorse e monete. Un edificio al livello 2 è necessario per fondare il Borgo.',
+      key: 'upgrade', title: '7 · Il primo sigillo',
+      description: 'Sotto la prima bottega Bricco trova un sigillo incompleto. La sua incisione dice: “Una promessa vale quanto il lavoro fatto per mantenerla.” Migliorare ciò che già esiste sarà importante quanto costruire qualcosa di nuovo.',
+      rule: 'Seleziona un edificio, poi usa Migliora. I livelli aumentano l’efficacia, richiedono risorse e monete e aprono la strada al Borgo. Il Patto non si ricostruisce con promesse vuote, ma con opere che resistono al tempo.',
       actionType: null, action: 'upgrade', actionLabel: 'Aiutami a migliorare un edificio', done: state.buildings.some((building) => building.level >= 2),
     },
     {
-      key: 'borough', title: '7 · Fondiamo il Borgo',
-      description: 'Sei vicino a un nuovo capitolo. Porta la popolazione a 12, costruisci il Mercato e migliora almeno un edificio al livello 2.',
-      rule: 'Apri “Campagna e obiettivi” per controllare ogni requisito. Quando nasce il Borgo si aprono la ricerca, la diplomazia, le spedizioni e le grandi opere.',
+      key: 'borough', title: '8 · Apriamo le porte alle altre valli',
+      description: 'Selvalunga, Porto Salmastra e Rocciacupa custodiscono tre versioni della leggenda. Per ascoltarle senza dipendere da una sola voce, Brumadoro deve diventare un Borgo rispettato e capace di mandare messaggeri.',
+      rule: 'Apri “Campagna e obiettivi” e controlla i requisiti. Con il Borgo si aprono ricerca, diplomazia, spedizioni e grandi opere: quattro strumenti per ritrovare ciò che la Corona ha diviso.',
       actionType: null, action: 'objectives', actionLabel: 'Mostrami gli obiettivi del Borgo', done: hasEpoch('borough'),
     },
     {
-      key: 'research', title: '8 · Scopri una nuova conoscenza',
-      description: 'La Sala del Regno contiene decisioni che non si vedono sulla mappa: ricerca, mestieri, leggi ed eventi. Apriamo la scheda Ricerca.',
-      rule: 'Scegli una ricerca, controllane requisiti e costo e lascia che il progresso avanzi. La Città richiederà due ricerche completate.',
+      key: 'research', title: '9 · Decifrare la prima iscrizione',
+      description: 'Le tavolette delle Rovine della Corona ripetono gli stessi simboli in tre alfabeti. La ricerca ci permette di separarli dalle leggende e scoprire che cosa significava davvero la campana.',
+      rule: 'Scegli una ricerca, controllane requisiti e costo e lascia che il progresso avanzi. La Città richiederà due ricerche completate: ogni scoperta avvicina la verità sul Patto.',
       actionType: null, action: 'research', actionLabel: 'Apri la Sala del Regno · Ricerca', done: researched >= 1,
     },
     {
-      key: 'exploration', title: '9 · Spingiamoci oltre la frontiera',
-      description: 'Una città non cresce solo con gli edifici. Le spedizioni portano risorse, conoscenza e accesso a nuovi territori.',
-      rule: 'Nella Sala del Regno apri Esplorazione. Scegli guida, equipaggio e scorte: inviare cittadini in spedizione li rende temporaneamente indisponibili per il lavoro.',
+      key: 'exploration', title: '10 · Seguire le cinque stelle',
+      description: 'La mappa stellare indica cinque regioni e una strada che nessuna carta recente riporta. Le spedizioni dovranno trovare i luoghi perduti e ascoltare chi ancora ricorda il vecchio accordo.',
+      rule: 'Nella Sala del Regno apri Esplorazione. Scegli guida, equipaggio e scorte: inviare cittadini li rende temporaneamente indisponibili per il lavoro. Una spedizione rischia sempre qualcosa; prepara provviste e persone adatte.',
       actionType: null, action: 'exploration', actionLabel: 'Apri Esplorazione', done: regions >= 1,
     },
     {
-      key: 'project', title: '10 · Completiamo una grande opera',
-      description: 'Le grandi opere sono investimenti a più fasi. Non basta iniziarle: bisogna finanziare tutti gli stadi per ottenere i benefici permanenti.',
-      rule: 'Apri la scheda Progetti nella Sala del Regno. Prima di investire controlla costo, materiali e risorse che ti serviranno per mantenere il borgo.',
+      key: 'project', title: '11 · Ricostruire i pilastri',
+      description: 'Acquedotto, Ponte, Quartiere artigiano e Archivio non sono solo progetti: rappresentano acqua condivisa, passaggi aperti, lavoro dignitoso e memoria comune. Bricco li chiama i quattro pilastri del Patto.',
+      rule: 'Apri la scheda Progetti nella Sala del Regno. Ogni opera ha più fasi: controlla costi e materiali prima di investire, perché una promessa interrotta non collega le valli.',
       actionType: null, action: 'projects', actionLabel: 'Apri i Progetti', done: projects >= 1,
     },
     {
-      key: 'city', title: '11 · Prepariamo la Città',
-      description: 'Il passaggio alla Città è una prova completa di gestione: popolazione, istruzione, ricerca, grandi opere e rotte devono crescere insieme.',
-      rule: 'Servono 18 abitanti, una Scuola, 2 ricerche, una grande opera, 2 regioni scoperte e un edificio al livello 3. Ogni potenziamento richiede un cantiere: pianifica prima i materiali.',
+      key: 'city', title: '12 · La città degli Archivi',
+      description: 'Le prime iscrizioni raccontano che una volta le cinque valli si aiutavano durante carestie e tempeste. Per comprendere perché smisero di farlo, Brumadoro deve diventare una città capace di custodire e confrontare tutte le testimonianze.',
+      rule: 'Servono 18 abitanti, una Scuola, 2 ricerche, una grande opera, 2 regioni scoperte e un edificio al livello 3. Ogni potenziamento richiede un cantiere: pianifica materiali e tempi mentre le testimonianze arrivano dalle spedizioni.',
       actionType: null, action: 'objectives', actionLabel: 'Controlla i requisiti della Città', done: hasEpoch('city'),
     },
     {
-      key: 'university', title: '12 · Costruiamo l’Università Reale',
-      description: 'La Città apre la strada all’Università Reale: il centro della conoscenza e il simbolo della tua nuova epoca.',
-      rule: 'L’Università si sblocca nella Città e costa 30 legname, 24 pietra e 25 monete. Pianifica le scorte prima di piazzarla.',
+      key: 'university', title: '13 · Dare voce alle tavolette',
+      description: 'L’Università non è un monumento per celebrare il potere. È il luogo in cui le voci delle cinque valli vengono conservate senza che una cancelli le altre.',
+      rule: 'L’Università si sblocca nella Città e costa 30 legname, 24 pietra e 25 monete. Pianifica le scorte prima di piazzarla: qui i frammenti del Patto saranno ricomposti.',
       actionType: 'university', action: 'build', actionLabel: 'Scegli l’Università Reale', done: has('university'),
     },
     {
-      key: 'metropolis', title: '13 · Facciamo crescere la Metropoli',
-      description: 'Una grande città vive di specializzazioni. Frutteti, peschiere, erbe, locande e fucine danno nuove strade alla tua economia.',
+      key: 'metropolis', title: '14 · Le stelle sulla pietra',
+      description: 'Dalla cupola dell’Osservatorio, Bricco vede che le cinque regioni formano una costellazione. Non indicano una capitale: sono cinque luci che valgono soltanto quando risplendono insieme.',
       rule: 'La Metropoli richiede 28 abitanti, l’Università, quattro ricerche, due opere, tre regioni, due edifici al livello 4 e tre edifici specializzati.',
       actionType: null, action: 'objectives', actionLabel: 'Controlla i requisiti della Metropoli', done: hasEpoch('metropolis'),
     },
     {
-      key: 'empire', title: '14 · Fondiamo un Impero',
-      description: 'Ora non basta più crescere: devi coordinare regioni, alleanze, grandi opere ed edifici che hanno raggiunto la loro maturità.',
+      key: 'empire', title: '15 · Riunire le cinque comunità',
+      description: 'Le valli non devono diventare copie di Brumadoro. Il tuo compito è unirle senza cancellarne la voce: alleanze, spedizioni e opere comuni trasformeranno un regno potente in un Impero degno del Patto.',
       rule: 'L’Impero richiede 45 abitanti, quattro edifici al livello 5, tutte le grandi opere, cinque ricerche, quattro regioni, tre accordi o rotte, Osservatorio e 350 monete.',
       actionType: null, action: 'objectives', actionLabel: 'Controlla i requisiti dell’Impero', done: hasEpoch('empire'),
     },
     {
-      key: 'charter', title: '15 · La Carta della Corona',
-      description: 'L’ultimo traguardo mette alla prova tutto ciò che hai imparato. La Corona richiede una città prospera, alleanze e opere durature.',
+      key: 'charter', title: '16 · La Carta delle Cinque Luci',
+      description: 'La Carta non assegna il potere a un singolo sovrano: fissa le promesse che le cinque regioni si fanno l’una con l’altra. La campana tornerà a suonare soltanto quando Brumadoro saprà custodire tutte le voci.',
       rule: 'La Carta richiede un vero Impero: 60 abitanti, sei edifici al livello 5, quattro grandi opere, quattro accordi o rotte, tutte le cinque regioni, Università al livello 5, Osservatorio al livello 3 e 500 monete.',
       actionType: null, action: 'objectives', actionLabel: 'Controlla la Carta della Corona', done: state.progression?.campaignComplete === true,
     },
     {
-      key: 'challenge', title: '16 · Metti alla prova il regno',
-      description: 'Quando vuoi una sfida breve, prova la missione giornaliera. Cambia obiettivo e condizioni e ti permette di migliorare medaglie e record.',
+      key: 'challenge', title: '17 · Le prove del custode',
+      description: 'La cronaca non è finita: ogni giorno mette alla prova un pezzo del Patto. Affronta la missione, raccogli una medaglia e continua ad allenare il Consiglio senza rischiare il regno principale.',
       rule: 'La sfida del giorno usa una partita indipendente: non consuma risorse e non cambia gli edifici del tuo regno principale. Medaglie e traguardi sono salvati nel profilo locale.',
       actionType: null, action: 'challenge', actionLabel: 'Scopri la sfida del giorno', done: snapshot.playerProfile.records.length > 0,
     },
@@ -211,13 +211,13 @@ function renderTutorial(snapshot: GameSnapshot): void {
   if (snapshot.mode === 'challenge') {
     if (lastTutorialMessageKey !== 'challenge') tutorialExplainMore = false;
     lastTutorialMessageKey = 'challenge';
-    title.textContent = 'Una missione alla volta';
+    title.textContent = 'Una prova per ogni luce';
     count.textContent = 'SFIDA';
-    voice.textContent = 'Bricco · stratega delle missioni';
-    progressNote.textContent = 'La tua città principale è al sicuro';
+    voice.textContent = 'Bricco · archivista delle Cinque Luci';
+    progressNote.textContent = 'La cronaca del regno principale resta intatta';
     copy.textContent = tutorialExplainMore
       ? snapshot.challenge.condition + ' Ricompensa dichiarata: ' + snapshot.challenge.reward + '. Il punteggio migliore e le medaglie restano nel profilo locale.'
-      : 'Questa è la sfida di oggi: ' + snapshot.challenge.title + '. ' + snapshot.challenge.description + ' Io ti aiuto a leggere il vincolo e scegliere una strategia.';
+      : 'Questa è la prova di oggi: ' + snapshot.challenge.title + '. ' + snapshot.challenge.description + ' Ogni impresa recupera un frammento di memoria; io ti aiuto a scegliere la strada migliore.';
     stepsHost.innerHTML = '';
     rulePanel.classList.add('hidden');
     rule.textContent = snapshot.challenge.condition;
@@ -238,7 +238,7 @@ function renderTutorial(snapshot: GameSnapshot): void {
   count.textContent = completedCount + '/' + steps.length;
   progressNote.textContent = current
     ? 'Passo ' + (currentIndex + 1) + ' di ' + steps.length + ' · ' + completedCount + ' tappe completate'
-    : 'La guida base è completata · ora puoi esplorare liberamente';
+    : 'Il primo volume della cronaca è completo · il resto della storia dipende da te';
   stepsHost.innerHTML = '';
 
   const visibleStart = current
@@ -266,13 +266,13 @@ function renderTutorial(snapshot: GameSnapshot): void {
   });
 
   if (!current) {
-    title.textContent = 'Brumadoro è nelle tue mani';
-    voice.textContent = 'Bricco · un custode soddisfatto';
+    title.textContent = 'Le Cinque Luci ti aspettano';
+    voice.textContent = 'Bricco · custode dell’Archivio';
     copy.textContent = tutorialExplainMore
-      ? 'Puoi continuare la campagna, esplorare territori, perfezionare le produzioni o affrontare la sfida del giorno. Io resto qui: apri “?” se vuoi rileggere le basi.'
-      : 'Ce l’hai fatta! Hai attraversato le tappe principali. Non devi seguire una ricetta: sperimenta, osserva le conseguenze e costruisci il regno che vuoi.';
+      ? 'La Carta non è la fine del viaggio. Puoi esplorare le ultime ombre, aiutare le comunità, perfezionare le produzioni o affrontare le prove quotidiane. Io resterò qui a custodire ciò che abbiamo scoperto.'
+      : 'Hai imparato a leggere i segni, ascoltare i cittadini e unire le valli. Non esiste una sola maniera di mantenere il Patto: sperimenta, osserva le conseguenze e scegli che tipo di Custode vuoi essere.';
     ruleTitle.textContent = 'Il mio ultimo consiglio';
-    rule.textContent = 'Prima di una spesa importante guarda produzione e consumi, richieste dei cittadini e obiettivi della campagna. Le scorte crescono nel tempo, ma anche i bisogni.';
+    rule.textContent = 'Prima di una spesa importante ascolta la piazza, controlla produzione e consumi e consulta la cronaca. La campana non è tornata per comandarti: è tornata per ricordarti che ogni scelta ha una conseguenza.';
     rulePanel.classList.toggle('hidden', tutorialExplainMore);
     action.textContent = 'Guida completata ✓';
     action.disabled = true;
@@ -388,23 +388,23 @@ function renderBuildList(snapshot: GameSnapshot): void {
   host.append(catalogToggle);
 
   $('build-description').textContent = snapshot.selectedBuildType
-    ? 'Costruzione selezionata. Clicca una casella verde libera sulla mappa; le caselle rosse non sono valide.'
+    ? 'Cantiere scelto. Trova una casella verde libera sulla mappa: ogni edificio sarà una nuova parte del Patto.'
     : showAllBuildOptions
-      ? 'Catalogo completo: gli edifici bloccati indicano quanti abitanti servono per sbloccarli.'
+      ? 'Catalogo completo: gli edifici bloccati indicano abitanti ed epoca necessari per riportare in vita le antiche vie.'
       : population < 6
         ? 'Per iniziare bastano Fattoria e Casa: prima assicura il cibo, poi aumenta i posti abitativi.'
         : !isEpochUnlocked(snapshot.state, 'village')
           ? 'Raggiungi 8 abitanti, con una Fattoria e una Casa, per fondare il Villaggio e sbloccare le prime botteghe.'
           : !isEpochUnlocked(snapshot.state, 'borough')
-            ? 'Il Villaggio è nato: prepara il Borgo con 12 abitanti, un Mercato e un edificio al livello 2.'
+            ? 'La prima luce è accesa: prepara il Borgo con 12 abitanti, un Mercato e un edificio al livello 2 per riaprire le vie tra le comunità.'
             : !isEpochUnlocked(snapshot.state, 'city')
-              ? 'Il Borgo apre ricerca, diplomazia e spedizioni: completa le prove per fondare la Città.'
-              : 'Prepara la Carta della Corona: grandi opere, alleanze, regioni e Università Reale.';
+              ? 'Le prime comunità hanno risposto al rintocco: ricerca, diplomazia e spedizioni ti aiuteranno a ricomporre il Patto e fondare la Città.'
+              : 'Le cinque luci attendono di essere riunite: completa grandi opere, alleanze, spedizioni e conoscenze per firmare la Carta della Corona.';
 
   $('map-instruction').textContent = snapshot.selectedBuildType
     ? 'Costruisci: ' + BUILDINGS[snapshot.selectedBuildType].name + ' · scegli una casella d’erba libera.'
     : population < 6 && !showAllBuildOptions
-      ? 'Primo obiettivo: Fattoria → Casa → almeno 18 unità di cibo.'
+      ? 'Primo giuramento: Fattoria → Casa → almeno 18 unità di cibo. Nessuna luce si accende se la dispensa è vuota.'
       : 'Seleziona una costruzione a destra, poi scegli dove piazzarla.';
 }
 function renderCitizenPanel(snapshot: GameSnapshot): void {
@@ -420,14 +420,14 @@ function renderCitizenPanel(snapshot: GameSnapshot): void {
   if (!community) return;
   const season = getSeason(state.gameMinutes);
   const request = community.activeRequest;
-  $('community-eyebrow').textContent = 'VOCI DAL BORGO · ' + season.name.toLocaleUpperCase('it-IT');
+  $('community-eyebrow').textContent = 'LA CRONACA DEL PATTO · ' + season.name.toLocaleUpperCase('it-IT');
   $('season-badge').textContent = season.icon;
   $('season-badge').setAttribute('aria-label', season.name);
   $('season-badge').setAttribute('title', season.description);
   $('community-season-note').textContent = season.description;
-  $('community-title').textContent = request?.title ?? 'La piazza si prende una pausa';
+  $('community-title').textContent = request?.title ?? 'La campana attende una nuova voce';
   $('community-description').textContent = request?.description
-    ?? 'Per ora non ci sono richieste urgenti. Il Consiglio ha un momento per prepararsi alla prossima decisione.';
+    ?? 'La piazza è quieta. Bricco aggiorna la cronaca e prepara il Consiglio alla prossima voce che arriverà dalla valle.';
   $('community-person').textContent = request
     ? request.citizen.toLocaleUpperCase('it-IT') + ' · ' + request.role.toLocaleUpperCase('it-IT')
     : 'CONSIGLIO DEL BORGO';
@@ -500,10 +500,10 @@ function renderEpochPanel(snapshot: GameSnapshot): void {
   checklist.innerHTML = '';
 
   if (snapshot.mode === 'challenge') {
-    $('epoch-title').textContent = 'Partita separata';
+    $('epoch-title').textContent = 'Una prova fuori dalla cronaca';
     $('epoch-count').textContent = 'SFIDA';
-    $('epoch-summary').textContent = 'La sfida del giorno non modifica la campagna del regno. Torna a “Il mio regno” per continuare le epoche.';
-    $('epoch-story').textContent = 'La storia di Brumadoro resta nel salvataggio principale.';
+    $('epoch-summary').textContent = 'Questa prova quotidiana è una pagina parallela della cronaca: non modifica le Cinque Luci del regno principale.';
+    $('epoch-story').textContent = 'Bricco conserva la storia principale al sicuro mentre affronti una prova dell’Archivio.';
     $('epoch-progress').classList.add('challenge-epoch');
     return;
   }
@@ -524,23 +524,23 @@ function renderEpochPanel(snapshot: GameSnapshot): void {
     track.append(step);
   });
 
-  $('epoch-title').textContent = complete ? 'Carta della Corona' : EPOCHS[current].name;
+  $('epoch-title').textContent = complete ? 'Il Patto delle Cinque Luci' : EPOCHS[current].name;
   $('epoch-count').textContent = complete ? 'CAMPAGNA CONCLUSA' : (currentIndex + 1) + '/6 EPOCHE';
   $('epoch-summary').textContent = complete
-    ? 'Brumadoro è diventato un Impero. Hai completato la Carta della Corona: il regno può continuare a prosperare in modalità libera.'
+    ? 'La campana dell’Alba è tornata a suonare. Le cinque regioni hanno scelto di restare unite attraverso la Carta della Corona: ora la storia appartiene a tutti.'
     : current === 'empire'
-      ? 'L’ultima impresa è la Carta della Corona: dimostra che il tuo Impero sa sostenere popolazione, opere pubbliche, rotte e conoscenza.'
+      ? 'La campana attende l’ultima promessa. Riunisci popolazione, opere pubbliche, rotte e conoscenza: la Carta deve appartenere a tutte le cinque valli.'
       : current === 'metropolis'
-        ? 'La Metropoli ha bisogno di quartieri specializzati, edifici al livello 4 e una rete di ricerca più matura.'
+        ? 'L’Osservatorio ha mostrato le cinque regioni come una costellazione. Specializza i quartieri e porta gli edifici al livello 4 per collegare le luci.'
         : current === 'city'
-          ? 'La Città ha aperto nuove possibilità. Rafforza l’economia, completa le ricerche e prepara la Metropoli.'
+          ? 'Le tavolette delle Rovine raccontano perché il Patto fu spezzato. Rafforza l’economia, completa le ricerche e prepara l’Osservatorio della Metropoli.'
           : EPOCHS[current].summary;
 
   // Detailed requirements are shown once in the objective list below.
 
   const story = state.progression?.history[0] ?? EPOCHS.settlement.story;
   $('epoch-story').textContent = complete
-    ? (state.progression?.history[0] ?? 'La Carta della Corona è stata firmata.')
+    ? (state.progression?.history[0] ?? 'La campana dell’Alba è tornata a suonare: il Patto delle Cinque Luci è stato firmato.')
     : story;
 }
 
@@ -554,7 +554,7 @@ function renderChallengeRewards(snapshot: GameSnapshot): void {
   if (!medals.length) {
     const empty = document.createElement('p');
     empty.className = 'challenge-collection-empty';
-    empty.textContent = 'La tua prima medaglia ti aspetta. Completa la sfida del giorno per iniziare la raccolta.';
+    empty.textContent = 'Il primo sigillo della cronaca è ancora da conquistare. Completa la prova del giorno per iniziare la raccolta delle Cinque Luci.';
     medalsHost.append(empty);
   } else {
     medals.forEach(medal => {
@@ -718,7 +718,7 @@ function renderObjectives(snapshot: GameSnapshot): void {
   const capacity = housingCapacity(state);
   const nextMilestone = POPULATION_MILESTONES.find((milestone) => !(state.milestones ?? []).includes(milestone.population));
   const capacityNote = state.population >= capacity
-    ? 'Capienza piena: costruisci una casa o migliora il municipio.'
+    ? 'Nessun posto per i viandanti: costruisci una casa o migliora il Municipio prima di accogliere altre famiglie.'
     : 'Posti liberi: ' + (capacity - state.population);
   const rewardNote = nextMilestone
     ? 'Premio +' + nextMilestone.reward + ' monete a ' + nextMilestone.population
@@ -774,7 +774,7 @@ function renderInspector(snapshot: GameSnapshot): void {
     $('upgrade-button').classList.add('hidden');
     $('inspector-title').textContent = 'Il territorio';
     $('inspector-copy').textContent = snapshot.mode === 'challenge'
-      ? 'Completa l’obiettivo del giorno. I progressi della sfida sono separati dalla città principale.'
+      ? 'Completa la prova del giorno. La sua medaglia resterà nella cronaca personale senza alterare la città principale.'
       : 'Clicca un edificio sulla mappa per selezionarlo e consultarne produzione o capienza.';
     $('upgrade-button').classList.add('hidden');
     $('demolish-button').classList.add('hidden');
@@ -816,11 +816,11 @@ function hasGoodsCost(goods: GoodsBag, cost: Partial<GoodsBag>): boolean {
 }
 function renderFrontierMap(world: WorldState): string {
   const nodes: Array<{ id: 'forest' | 'mountains' | 'lake' | 'ancient-ruins' | 'borderlands'; x: number; y: number; icon: string; name: string }> = [
-    { id: 'forest', x: 98, y: 93, icon: '🌲', name: 'Bosco antico' },
-    { id: 'mountains', x: 104, y: 223, icon: '⛰', name: 'Passo delle rocce' },
-    { id: 'lake', x: 250, y: 52, icon: '◉', name: 'Lago velato' },
+    { id: 'forest', x: 98, y: 93, icon: '🌲', name: 'Bosco delle Radici' },
+    { id: 'mountains', x: 104, y: 223, icon: '⛰', name: 'Passo delle Rocce' },
+    { id: 'lake', x: 250, y: 52, icon: '◉', name: 'Lago degli Specchi' },
     { id: 'ancient-ruins', x: 392, y: 93, icon: '⌂', name: 'Rovine della Corona' },
-    { id: 'borderlands', x: 394, y: 224, icon: '⚑', name: 'Terre di confine' },
+    { id: 'borderlands', x: 394, y: 224, icon: '⚑', name: 'Terre di Confine' },
   ];
   const links: Array<{ from: [number, number]; to: [number, number]; open: boolean }> = [
     { from: [247, 153], to: [98, 93], open: true },
@@ -847,7 +847,7 @@ function renderFrontierMap(world: WorldState): string {
     '<rect x="1" y="1" width="498" height="283" rx="16" fill="#e9eddf" stroke="#d0dac7"/><rect x="2" y="2" width="496" height="281" rx="16" fill="url(#frontier-dots)"/>' +
     '<path d="M28 168 Q83 139 123 154 T220 159 T322 152 T474 168" fill="none" stroke="#b5d1c3" stroke-width="11" stroke-linecap="round"/>' +
     '<path d="M28 168 Q83 139 123 154 T220 159 T322 152 T474 168" fill="none" stroke="#d0e4d8" stroke-width="4" stroke-linecap="round"/>' +
-    paths + '<g><circle cx="247" cy="153" r="24" fill="#d0e4c9" stroke="#5d9160" stroke-width="2"/><text x="247" y="159" font-size="21" text-anchor="middle">⌂</text><text x="247" y="190" text-anchor="middle" font-size="11" font-weight="800" fill="#355b3d">Valle di Brumadoro</text></g>' +
+    paths + '<g><circle cx="247" cy="153" r="24" fill="#d0e4c9" stroke="#5d9160" stroke-width="2"/><text x="247" y="159" font-size="21" text-anchor="middle">⌂</text><text x="247" y="190" text-anchor="middle" font-size="11" font-weight="800" fill="#355b3d">Brumadoro · Cinque Luci</text></g>' +
     markers + '</svg><div class="realm-map-legend"><span><i class="known"></i>Territorio scoperto</span><span><i class="open"></i>Spedizione possibile</span><span><i class="fog"></i>Ancora nella nebbia</span></div></div>';
 }
 function renderRealmDashboard(snapshot: GameSnapshot): void {
@@ -1046,11 +1046,11 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
     }).join('');
     const frontierMap = renderFrontierMap(world);
     root.innerHTML = '<div class="realm-summary-grid"><div><small>REGIONI NOTE</small><strong>' + world.discoveredRegions.length + '/' + REGIONS.length + '</strong></div><div><small>SPEDIZIONI ATTIVE</small><strong>' + activeTrips.length + '/' + (world.researched.includes('cartography') ? 2 : 1) + '</strong></div><div><small>ESPLORATORI DISPONIBILI</small><strong>' + activeScouts + '</strong></div></div>' +
-      '<p class="realm-intro">Le spedizioni consumano provviste e possono sbloccare storie a scelta permanente. Dopo una ricognizione riuscita, nell’epoca del Borgo puoi fondare un avamposto: ogni regione ha una mappa costruibile 5×5, scorte locali finite, strutture specializzate e incidenti climatici o politici. Le colonie producono solo finché hanno riserve e stabilità sufficienti.</p>' +
+      '<p class="realm-intro">Ogni spedizione cerca una delle cinque stelle scomparse e può aprire una scelta permanente nella storia del regno. Dopo una ricognizione riuscita, nell’epoca del Borgo puoi fondare un avamposto: ogni regione ha una mappa costruibile 5×5, scorte locali finite, strutture specializzate e incidenti climatici o politici. Le colonie producono solo finché hanno riserve e stabilità sufficienti.</p>' +
       '<h3 class="realm-section-title">Carta generale della frontiera</h3>' + frontierMap +
       '<h3 class="realm-section-title">Frontiera e spedizioni</h3>' + expeditionPlanner + '<div class="realm-region-list">' + regions + '</div>' +
-      '<div class="realm-card"><div class="realm-card-title"><h3>Diario delle spedizioni</h3><span>ULTIME CINQUE</span></div>' + (trips || '<p>Non è ancora partita nessuna squadra.</p>') + '</div>' +
-      '<h3 class="realm-section-title">Diplomazia e rotte commerciali</h3><p class="realm-intro">Ogni comunità ha merci diverse da vendere e materiali di cui ha bisogno. Il trattato apre una rotta permanente con consegne periodiche dedicate: legname da Selvalunga, provviste da Porto Salmastra, pietra da Rocciacupa.</p>' +
+      '<div class="realm-card"><div class="realm-card-title"><h3>Diario delle spedizioni</h3><span>ULTIME CINQUE</span></div>' + (trips || '<p>Nessun messaggero ha ancora seguito le stelle oltre il confine.</p>') + '</div>' +
+      '<h3 class="realm-section-title">Diplomazia e rotte delle Cinque Luci</h3><p class="realm-intro">Selvalunga, Porto Salmastra e Rocciacupa custodiscono tre versioni della leggenda e merci diverse. Il trattato apre una rotta permanente con consegne periodiche dedicate: legname da Selvalunga, provviste da Porto Salmastra, pietra da Rocciacupa.</p>' +
       '<div class="realm-faction-list">' + diplomacy + '</div>';
     return;
   }
@@ -1070,7 +1070,7 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
         realmActionButton(done ? 'Completata' : isActive ? 'In corso' : 'Avvia ricerca', 'research', research.id, '', disabled) + '</article>';
     }).join('');
     root.innerHTML = '<div class="realm-summary-grid"><div><small>PUNTI CONOSCENZA</small><strong>' + formatNumber(world.researchPoints) + '</strong></div><div><small>RICERCHE ACQUISITE</small><strong>' + world.researched.length + '/' + RESEARCH.length + '</strong></div><div><small>STUDIOSI AL LAVORO</small><strong>' + assignedScholars + '</strong></div></div>' +
-      '<p class="realm-intro">La conoscenza cresce solo con studiosi adulti assegnati esplicitamente alla Scuola o all’Università. Chi non ha una postazione di ricerca non genera punti e non accelera gli studi. I tratti curiosi fanno imparare più in fretta. Avvia una ricerca alla volta: una volta completata, il bonus resta attivo.</p>' +
+      '<p class="realm-intro">Le tavolette delle Rovine sono scritte in alfabeti differenti. La conoscenza cresce solo con studiosi adulti assegnati alla Scuola o all’Università. Chi non ha una postazione di ricerca non genera punti e non accelera gli studi. I tratti curiosi fanno imparare più in fretta. Avvia una ricerca alla volta: una volta completata, il bonus resta attivo.</p>' +
       '<div class="realm-research-list">' + researches + '</div>';
     return;
   }
@@ -1091,12 +1091,12 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
       (choice.cost && Object.keys(choice.cost).length ? 'Costo: ' + escapeRealmHtml(formatCost(choice.cost)) : 'Nessun costo materiale') +
       (choice.reward && Object.keys(choice.reward).length ? ' · Ricompensa: ' + escapeRealmHtml(formatCost(choice.reward)) : '') + '</em></div>' +
       realmActionButton('Scegli', 'event', choice.id, '', !hasResourceCost(state.resources, choice.cost ?? {}) || !hasGoodsCost(goods, choice.goodsCost ?? {})) + '</div>').join('') + '</div></article>'
-    : '<div class="realm-empty"><strong>Il Consiglio attende</strong><p>Nessun evento urgente. Gli imprevisti emergono in base al tempo e alle scoperte, e possono aprire storie concatenate.</p></div>';
+    : '<div class="realm-empty"><strong>La campana attende</strong><p>Nessun nuovo segno è emerso per ora. Le decisioni e le scoperte possono aprire capitoli concatenati della cronaca.</p></div>';
   root.innerHTML = '<div class="realm-summary-grid"><div><small>PROGETTI COMPLETATI</small><strong>' + world.completedProjects.length + '/4</strong></div><div><small>EVENTI IN CORSO</small><strong>' + (event ? '1' : '0') + '</strong></div><div><small>CRONACA</small><strong>' + world.chronicle.length + ' voci</strong></div></div>' +
-    '<h3 class="realm-section-title">Avvenimenti e storie concatenate</h3>' + eventPanel +
-    '<h3 class="realm-section-title">Grandi opere collettive</h3><p class="realm-intro">Ogni opera ha tre fasi finanziabili. I benefici diventano permanenti quando il progetto è completato.</p><div class="realm-project-list">' + projects + '</div>' +
+    '<h3 class="realm-section-title">I rintocchi della cronaca</h3>' + eventPanel +
+    '<h3 class="realm-section-title">Grandi opere collettive</h3><p class="realm-intro">Acquedotto, Ponte, Quartiere artigiano e Archivio sono i quattro pilastri del Patto. Ogni opera ha tre fasi finanziabili: i benefici diventano permanenti quando il progetto è completato.</p><div class="realm-project-list">' + projects + '</div>' +
     '<div class="realm-card"><div class="realm-card-title"><h3>Cronaca del regno</h3><span>MEMORIA PERSISTENTE</span></div><div class="realm-world-chronicle">' +
-    (world.chronicle.length ? world.chronicle.map((entry) => '<p>' + escapeRealmHtml(entry) + '</p>').join('') : '<p>Le prime storie del regno devono ancora essere scritte.</p>') + '</div></div>';
+    (world.chronicle.length ? world.chronicle.map((entry) => '<p>' + escapeRealmHtml(entry) + '</p>').join('') : '<p>La prima pagina della cronaca attende il rintocco.</p>') + '</div></div>';
 }
 
 
@@ -1240,12 +1240,12 @@ export function setupUI(): void {
     const list = $('community-history-list');
     list.innerHTML = '';
     if (community) {
-      $('community-history-summary').textContent = 'Umore ' + community.morale + '/100 · Fiducia ' + community.trust + '/100 · richieste accolte ' + community.fulfilledRequests + ' · ignorate ' + community.ignoredRequests + '. Le soglie della comunità influenzano produzione, crescita e monete.';
+      $('community-history-summary').textContent = 'Ogni risposta aggiunge una riga alla cronaca delle Cinque Luci. Umore ' + community.morale + '/100 · Fiducia ' + community.trust + '/100 · richieste accolte ' + community.fulfilledRequests + ' · ignorate ' + community.ignoredRequests + '. Le soglie della comunità influenzano produzione, crescita e monete.';
       const entries = community.history;
       if (entries.length === 0) {
         const empty = document.createElement('p');
         empty.className = 'community-history-empty';
-        empty.textContent = 'La cronaca è ancora vuota. Rispondi alla prima richiesta per lasciare un segno nella storia del borgo.';
+        empty.textContent = 'La cronaca è ancora vuota. Rispondi alla prima voce della piazza: il Patto comincia da chi viene ascoltato.';
         list.append(empty);
       } else {
         entries.forEach((entry, index) => {
@@ -1385,12 +1385,12 @@ export function setupUI(): void {
     });
 
     $('population-rate').textContent = state.resources.food < 18 ? 'serve cibo' : state.population < housingCapacity(state) ? 'può crescere' : 'case piene';
-    $('world-title').textContent = snapshot.mode === 'challenge' ? snapshot.challenge.title : 'Valle di Brumadoro';
+    $('world-title').textContent = snapshot.mode === 'challenge' ? snapshot.challenge.title : 'Brumadoro · Valle delle Cinque Luci';
     $('world-subtitle').textContent = snapshot.mode === 'challenge'
-      ? 'Ogni giorno porta una missione, regole speciali e nuove medaglie da conquistare.'
-      : 'Un piccolo inizio. Infinite possibilità.';
+      ? 'Ogni prova racconta una pagina dimenticata e conserva i tuoi record senza alterare la campagna.'
+      : 'Una campana sepolta. Cinque luci da riaccendere. Un patto da ritrovare.';
     $('world-eyebrow').textContent = snapshot.mode === 'challenge' ? 'SFIDA A TEMPO' : 'IL TUO TERRITORIO';
-    $('world-status').textContent = snapshot.mode === 'challenge' ? 'Sfida quotidiana in corso' : 'Il tuo regno è in pace';
+    $('world-status').textContent = snapshot.mode === 'challenge' ? 'Una nuova pagina della cronaca' : 'La campana attende sotto il Municipio';
     $('kingdom-mode').classList.toggle('active', snapshot.mode === 'kingdom');
     $('challenge-mode').classList.toggle('active', snapshot.mode === 'challenge');
 
@@ -1433,8 +1433,8 @@ export function setupUI(): void {
       : state.resources.food < 18
         ? 'Le dispense scendono sotto 18: la crescita si ferma finché non produci altro cibo.'
         : state.population >= 8
-          ? 'Hai superato il primo traguardo. Completa gli obiettivi a destra, migliora gli edifici e usa le monete con criterio.'
-          : 'Costruisci prima una fattoria. Con cibo sufficiente e posti liberi, arriveranno nuovi abitanti.';
+          ? 'La prima iscrizione è stata decifrata. Segui gli obiettivi, migliora gli edifici e ascolta le voci delle altre valli.'
+          : 'Il primo indizio è sotto il Municipio, ma la prima promessa è sulla tavola: costruisci una fattoria e fai in modo che nessuno resti senza pane.';
 
     renderCitizenPanel(snapshot);
     renderTutorial(snapshot);
