@@ -1,5 +1,7 @@
 export type Resource = 'wood' | 'stone' | 'food' | 'coins';
-export type BuildingType = 'townHall' | 'house' | 'farm' | 'sawmill' | 'quarry' | 'market' | 'road' | 'mill' | 'bakery' | 'warehouse' | 'school' | 'watchtower' | 'workshop';
+export type BuildingType = 'townHall' | 'house' | 'farm' | 'sawmill' | 'quarry' | 'market' | 'road' | 'mill' | 'bakery' | 'warehouse' | 'school' | 'watchtower' | 'workshop' | 'university';
+export type EpochId = 'settlement' | 'village' | 'borough' | 'city';
+export interface KingdomProgression { unlockedEpochs: EpochId[]; campaignComplete: boolean; history: string[] }
 export type Terrain = 'grass' | 'forest' | 'rock' | 'water';
 export type GameMode = 'kingdom' | 'challenge';
 export type SeasonId = 'spring' | 'summer' | 'autumn' | 'winter';
@@ -33,7 +35,7 @@ export interface Faction { id: string; name: string; specialty: string; relation
 export interface WorldState { version: 1; nextCitizenId: number; citizens: Citizen[]; goods: GoodsBag; policies: RealmPolicies; researchPoints: number; activeResearch: ResearchId | null; researchProgress: number; researched: ResearchId[]; expeditions: Expedition[]; discoveredRegions: RegionId[]; chronicle: string[]; activeEvent: RealmEvent | null; nextEventAt: number; queuedEvent: string | null; eventQueue?: string[]; projectStages: Record<ProjectId, number>; market: MarketState; forestHealth: number; weather: WeatherState; completedProjects: ProjectId[]; factions: Faction[]; tradeRoutes: string[] }
 export type RealmAction = | { type: 'assign'; citizenId: string; value: Profession } | { type: 'workplace'; citizenId: string; buildingId: string | null } | { type: 'law'; id: 'tax' | 'food' | 'forest' | 'guard'; value: string } | { type: 'research'; id: ResearchId } | { type: 'expedition'; id: RegionId; scoutId?: string; crewIds?: string[]; foodSupply?: number; durationFactor?: number; useTools?: boolean } | { type: 'project'; id: ProjectId } | { type: 'event'; id: string } | { type: 'diplomacy'; id: string; value: 'gift' | 'trade' | 'treaty' } | { type: 'tradeGoods'; good: TradableGood; amount: number };
 export interface Building { id: string; type: BuildingType; x: number; y: number; level: number }
-export interface GameState { version: 1; seed: number; resources: ResourceBag; population: number; gameMinutes: number; buildings: Building[]; lastSavedAt: number; milestones?: number[]; community?: CommunityState; world?: WorldState }
+export interface GameState { version: 1; seed: number; resources: ResourceBag; population: number; gameMinutes: number; buildings: Building[]; lastSavedAt: number; milestones?: number[]; community?: CommunityState; world?: WorldState; progression?: KingdomProgression }
 export interface BuildingDefinition { type: BuildingType; name: string; shortName: string; description: string; icon: string; cost: Partial<ResourceBag>; unlockedAt: number; housing?: number; production?: Partial<Record<Resource, number>> }
 export interface BuildCheck { ok: boolean; reason?: string }
 export interface DailyChallenge { date: string; seed: number; title: string; description: string; kind: 'population' | 'resources' | 'buildings'; target: number; buildingType?: BuildingType; reward: string }
