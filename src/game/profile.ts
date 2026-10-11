@@ -94,7 +94,6 @@ export function recordChallengeVictory(original:PlayerProfile,challenge:DailyCha
   const previousRewards=new Set(profile.unlockedRewards),oldAchievementIds=new Set(profile.achievements.map(a=>a.id));
   const bestScore=Math.max(previous?.bestScore??0,Math.floor(score));
   const tier=medalTier(bestScore);
-  const firstCompletion=!previous;
   const category=challengeCategory(challenge);
   if(previous){
     previous.score=Math.floor(score);
