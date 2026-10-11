@@ -1,6 +1,6 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import {createDailyChallenge} from './challenge';
-import {createPlayerProfile,loadPlayerProfile,recordChallengeVictory,savePlayerProfile,applyProfileBonuses,getAchievementProgress} from './profile';
+import {createPlayerProfile,loadPlayerProfile,recordChallengeVictory,savePlayerProfile,applyProfileBonuses,getAchievementProgress,getChallengeArchive} from './profile';
 import {createInitialState} from './engine';
 
 afterEach(()=>vi.unstubAllGlobals());
@@ -54,5 +54,18 @@ describe('permanent single-player rewards',()=>{
     expect(profile.medals).toEqual([]);
     expect(profile.totalCompleted).toBe(0);
     expect(profile.unlockedRewards).toEqual([]);
+  });
+  it('exposes the newest completed challenges as a local archive without mutating saved order',()=>{
+    let profile=createPlayerProfile();
+    for(let day=1;day<=3;day++){
+      const c=createDailyChallenge(new Date(2026,0,day));
+      profile=recordChallengeVictory(profile,{...c,id:'archive-day-'+day},1000+day*500,180-day*20,new Date(Date.UTC(2026,0,day,12))).profile;
+    }
+    const before=profile.records.map(record=>record.date);
+    const archive=getChallengeArchive(profile,2);
+    expect(archive.map(record=>record.date)).toEqual(['2026-01-03','2026-01-02']);
+    expect(archive.map(record=>record.bestScore)).toEqual([2500,2000]);
+    expect(profile.records.map(record=>record.date)).toEqual(before);
+    expect(getChallengeArchive(profile,0)).toEqual([]);
   });
 });
