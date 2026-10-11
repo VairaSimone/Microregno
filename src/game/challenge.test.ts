@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {challengeProgress,challengeScore,createChallengeState,createDailyChallenge,isChallengeComplete,localDateKey,medalTier} from './challenge';
+import {challengeScore,createChallengeState,createDailyChallenge,isChallengeComplete,localDateKey,medalTier} from './challenge';
 import {createInitialState} from './engine';
 
 describe('daily challenge variety',()=>{
