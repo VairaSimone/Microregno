@@ -955,18 +955,20 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     resources = applyReward(resources, choice.reward ?? {});
     const goods = applyGoods(payGoods(world.goods, choice.goodsCost ?? {}), choice.goodsReward ?? {});
     let citizens = world.citizens;
-    if (choice.populationDelta) population = Math.max(0, population + choice.populationDelta);
-    if (choice.populationDelta && choice.populationDelta > 0) {
+    const populationBeforeChoice = population;
+    population = Math.max(5, population + (choice.populationDelta ?? 0));
+    const appliedPopulationDelta = population - populationBeforeChoice;
+    if (appliedPopulationDelta > 0) {
       const profession = choice.profession ?? 'farmer';
       const firstNewCitizenIndex = world.citizens.length;
-      for (let index = 0; index < choice.populationDelta; index++) {
+      for (let index = 0; index < appliedPopulationDelta; index++) {
         world = addCitizenForState({ ...state, resources }, world, profession);
       }
       citizens = world.citizens.map((citizen, index) => index >= firstNewCitizenIndex
         ? { ...citizen, skills: { ...citizen.skills, [profession]: 24 }, lastAction: 'È arrivato grazie a un evento del regno' }
         : citizen);
     }
-    if (choice.populationDelta && choice.populationDelta < 0) citizens = citizens.slice(0, Math.max(0, citizens.length + choice.populationDelta));
+    if (appliedPopulationDelta < 0) citizens = citizens.slice(0, Math.max(0, citizens.length + appliedPopulationDelta));
     const eventQueue = [...(world.eventQueue ?? (world.queuedEvent ? [world.queuedEvent] : []))];
     const alreadyQueued = eventQueue.length > 0;
     if (choice.chain && !eventQueue.includes(choice.chain)) eventQueue.push(choice.chain);
