@@ -84,13 +84,13 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
     {
       key: 'farm', title: '1 · Metti al sicuro il cibo',
       description: 'Ciao, custode! Sono Bricco. Prima di tutto, costruiamo una Fattoria: senza cibo nessun borgo può crescere.',
-      rule: 'Scegli Fattoria nel pannello Costruisci, poi clicca una casella d’erba libera. Costa 10 legname e 3 pietra; il cantiere dura 12 secondi, poi inizierà a produrre cibo con lavoratori.'
+      rule: 'Scegli Fattoria nel pannello Costruisci, poi clicca una casella d’erba libera. Costa 10 legname e 3 pietra; il cantiere dura 12 secondi, poi inizierà a produrre cibo con lavoratori.',
       actionType: 'farm', action: 'build', actionLabel: 'Scegli la Fattoria', done: has('farm'),
     },
     {
       key: 'house', title: '2 · Diamo un tetto ai vicini',
       description: 'Bene! Adesso prepara una Casa. Il Municipio ha già spazio per cinque abitanti, ma per crescere ci servono altri posti.',
-      rule: 'La Casa costa 12 legname e 5 pietra, il cantiere dura 10 secondi e aggiunge 6 posti solo quando è terminata. Per attirare nuovi abitanti tieni almeno 18 cibo e un posto libero.'
+      rule: 'La Casa costa 12 legname e 5 pietra, il cantiere dura 10 secondi e aggiunge 6 posti solo quando è terminata. Per attirare nuovi abitanti tieni almeno 18 cibo e un posto libero.',
       actionType: 'house', action: 'build', actionLabel: 'Scegli una Casa', done: has('house'),
     },
     {
@@ -151,7 +151,7 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
     {
       key: 'city', title: '11 · Prepariamo la Città',
       description: 'Il passaggio alla Città è una prova completa di gestione: popolazione, istruzione, ricerca, grandi opere e rotte devono crescere insieme.',
-      rule: 'Servono 18 abitanti, una Scuola, 2 ricerche, una grande opera, 2 regioni scoperte e un edificio al livello 3. Ogni potenziamento richiede un cantiere: pianifica prima i materiali.'
+      rule: 'Servono 18 abitanti, una Scuola, 2 ricerche, una grande opera, 2 regioni scoperte e un edificio al livello 3. Ogni potenziamento richiede un cantiere: pianifica prima i materiali.',
       actionType: null, action: 'objectives', actionLabel: 'Controlla i requisiti della Città', done: hasEpoch('city'),
     },
     {
@@ -175,7 +175,7 @@ function createTutorialSteps(snapshot: GameSnapshot): TutorialStep[] {
     {
       key: 'charter', title: '15 · La Carta della Corona',
       description: 'L’ultimo traguardo mette alla prova tutto ciò che hai imparato. La Corona richiede una città prospera, alleanze e opere durature.',
-      rule: 'La Carta richiede un vero Impero: 60 abitanti, sei edifici al livello 5, quattro grandi opere, quattro accordi o rotte, tutte le cinque regioni, Università al livello 5, Osservatorio al livello 3 e 500 monete.'
+      rule: 'La Carta richiede un vero Impero: 60 abitanti, sei edifici al livello 5, quattro grandi opere, quattro accordi o rotte, tutte le cinque regioni, Università al livello 5, Osservatorio al livello 3 e 500 monete.',
       actionType: null, action: 'objectives', actionLabel: 'Controlla la Carta della Corona', done: state.progression?.campaignComplete === true,
     },
     {
