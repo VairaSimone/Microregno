@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState, advanceTime, resourceRates } from './engine';
-import { advanceRealmMinute, canExploreRegion, createWorldState, getInterestGroups, getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods, ensureWorldState, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
+import { advanceRealmMinute, canColonizeRegion, canExploreRegion, createWorldState, frontierFoundingCost, frontierStructureAllowed, getInterestGroups, getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods, ensureWorldState, isRoadConnectedToHub, performRealmAction, realmModifiers, worldBuildingMultiplier } from './livingWorld';
 import { resolveCitizenRequest } from './community';
 import type { Building } from './types';
 
@@ -263,14 +263,90 @@ describe('living world simulation', () => {
     expect(realmModifiers(treaty.state).tradeIncome).toBeGreaterThan(0);
   });
 
-  it('adds useful transport value to a productive building beside a road', () => {
-    const state = createInitialState();
-    const farm: Building = { id: 'farm-road-test', type: 'farm', x: 5, y: 4, level: 1 };
-    state.buildings.push(farm);
-    const before = worldBuildingMultiplier(state, farm);
-    state.buildings.push({ id: 'road-test', type: 'road', x: 5, y: 5, level: 1 });
-    const after = worldBuildingMultiplier(state, farm);
-    expect(after).toBeCloseTo(before * 1.08);
+  it('requires a successful survey and Borough era before founding a frontier colony', () => {
+    const state = createInitialState(6201);
+    unlockBorough(state);
+    const blocked = performRealmAction(state, { type: 'colonize', id: 'forest' });
+    expect(blocked.ok).toBe(false);
+    state.world!.discoveredRegions.push('forest');
+    expect(canColonizeRegion(state, 'forest')).toBe(true);
+    expect(frontierFoundingCost('forest')).toEqual({ wood: 16, stone: 5, coins: 6 });
+    const founded = performRealmAction(state, { type: 'colonize', id: 'forest' });
+    expect(founded.ok).toBe(true);
+    const territory = founded.state.world!.frontierTerritories[0]!;
+    expect(territory.region).toBe('forest');
+    expect(territory.structures).toHaveLength(1);
+    expect(territory.structures[0]).toMatchObject({ type: 'outpost', x: 2, y: 2 });
+  });
+
+  it('builds structures on the local 5x5 map and harvests its finite reserves', () => {
+    const state = createInitialState(6202);
+    unlockBorough(state);
+    state.world!.discoveredRegions.push('forest');
+    const founded = performRealmAction(state, { type: 'colonize', id: 'forest' });
+    const built = performRealmAction(founded.state, { type: 'frontierBuild', region: 'forest', structure: 'lumberCamp', x: 1, y: 1 });
+    expect(built.ok).toBe(true);
+    expect(frontierStructureAllowed('forest', 'lumberCamp')).toBe(true);
+    expect(frontierStructureAllowed('lake', 'lumberCamp')).toBe(false);
+    const initialLocalWood = built.state.world!.frontierTerritories[0]!.stock.wood;
+    const initialGlobalWood = built.state.resources.wood;
+    const after = advanceRealmMinute({ ...built.state, gameMinutes: 60 });
+    expect(after.resources.wood).toBeGreaterThan(initialGlobalWood);
+    expect(after.world!.frontierTerritories[0]!.stock.wood).toBeLessThan(initialLocalWood);
+  });
+
+  it('makes regional incidents persist and reduce frontier production temporarily', () => {
+    const state = createInitialState(6203);
+    unlockBorough(state);
+    state.world!.discoveredRegions.push('forest');
+    const founded = performRealmAction(state, { type: 'colonize', id: 'forest' });
+    const built = performRealmAction(founded.state, { type: 'frontierBuild', region: 'forest', structure: 'lumberCamp', x: 1, y: 1 });
+    const territory = built.state.world!.frontierTerritories[0]!;
+    const exposed = { ...built.state, gameMinutes: 60, world: { ...built.state.world!, frontierTerritories: [{ ...territory, activeIncident: { kind: 'wildfire' as const, title: 'Incendio', startedAt: 0, endsAt: 180, outputPenalty: 0.5 } }] } };
+    const calm = advanceRealmMinute(exposed);
+    const storm = advanceRealmMinute({ ...exposed, world: { ...exposed.world!, frontierTerritories: [{ ...territory, activeIncident: null }] } });
+    expect(calm.resources.wood).toBeLessThan(storm.resources.wood);
+    expect(calm.world!.frontierTerritories[0]!.activeIncident?.title).toBe('Incendio');
+  });
+
+  it('uses different resource needs and offers for each foreign community', () => {
+    const state = createInitialState(6204);
+    unlockBorough(state);
+    const faction = state.world!.factions.find((entry) => entry.id === 'rocciacupa')!;
+    const beforeFood = state.resources.food;
+    const beforeStone = state.resources.stone;
+    const trade = performRealmAction(state, { type: 'diplomacy', id: faction.id, value: 'trade' });
+    expect(trade.ok).toBe(true);
+    expect(trade.state.resources.food).toBe(beforeFood - 8);
+    expect(trade.state.resources.stone).toBe(beforeStone + 7);
+    expect(trade.state.world!.factions.find((entry) => entry.id === faction.id)!.relation).toBe(faction.relation + 7);
+  });
+
+  it('persists a permanent regional policy chosen after an expedition story', () => {
+    const state = createInitialState(6205);
+    unlockBorough(state);
+    const story = { id: 'forest-expedition', title: 'Il patto della radura', description: 'Scegli una politica.', startedAt: 0, choices: [{ id: 'protect-grove', label: 'Proteggi', detail: 'Conserva la riserva.', frontierPerk: 'forest-reserve' as const, moodDelta: 2, trustDelta: 2 }] };
+    const result = performRealmAction({ ...state, world: { ...state.world!, activeEvent: story } }, { type: 'event', id: 'protect-grove' });
+    expect(result.ok).toBe(true);
+    expect(result.state.world!.frontierPerks).toContain('forest-reserve');
+  });
+
+  it('rewards a productive building only when a continuous road reaches a town hall or market', () => {
+    const connected = createInitialState();
+    const connectedFarm: Building = { id: 'farm-road-test', type: 'farm', x: 5, y: 4, level: 1 };
+    connected.buildings.push(connectedFarm);
+    const before = worldBuildingMultiplier(connected, connectedFarm);
+    connected.buildings.push({ id: 'road-test', type: 'road', x: 5, y: 5, level: 1 });
+    expect(isRoadConnectedToHub(connected, connectedFarm)).toBe(true);
+    expect(worldBuildingMultiplier(connected, connectedFarm)).toBeCloseTo(before * 1.12);
+
+    const disconnected = createInitialState();
+    const remoteFarm: Building = { id: 'remote-farm', type: 'farm', x: 1, y: 1, level: 1 };
+    disconnected.buildings.push(remoteFarm);
+    const remoteBefore = worldBuildingMultiplier(disconnected, remoteFarm);
+    disconnected.buildings.push({ id: 'isolated-road', type: 'road', x: 1, y: 2, level: 1 });
+    expect(isRoadConnectedToHub(disconnected, remoteFarm)).toBe(false);
+    expect(worldBuildingMultiplier(disconnected, remoteFarm)).toBeCloseTo(remoteBefore);
   });
 
   it('refreshes market demand on a schedule and makes stock sellable through a staffed market', () => {
