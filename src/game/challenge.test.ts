@@ -20,7 +20,7 @@ describe('daily challenge variety',()=>{
     const challenge=createDailyChallenge(new Date(2026,9,11));
     const state=createChallengeState(challenge);
     expect(state.gameMinutes).toBe(challenge.startGameMinutes??0);
-    expect(state.resources.wood).toBe(38+(challenge.initialResources?.wood??0)-38);
+    expect(state.resources.wood).toBe(challenge.initialResources?.wood??38);
     expect(state.population).toBe(5);
   });
   it('requires a scripted event and a food reserve when the challenge says so',()=>{
