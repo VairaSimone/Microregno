@@ -12,13 +12,15 @@ const SPRITES:Record<BuildingType,string>={townHall:'town-hall',house:'house',fa
 function publicAssetBase():string{const page=new URL(window.location.href);const finalSegment=page.pathname.split('/').pop()??'';if(!page.pathname.endsWith('/')&&!finalSegment.includes('.'))page.pathname+='/';return new URL('assets/',page).toString();}
 export class KingdomScene extends Phaser.Scene{
 private state!:GameState;private kingdom!:GameState;private mode:GameMode='kingdom';private challenge!:DailyChallenge;private terrain!:Terrain[][];
-private board!:Phaser.GameObjects.Graphics;private hover!:Phaser.GameObjects.Graphics;private objects:Phaser.GameObjects.GameObject[]=[];
+private ambience!:Phaser.GameObjects.Graphics;private board!:Phaser.GameObjects.Graphics;private groundDetail!:Phaser.GameObjects.Graphics;private hover!:Phaser.GameObjects.Graphics;private objects:Phaser.GameObjects.GameObject[]=[];
 private buildType:BuildingType|null=null;private selectedId:string|null=null;private villagerTweens=new Map<Phaser.GameObjects.Container,Phaser.Tweens.Tween>();private completed=false;private best=0;private savedAt=0;private ox=512;private oy=88;private profile:PlayerProfile=loadPlayerProfile();private challengeEventTriggered=false;private dragState:{button:number;startX:number;startY:number;lastX:number;lastY:number;startRotation:number;moved:boolean}|null=null;private cameraTouched=false;private rotationSensitivity=.006;private cameraRotation=0;
 constructor(){super('KingdomScene');}
 preload():void{this.load.setPath(publicAssetBase());this.load.on('loaderror',(file:{key:string})=>{window.dispatchEvent(new CustomEvent('microregno:notice',{detail:'Grafica non caricata: '+file.key+'. Controlla la cartella public/assets.'}));});[['town-hall','town-hall.svg'],['house','house.svg'],['farm','farm.svg'],['sawmill','sawmill.svg'],['quarry','quarry.svg'],['market','market.svg'],['road','road.svg'],['mill','mill.svg'],['bakery','bakery.svg'],['warehouse','warehouse.svg'],['school','school.svg'],['watchtower','watchtower.svg'],['workshop','workshop.svg'],['university','university.svg'],['orchard','orchard.svg'],['fishingHut','fishingHut.svg'],['herbGarden','herbGarden.svg'],['inn','inn.svg'],['ironworks','ironworks.svg'],['observatory','observatory.svg'],['tree','tree.svg'],['rock','rock.svg'],['leaf','leaf.svg']].forEach(([k,p])=>this.load.image(k!,p!));}
 create():void{
-  this.cameras.main.setBackgroundColor('#9dbd96');
+  this.cameras.main.setBackgroundColor('#a7c8b0');
+  this.ambience=this.add.graphics().setDepth(-20).setScrollFactor(0);
   this.board=this.add.graphics().setDepth(0);
+  this.groundDetail=this.add.graphics().setDepth(1);
   this.hover=this.add.graphics().setDepth(1000);
   this.challenge=createDailyChallenge();
   this.profile=loadPlayerProfile();
@@ -86,10 +88,41 @@ private fitZoom(width:number,height:number):number{
   const worldHeight=(BOARD_SIZE-1)*TILE_HEIGHT+120;
   return Phaser.Math.Clamp(Math.min((width-26)/worldWidth,(height-28)/worldHeight,1.8),.55,1.8);
 }
+private drawAmbience(width:number,height:number):void{
+  if(!this.ambience)return;
+  const g=this.ambience;
+  g.clear();
+  g.fillGradientStyle(0xe9f0d2,0xd8e9d6,0xc5dfd7,0x9fc5b5,1);
+  g.fillRect(-2,-2,width+4,height+4);
+  g.fillStyle(0x729b7b,.13);
+  g.fillPoints([
+    new Phaser.Geom.Point(-40,height*.64),new Phaser.Geom.Point(width*.12,height*.54),
+    new Phaser.Geom.Point(width*.24,height*.6),new Phaser.Geom.Point(width*.39,height*.47),
+    new Phaser.Geom.Point(width*.55,height*.61),new Phaser.Geom.Point(width*.73,height*.49),
+    new Phaser.Geom.Point(width*.91,height*.58),new Phaser.Geom.Point(width+40,height*.53),
+    new Phaser.Geom.Point(width+40,height+30),new Phaser.Geom.Point(-40,height+30)
+  ],true);
+  g.fillStyle(0x527f6a,.1);
+  g.fillPoints([
+    new Phaser.Geom.Point(-40,height*.8),new Phaser.Geom.Point(width*.18,height*.7),
+    new Phaser.Geom.Point(width*.36,height*.77),new Phaser.Geom.Point(width*.61,height*.68),
+    new Phaser.Geom.Point(width*.8,height*.77),new Phaser.Geom.Point(width+40,height*.7),
+    new Phaser.Geom.Point(width+40,height+30),new Phaser.Geom.Point(-40,height+30)
+  ],true);
+  const radius=Math.max(80,Math.min(width,height)*.19);
+  g.fillStyle(0xffe8a7,.07);g.fillCircle(width*.79,height*.22,radius*1.35);
+  g.fillStyle(0xfff1c4,.13);g.fillCircle(width*.79,height*.22,radius);
+  g.lineStyle(1,0xf5f2cf,.17);
+  for(let i=0;i<9;i++){
+    const x=width*(.08+i*.105),y=height*(.15+(i%3)*.13);
+    g.lineBetween(x,y,x+14+(i%4)*3,y-3);
+  }
+}
 private resizeWorld(width:number,height:number,initial=false):void{
   this.ox=width/2;
   const mapHeight=(BOARD_SIZE-1)*TILE_HEIGHT;
   this.oy=(height-mapHeight)/2+22;
+  this.drawAmbience(width,height);
   const camera=this.cameras.main;
   if(initial||!this.cameraTouched)camera.setZoom(this.fitZoom(width,height));
   camera.centerOn(this.ox,this.oy+mapHeight/2);
@@ -172,9 +205,160 @@ private toTile(px:number,py:number):{x:number;y:number}{const a=(px-this.ox)/(TI
 private toScreen(x:number,y:number):{x:number;y:number}{return{x:this.ox+(x-y)*TILE_WIDTH/2,y:this.oy+(x+y)*TILE_HEIGHT/2};}
 private diamond(cx:number,cy:number):Phaser.Geom.Point[]{return[new Phaser.Geom.Point(cx,cy-TILE_HEIGHT/2),new Phaser.Geom.Point(cx+TILE_WIDTH/2,cy),new Phaser.Geom.Point(cx,cy+TILE_HEIGHT/2),new Phaser.Geom.Point(cx-TILE_WIDTH/2,cy)];}
 private drawHover(px:number,py:number):void{const t=this.toTile(px,py);this.hover.clear();if(t.x<0||t.y<0||t.x>=BOARD_SIZE||t.y>=BOARD_SIZE)return;const p=this.toScreen(t.x,t.y),color=this.buildType?(canBuild(this.state,this.terrain,t.x,t.y,this.buildType).ok?0xeff7b0:0xed8e7a):0xf5d47c;this.hover.lineStyle(3,color,.96);this.hover.strokePoints(this.diamond(p.x,p.y),true);}
-private redraw():void{if(!this.board)return;this.villagerTweens.forEach(t=>t.stop());this.villagerTweens.clear();this.board.clear();this.objects.forEach(o=>o.destroy());this.objects=[];const tiles:{x:number;y:number}[]=[];for(let sum=0;sum<BOARD_SIZE*2-1;sum++)for(let y=0;y<BOARD_SIZE;y++){const x=sum-y;if(x>=0&&x<BOARD_SIZE)tiles.push({x,y});}
-const season=getSeason(this.state.gameMinutes);tiles.forEach(({x,y})=>{const p=this.toScreen(x,y),t=this.terrain[y]![x]!;let fill=t==='water'?(season.id==='winter'?0x8daeb2:0x6ebbc8):t==='forest'?(season.id==='autumn'?0x8f9d64:season.id==='winter'?0x8d9f92:0x79a96f):t==='rock'?0xa6a99d:(season.id==='autumn'?0xb5b37f:season.id==='winter'?0xa7b5a6:season.id==='summer'?0xa6bf79:0x9fbe83);if(t==='grass'&&(x*7+y*3+this.state.seed)%4===0)fill=season.id==='autumn'?0xc0b477:season.id==='winter'?0xb7c2b1:0x95b77a;this.board.fillStyle(fill,1);this.board.fillPoints(this.diamond(p.x,p.y),true);this.board.lineStyle(1,t==='water'?0x5aa6b6:0x769b69,.72);this.board.strokePoints(this.diamond(p.x,p.y),true);});
-tiles.forEach(({x,y})=>{const p=this.toScreen(x,y),t=this.terrain[y]![x]!;if(t==='forest'){const treeTint=season.id==='autumn'?0xc99a54:season.id==='winter'?0xaab8aa:season.id==='summer'?0x97b875:0xffffff;const o=this.add.image(p.x,p.y-22,'tree').setDisplaySize(61,76).setTint(treeTint).setOrigin(.5,.83).setDepth((x+y)*10+3);this.objects.push(o);}else if(t==='rock'){const o=this.add.image(p.x,p.y-3,'rock').setDisplaySize(48,42).setOrigin(.5,.76).setDepth((x+y)*10+3);this.objects.push(o);}else if(t==='water'&&(x+y)%2===0){const o=this.add.image(p.x,p.y-2,'leaf').setDisplaySize(22,9).setTint(0xd9f1e9).setAlpha(.58).setDepth((x+y)*10+3);this.objects.push(o);}const b=this.state.buildings.find(v=>v.x===x&&v.y===y);if(b){const sizes:Record<BuildingType,[number,number]>={townHall:[111,112],house:[81,79],farm:[93,79],sawmill:[91,83],quarry:[87,82],market:[91,80],road:[62,35],mill:[87,82],bakery:[86,82],warehouse:[88,82],school:[86,88],watchtower:[72,96],workshop:[86,80],university:[96,94],orchard:[88,80],fishingHut:[84,79],herbGarden:[83,75],inn:[91,83],ironworks:[88,84],observatory:[94,96]};const z=sizes[b.type];const depth=(x+y)*10+6;const o=this.add.image(p.x,p.y+1,SPRITES[b.type]).setDisplaySize(z[0],z[1]).setOrigin(.5,.83).setDepth(depth).setAlpha(b.construction?.kind === 'build' ? 0.62 : 1);this.objects.push(o);if(b.construction){const label=this.add.text(p.x,p.y-53,b.construction.kind==='build'?'CANTIERE':'UPGRADE',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#fffbe8',backgroundColor:'#795b2b',padding:{x:4,y:3}}).setOrigin(.5).setDepth(depth+4);this.objects.push(label);}if(b.level>1){const bx=p.x+25,by=p.y-47;const badge=this.add.circle(bx,by,10,0x285238).setStrokeStyle(2,0xf0d58c).setDepth(depth+2);const level=this.add.text(bx,by,String(b.level),{fontFamily:'Arial',fontSize:'12px',fontStyle:'bold',color:'#fffbe8',align:'center'}).setOrigin(.5).setDepth(depth+3);this.objects.push(badge,level);}}});this.drawVillagers();this.hover.clear();}
+private redraw():void{
+  if(!this.board)return;
+  this.villagerTweens.forEach(t=>t.stop());this.villagerTweens.clear();
+  this.board.clear();this.groundDetail.clear();
+  this.objects.forEach(o=>o.destroy());this.objects=[];
+  const tiles:{x:number;y:number}[]=[];
+  for(let sum=0;sum<BOARD_SIZE*2-1;sum++)for(let y=0;y<BOARD_SIZE;y++){const x=sum-y;if(x>=0&&x<BOARD_SIZE)tiles.push({x,y});}
+  const season=getSeason(this.state.gameMinutes);
+  const seed=this.state.seed>>>0;
+  // Each tile casts a small offset shadow, giving the map a raised, handcrafted diorama feel.
+  tiles.forEach(({x,y})=>{
+    const p=this.toScreen(x,y),t=this.terrain[y]![x]!;
+    this.board.fillStyle(t==='water'?0x244e59:0x304a37,t==='water'?.2:.19);
+    this.board.fillPoints(this.diamond(p.x+1,p.y+3.4),true);
+  });
+  // Sculpted tile tops with light from the upper-left and deeper lower edges.
+  tiles.forEach(({x,y})=>{
+    const p=this.toScreen(x,y),t=this.terrain[y]![x]!;
+    const variation=Math.abs((x*31+y*17+seed)%5);
+    let fill:number,edge:number,highlight:number;
+    if(t==='water'){
+      fill=season.id==='winter'?0x8eafb4:[0x5ca9b7,0x63afbc,0x579eaf,0x69b2bd,0x559aaa][variation]!;
+      edge=0x356d7d;highlight=0xc7eee0;
+    }else if(t==='forest'){
+      fill=season.id==='autumn'?0x87965e:season.id==='winter'?0x8b9d92:season.id==='summer'?0x6f9f5a:[0x65975b,0x72a363,0x619253,0x7eaa6b,0x6b9c5c][variation]!;
+      edge=0x526f4a;highlight=0xd6e5ad;
+    }else if(t==='rock'){
+      fill=[0x96a59d,0xa4b0a5,0x8c9b96,0xb0b7a9,0x99a7a1][variation]!;
+      edge=0x64786e;highlight=0xe5e9d9;
+    }else{
+      const seasonal=season.id==='autumn'?[0xb7aa70,0xc0b47b,0xa9a166,0xb8ad76,0xc3b780]
+        :season.id==='winter'?[0xa3b3a5,0xb2bfb2,0x9cafa2,0xb9c6b5,0xaab9aa]
+        :season.id==='summer'?[0x8eaf66,0x9bbd72,0x83a75f,0xa1bc76,0x8fb46c]
+        :[0x8cb77b,0x95bd84,0x83ae74,0xa1c18a,0x8bb779];
+      fill=seasonal[variation]!;edge=0x5e8056;highlight=0xe3efc0;
+    }
+    const points=this.diamond(p.x,p.y);
+    this.board.fillStyle(fill,1);this.board.fillPoints(points,true);
+    this.board.fillStyle(highlight,t==='water'?.13:.12);
+    this.board.fillPoints([points[0]!,points[1]!,new Phaser.Geom.Point(p.x,p.y),points[3]!],true);
+    this.board.lineStyle(1.15,edge,.68);this.board.strokePoints(points,true);
+    this.board.lineStyle(1.05,highlight,t==='water'?.34:.46);
+    this.board.lineBetween(points[0]!.x,points[0]!.y,points[3]!.x,points[3]!.y);
+    this.board.lineBetween(points[0]!.x,points[0]!.y,points[1]!.x,points[1]!.y);
+    this.board.lineStyle(.9,0x304f3d,.2);
+    this.board.lineBetween(points[1]!.x,points[1]!.y,points[2]!.x,points[2]!.y);
+    this.board.lineBetween(points[2]!.x,points[2]!.y,points[3]!.x,points[3]!.y);
+  });
+  // Small, seed-stable surface marks keep the terrain lively without expensive particle systems.
+  tiles.forEach(({x,y})=>{
+    const p=this.toScreen(x,y),t=this.terrain[y]![x]!;
+    const hash=Math.abs(Math.imul(x+17,73856093)^Math.imul(y+29,19349663)^seed)>>>0;
+    const points=this.diamond(p.x,p.y);
+    if(t==='water'){
+      if(hash%3!==0){
+        const tint=season.id==='winter'?0xe7f3ed:0xd6f1e8;
+        this.groundDetail.lineStyle(1.35,tint,.42);
+        const shift=(hash%7)-3;
+        this.groundDetail.lineBetween(p.x-12+shift,p.y-5,p.x-3+shift,p.y-5);
+        this.groundDetail.lineBetween(p.x+3-shift*.4,p.y+2,p.x+11-shift*.4,p.y+2);
+        if(hash%4===0)this.groundDetail.fillStyle(0xf2f4d7,.35),this.groundDetail.fillCircle(p.x+8,p.y-7,1.2);
+      }
+      continue;
+    }
+    const neighbours=[
+      {x:x+1,y,edge:[points[1]!,points[2]!]},
+      {x:x-1,y,edge:[points[0]!,points[3]!] },
+      {x,y:y+1,edge:[points[2]!,points[3]!] },
+      {x,y:y-1,edge:[points[0]!,points[1]!] }
+    ];
+    const shore=neighbours.filter(n=>n.x>=0&&n.y>=0&&n.x<BOARD_SIZE&&n.y<BOARD_SIZE&&this.terrain[n.y]![n.x]==='water');
+    shore.forEach(n=>{
+      this.groundDetail.lineStyle(1.8,0xe4d5a4,.76);
+      this.groundDetail.lineBetween(n.edge[0]!.x,n.edge[0]!.y,n.edge[1]!.x,n.edge[1]!.y);
+      this.groundDetail.lineStyle(.9,0xf4edc6,.68);
+      this.groundDetail.lineBetween(n.edge[0]!.x,n.edge[0]!.y+1,n.edge[1]!.x,n.edge[1]!.y+1);
+    });
+    if(t==='grass'){
+      const gx=p.x+((hash>>>4)%17)-8,gy=p.y+((hash>>>10)%9)-2;
+      if(hash%4!==0){
+        const green=season.id==='autumn'?0x6e8846:season.id==='winter'?0x7c9686:0x557f4c;
+        this.groundDetail.lineStyle(1.3,green,.58);
+        this.groundDetail.lineBetween(gx-2,gy+2,gx-2,gy-2);
+        this.groundDetail.lineBetween(gx,gy+2,gx+1,gy-1);
+        this.groundDetail.lineBetween(gx+2,gy+2,gx+4,gy-1);
+      }
+      if(hash%13===0){
+        const flower=season.id==='autumn'?0xe7b96f:0xf1dfaa;
+        this.groundDetail.fillStyle(flower,.9);
+        this.groundDetail.fillCircle(p.x+((hash>>>2)%19)-9,p.y+((hash>>>8)%11)-5,1.8);
+        this.groundDetail.fillStyle(0xb38a55,.9);
+        this.groundDetail.fillCircle(p.x+((hash>>>2)%19)-9,p.y+((hash>>>8)%11)-5,.7);
+      }
+      if(hash%9===0){
+        this.groundDetail.fillStyle(0x4d7149,.35);
+        this.groundDetail.fillEllipse(p.x-7,p.y+7,5,2);
+        this.groundDetail.fillStyle(0xc4d49a,.4);
+        this.groundDetail.fillEllipse(p.x-6,p.y+6,2,1);
+      }
+    }else if(t==='rock'){
+      this.groundDetail.lineStyle(1.1,0xe0e5d8,.65);
+      this.groundDetail.lineBetween(p.x-10,p.y+8,p.x-6,p.y+5);
+      this.groundDetail.lineBetween(p.x+5,p.y+10,p.x+9,p.y+7);
+      this.groundDetail.fillStyle(0x66796f,.45);
+      this.groundDetail.fillCircle(p.x-12,p.y+3,1.1);
+      this.groundDetail.fillCircle(p.x+12,p.y+5,1.4);
+    }else if(t==='forest'&&hash%3===0){
+      this.groundDetail.fillStyle(season.id==='autumn'?0x8d934f:0x47794a,.65);
+      this.groundDetail.fillCircle(p.x-8,p.y+10,3.3);
+      this.groundDetail.fillCircle(p.x-5,p.y+8,2.6);
+      this.groundDetail.fillStyle(0xb6cf85,.52);
+      this.groundDetail.fillCircle(p.x-7,p.y+8,1.2);
+    }
+  });
+  tiles.forEach(({x,y})=>{
+    const p=this.toScreen(x,y),t=this.terrain[y]![x]!;
+    const hash=Math.abs((x*13+y*7+seed)%11);
+    if(t==='forest'){
+      const treeTint=season.id==='autumn'?0xc99a54:season.id==='winter'?0xaab8aa:season.id==='summer'?0x97b875:0xffffff;
+      const scale=.91+(hash%5)*.035;
+      const o=this.add.image(p.x,p.y-22,'tree').setDisplaySize(61*scale,76*scale).setTint(treeTint).setOrigin(.5,.83).setRotation(((hash%7)-3)*.018).setDepth((x+y)*10+3);
+      this.objects.push(o);
+    }else if(t==='rock'){
+      const scale=.9+(hash%5)*.04;
+      const o=this.add.image(p.x,p.y-3,'rock').setDisplaySize(48*scale,42*scale).setOrigin(.5,.76).setRotation(((hash%5)-2)*.025).setDepth((x+y)*10+3);
+      this.objects.push(o);
+    }
+    const b=this.state.buildings.find(v=>v.x===x&&v.y===y);
+    if(b){
+      const sizes:Record<BuildingType,[number,number]>={townHall:[111,112],house:[81,79],farm:[93,79],sawmill:[91,83],quarry:[87,82],market:[91,80],road:[62,35],mill:[87,82],bakery:[86,82],warehouse:[88,82],school:[86,88],watchtower:[72,96],workshop:[86,80],university:[96,94],orchard:[88,80],fishingHut:[84,79],herbGarden:[83,75],inn:[91,83],ironworks:[88,84],observatory:[94,96]};
+      const z=sizes[b.type],depth=(x+y)*10+6;
+      const shadow=this.add.ellipse(p.x,p.y+10,z[0]*.64,Math.max(8,z[1]*.18),0x213928,.28).setDepth(depth-2);
+      this.objects.push(shadow);
+      if(this.selectedId===b.id){
+        const ring=this.add.ellipse(p.x,p.y+5,z[0]*.78,Math.max(12,z[1]*.22),0xf2cf70,.19).setStrokeStyle(2,0xffe8a6,.92).setDepth(depth-1);
+        this.objects.push(ring);
+      }
+      const sizeFactor=b.type==='road'?1:1.035;
+      const o=this.add.image(p.x,p.y+1,SPRITES[b.type]).setDisplaySize(z[0]*sizeFactor,z[1]*sizeFactor).setOrigin(.5,.83).setDepth(depth).setAlpha(b.construction?.kind==='build'?.62:1);
+      this.objects.push(o);
+      if(b.construction){
+        const label=this.add.text(p.x,p.y-53,b.construction.kind==='build'?'CANTIERE':'UPGRADE',{fontFamily:'Arial',fontSize:'9px',fontStyle:'bold',color:'#fffbe8',backgroundColor:'#795b2b',padding:{x:4,y:3}}).setOrigin(.5).setDepth(depth+4);
+        this.objects.push(label);
+      }
+      if(b.level>1){
+        const bx=p.x+25,by=p.y-47;
+        const badge=this.add.circle(bx,by,10,0x285238).setStrokeStyle(2,0xf0d58c).setDepth(depth+2);
+        const level=this.add.text(bx,by,String(b.level),{fontFamily:'Arial',fontSize:'12px',fontStyle:'bold',color:'#fffbe8',align:'center'}).setOrigin(.5).setDepth(depth+3);
+        this.objects.push(badge,level);
+      }
+    }
+  });
+  this.drawVillagers();this.hover.clear();
+}
 private walkableTile(x:number,y:number):boolean{
 return x>=0&&y>=0&&x<BOARD_SIZE&&y<BOARD_SIZE&&this.terrain[y]![x]==='grass'&&!this.state.buildings.some(b=>b.x===x&&b.y===y);
 }

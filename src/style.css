@@ -1334,3 +1334,102 @@ body.reduce-motion-ui *,body.reduce-motion-ui *:before,body.reduce-motion-ui *:a
 @media(max-width:900px){.topbar{padding:0 10px!important}.brand{min-width:145px}.brand strong{font-size:11px;letter-spacing:1.15px}.brand small{font-size:9px}.topbar-center{font-size:10px}.topbar-actions{gap:4px}.top-action-button{padding:7px 9px!important}.top-action-button>span:last-child{display:none}.top-icon-button{width:45px!important}.resourcebar{padding:6px 9px!important;gap:6px}.resource-chip{flex:1 0 108px}.world-heading{left:82px;top:10px;padding:8px 11px;max-width:calc(100vw - 96px)}.world-heading h1{font-size:18px!important}.left-column{left:80px!important}.right-column{right:8px!important}}
 @media(max-width:600px){.brand{min-width:94px;gap:5px}.brand-mark{width:30px;height:30px;font-size:18px}.brand strong{font-size:9px;letter-spacing:.7px}.brand small,.topbar-center{display:none}.topbar-actions{margin-left:auto}.top-icon-button{width:37px!important;height:39px!important}.top-icon-button small{font-size:7px}.topbar-actions .top-action-button{display:none!important}.resource-chip{flex:0 0 108px;min-width:108px}.resource-chip em{display:none}.world-heading{left:9px;top:8px;max-width:calc(100vw - 18px)}.world-heading h1{font-size:17px!important}.game-rail{top:auto;left:50%;bottom:8px;transform:translateX(-50%);flex-direction:row;justify-content:flex-start;width:max-content;max-width:calc(100vw - 12px);padding:4px;gap:2px;overflow-x:auto}.game-rail-button{flex:0 0 47px;width:47px;min-height:44px;padding:3px 1px;gap:2px}.rail-glyph{font-size:17px}.game-rail-button small{font-size:7px}.rail-separator{width:1px;height:28px;flex:0 0 1px;margin:7px 2px}.left-column,.right-column{left:8px!important;right:8px!important;top:62px!important;bottom:66px!important;width:auto!important;max-height:none!important}.camera-controls{right:10px;bottom:65px;gap:2px;padding:4px}.camera-controls button{width:29px;height:29px;font-size:18px}.camera-help{left:10px;right:auto;bottom:66px;max-width:calc(100vw - 195px);font-size:8px}.frame-bottom{left:10px;right:10px;bottom:110px;font-size:9px!important}.world-footer{left:8px;bottom:64px;max-width:calc(100vw - 180px);padding:5px 7px!important;font-size:8px!important}#world-population-note{display:none!important}.utility-dialog{padding:16px}.utility-dialog h2{font-size:23px}.settings-actions{display:grid;grid-template-columns:1fr 1fr}.settings-actions #close-settings-footer{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.game-rail-button,.camera-controls button,.top-icon-button{transition:none!important}}
+
+
+/* Art direction pass · illustrated diorama, warmer materials and layered interface */
+:root {
+  --diorama-green: #2c583b;
+  --diorama-gold: #d8b96e;
+  --diorama-ink: #243d2d;
+}
+.world-frame {
+  border-color: #aec19c !important;
+  background: linear-gradient(145deg, #edf2dc 0%, #d9e9d2 52%, #b8d8c8 100%) !important;
+  box-shadow: 0 18px 44px rgba(33, 66, 40, .16), inset 0 1px 0 rgba(255,255,255,.9), inset 0 0 0 1px rgba(255,255,255,.3) !important;
+}
+.game-mount {
+  isolation: isolate;
+  border: 1px solid rgba(77, 118, 86, .48) !important;
+  background:
+    radial-gradient(ellipse at 76% 17%, rgba(255,244,196,.54), transparent 25%),
+    radial-gradient(ellipse at 12% 83%, rgba(75,143,106,.19), transparent 39%),
+    linear-gradient(155deg, #e0efdc 0%, #c8e2d8 48%, #b2d5c4 100%) !important;
+  box-shadow: inset 0 0 0 4px rgba(248,247,220,.25), inset 0 16px 38px rgba(255,255,255,.18), inset 0 -25px 45px rgba(34,79,55,.08) !important;
+}
+.game-mount::before {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(132deg, rgba(255,250,213,.12), transparent 28%, transparent 74%, rgba(22,58,39,.12)),
+    radial-gradient(ellipse at 50% 46%, transparent 50%, rgba(31,75,52,.12) 100%);
+  box-shadow: inset 0 0 0 1px rgba(245,246,218,.22);
+}
+.game-mount canvas {
+  position: relative;
+  z-index: 1;
+  filter: saturate(1.055) contrast(1.025);
+}
+.frame-top, .frame-bottom {
+  color: #536f55;
+  letter-spacing: .16px;
+}
+.frame-top > span:first-child::before {
+  box-shadow: 0 0 0 3px rgba(131,168,102,.18), 0 0 12px rgba(131,168,102,.4);
+}
+.world-heading h1 {
+  text-shadow: 0 2px 0 rgba(255,255,255,.45);
+}
+.resource-chip {
+  position: relative;
+  overflow: hidden;
+  border-color: #e4e0cf !important;
+  background: linear-gradient(155deg, #fffef9 0%, #f8f6e8 100%) !important;
+  box-shadow: 0 7px 18px rgba(35,57,36,.07), inset 0 1px 0 rgba(255,255,255,.95) !important;
+}
+.resource-chip::after {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 0;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, #d9bb72, rgba(217,187,114,0));
+}
+.symbol {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85), 0 3px 9px rgba(50,69,44,.05);
+}
+.game-rail {
+  border-color: rgba(242,224,163,.35) !important;
+  background: linear-gradient(165deg, rgba(23,56,38,.96), rgba(17,43,30,.91)) !important;
+  box-shadow: 0 16px 36px rgba(13,34,23,.32), inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+.game-rail-button.active, .game-rail-button[aria-pressed=true] {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 4px 14px rgba(6,23,14,.16);
+}
+.camera-controls {
+  border-color: rgba(232,211,146,.42) !important;
+  background: linear-gradient(150deg, rgba(28,66,44,.94), rgba(14,39,27,.91)) !important;
+  box-shadow: 0 12px 28px rgba(17,43,29,.26), inset 0 1px 0 rgba(255,255,255,.1) !important;
+}
+.left-column .panel, .right-column .panel {
+  border-color: #e1dfcf !important;
+  box-shadow: 0 18px 48px rgba(20,44,29,.26), inset 0 1px 0 rgba(255,255,255,.94) !important;
+}
+.primary {
+  background: linear-gradient(180deg, #3f7950, #28583a) !important;
+  border-color: #21492e !important;
+  box-shadow: 0 5px 13px rgba(38,82,49,.16), inset 0 1px 0 rgba(255,255,255,.16);
+}
+.primary:hover:not(:disabled) {
+  filter: brightness(1.055);
+  transform: translateY(-1px);
+}
+.secondary, .subtle-button {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.88);
+}
+@media (prefers-reduced-motion: reduce) {
+  .primary, .secondary, .danger, .build-card { transition: none !important; }
+}
