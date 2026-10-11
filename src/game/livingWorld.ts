@@ -133,6 +133,10 @@ function refreshMarket(seed: number, gameMinutes: number, market: MarketState, g
 const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', forest: 'managed', guard: 'none' };
 const EVENT_IDS = ['drought', 'caravan', 'wanderer', 'wolves', 'fair', 'caravan-rescue', 'drought-recovery', 'ruins-found', 'archive-clue', 'forest-expedition', 'mountain-expedition', 'lake-expedition', 'border-expedition'];
 
+function RESOURCE_NAME(resource: Resource): string {
+  return resource === 'wood' ? 'legname' : resource === 'stone' ? 'pietra' : resource === 'food' ? 'cibo' : 'monete';
+}
+
 function clamp(value: number, low = 0, high = 100): number {
   return Math.max(low, Math.min(high, Math.round(value * 100) / 100));
 }
@@ -1114,20 +1118,25 @@ export function advanceRealmMinute(input: GameState): GameState {
     citizens = citizens.map((citizen) => crewIds.includes(citizen.id) ? { ...citizen, status: 'resident', activity: 'resting', expeditionId: null, energy: clamp(citizen.energy + 18), lastAction: success ? 'È tornato da una spedizione' : 'È tornato stanco da una spedizione difficile' } : citizen);
     if (success) {
       const reward = expeditionReward(expedition.region);
+      const firstDiscovery = !nextWorld.discoveredRegions.includes(expedition.region);
       Object.assign(resources, applyReward(resources, reward.resources));
       Object.assign(goods, applyGoods(goods, reward.goods));
       nextWorld = { ...nextWorld, discoveredRegions: [...new Set([...nextWorld.discoveredRegions, expedition.region])], researchPoints: nextWorld.researchPoints + reward.research };
       expedition = { ...expedition, status: 'success', outcome: reward.note };
       notes.push(reward.note);
-      if (expedition.region === 'ancient-ruins') {
+      if (firstDiscovery) {
+        const storyForRegion: Record<RegionId, string> = {
+          forest: 'forest-expedition', mountains: 'mountain-expedition', lake: 'lake-expedition',
+          'ancient-ruins': 'ruins-found', borderlands: 'border-expedition',
+        };
+        const storyId = storyForRegion[expedition.region];
         const eventQueue = [...(nextWorld.eventQueue ?? (nextWorld.queuedEvent ? [nextWorld.queuedEvent] : []))];
-        if (!eventQueue.includes('ruins-found')) eventQueue.push('ruins-found');
+        if (nextWorld.activeEvent?.id !== storyId && !eventQueue.includes(storyId)) eventQueue.push(storyId);
         const queued = eventQueue.slice(0, 16);
         nextWorld = { ...nextWorld, eventQueue: queued, queuedEvent: queued[0] ?? null, nextEventAt: Math.min(nextWorld.nextEventAt, state.gameMinutes + 45) };
-      }
-      if (expedition.region === 'borderlands') {
-        const factions = nextWorld.factions.map((faction, factionIndex) => factionIndex === 0 ? { ...faction, relation: clamp(faction.relation + 8) } : faction);
-        nextWorld = { ...nextWorld, factions };
+        if (expedition.region === 'borderlands') {
+          nextWorld = { ...nextWorld, factions: nextWorld.factions.map((faction) => faction.id === 'salmastra' ? { ...faction, relation: clamp(faction.relation + 8) } : faction) };
+        }
       }
     } else {
       expedition = { ...expedition, status: 'partial', outcome: 'La squadra ha trovato poco e deve riposare prima di ripartire.' };
@@ -1397,7 +1406,12 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
       : choice.chain
         ? state.gameMinutes + 75
         : state.gameMinutes + 300;
-    world = { ...world, citizens, goods, activeEvent: null, eventQueue: queued, queuedEvent, nextEventAt, researchPoints: world.researchPoints + (choice.researchDelta ?? 0), weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather };
+    world = {
+      ...world, citizens, goods, activeEvent: null, eventQueue: queued, queuedEvent, nextEventAt,
+      researchPoints: world.researchPoints + (choice.researchDelta ?? 0),
+      frontierPerks: choice.frontierPerk ? [...new Set([...world.frontierPerks, choice.frontierPerk])] : world.frontierPerks,
+      weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather,
+    };
     community = applyCommunityEffects(community, choice.moodDelta ?? 0, choice.trustDelta ?? 0);
     return finish(event.title + ' — ' + choice.label + '. ' + choice.detail);
   }
@@ -1437,11 +1451,16 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
       return finish('Hai inviato un dono a ' + faction.name + '. I rapporti migliorano.');
     }
     if (action.value === 'trade') {
-      if (resources.wood < 6) return fail('Lo scambio richiede 6 legname.');
-      resources.wood -= 6;
-      resources.coins += 12;
-      world = { ...world, factions: world.factions.map((entry) => entry.id === faction.id ? { ...entry, relation: clamp(entry.relation + 5), lastContact: state.gameMinutes } : entry) };
-      return finish('Scambio completato con ' + faction.name + ': 6 legname per 12 monete.');
+      const profile = FACTION_TRADE_PROFILES[faction.id] ?? FACTION_TRADE_PROFILES.selvalunga;
+      const need = faction.need ?? profile.need!;
+      const offer = faction.offer ?? profile.offer!;
+      const needAmount = faction.needAmount ?? profile.needAmount!;
+      const offerAmount = faction.offerAmount ?? profile.offerAmount!;
+      if (resources[need] < needAmount) return fail(faction.name + ' richiede ' + needAmount + ' ' + RESOURCE_NAME(need) + ' per lo scambio, ma le tue scorte non bastano.');
+      resources[need] -= needAmount;
+      resources[offer] += offerAmount;
+      world = { ...world, factions: world.factions.map((entry) => entry.id === faction.id ? { ...entry, relation: clamp(entry.relation + 7), lastContact: state.gameMinutes } : entry) };
+      return finish('Scambio con ' + faction.name + ': ' + needAmount + ' ' + RESOURCE_NAME(need) + ' in cambio di ' + offerAmount + ' ' + RESOURCE_NAME(offer) + '. I rapporti migliorano.');
     }
     if (faction.treaty || world.tradeRoutes.includes(faction.id)) return fail('Esiste già un accordo con questa comunità.');
     if (faction.relation < 55) return fail('I rapporti devono raggiungere 55 prima di firmare un accordo. Puoi inviare un dono o commerciare.');
