@@ -3,9 +3,21 @@ import {advanceTime,awardPopulationMilestones,buildAt,canBuild,createInitialStat
 import {createDailyChallenge,challengeProgress,isChallengeComplete} from './challenge';
 import {applyOfflineProgress} from './save';
 import {getSeason,resolveCitizenRequest} from './community';
-import {worldBuildingMultiplier} from './livingWorld';
+import {ensureWorldState,worldBuildingMultiplier} from './livingWorld';
 
 describe('simulazione Microregno',()=>{
+  it('non rimpiazza subito un abitante che abbandona il borgo',()=>{
+    const s=createInitialState(),house=buildAt(s,generateTerrain(s.seed),6,6,'house');
+    const populated=ensureWorldState({
+      ...house.state,
+      population:6,
+      resources:{...house.state.resources,food:200},
+    });
+    populated.world!.citizens.forEach((citizen)=>{citizen.happiness=5;});
+    const afterDeparture=advanceTime(populated,120);
+    expect(afterDeparture.population).toBe(5);
+    expect(afterDeparture.world!.citizens).toHaveLength(5);
+  });
   it('genera un terreno deterministico per seed',()=>{
     expect(generateTerrain(1234)).toEqual(generateTerrain(1234));
     expect(generateTerrain(1234)).not.toEqual(generateTerrain(1235));
