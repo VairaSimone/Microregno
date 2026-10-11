@@ -3,10 +3,10 @@ import { buildingUnlocked } from './game/challenge';
 import { EPOCHS,EPOCH_ORDER,getBuildingEpoch,getCharterRequirements,getCurrentEpochId,getEpochRequirements,isEpochUnlocked } from './game/progression';
 import { getSeason } from './game/community';
 import { getResourcePurchasePrice, goodsStorageCapacity, totalStoredGoods } from './game/livingWorld';
-import { canExploreRegion, CITIZEN_ACTIVITY_LABELS, getCitizenActivity, getCitizenWorkplace, getInterestGroups, projectRequirement, PROFESSION_LABELS, PROFESSIONS, PROJECTS, researchRequirement, RESEARCH, REGIONS, worldBuildingMultiplier } from './game/livingWorld';
+import { canColonizeRegion, canExploreRegion, frontierFoundingCost, frontierStructureAllowed, FRONTIER_GRID_SIZE, FRONTIER_STRUCTURES, CITIZEN_ACTIVITY_LABELS, getCitizenActivity, getCitizenWorkplace, getInterestGroups, projectRequirement, PROFESSION_LABELS, PROFESSIONS, PROJECTS, researchRequirement, RESEARCH, REGIONS, worldBuildingMultiplier } from './game/livingWorld';
 import type { GoodsBag, MarketResource, WorldState } from './game/types';
 import { generateTerrain, housingCapacity, POPULATION_MILESTONES, productionForBuilding, resourceRates, upgradeCost } from './game/engine';
-import type { BuildingType, GameSnapshot, Profession, Resource } from './game/types';
+import type { BuildingType, FrontierStructureType, GameSnapshot, Profession, RegionId, Resource } from './game/types';
 
 const WORKPLACE_PROFESSION: Partial<Record<BuildingType, Profession>> = {
   farm: 'farmer', sawmill: 'lumberjack', quarry: 'miner', market: 'merchant', mill: 'miller', bakery: 'baker', school: 'scholar', watchtower: 'guard', workshop: 'artisan', university: 'scholar',
@@ -738,31 +738,70 @@ function renderRealmDashboard(snapshot: GameSnapshot): void {
     const regions = REGIONS.map((region) => {
       const unlocked = canExploreRegion(world, region.id);
       const discovered = world.discoveredRegions.includes(region.id);
+      const territory = world.frontierTerritories.find((entry) => entry.region === region.id);
       const trip = activeTrips.find((entry) => entry.region === region.id);
       const completed = world.expeditions.find((entry) => entry.region === region.id && entry.status !== 'active');
-      const status = trip ? 'IN VIAGGIO' : discovered ? 'ESPLORATA' : unlocked ? 'SCOPERTA POSSIBILE' : 'BLOCCATA';
+      const status = trip ? 'IN VIAGGIO' : territory ? 'COLONIZZATA' : discovered ? 'ESPLORATA' : unlocked ? 'SCOPERTA POSSIBILE' : 'BLOCCATA';
       const tripText = trip ? 'Rientro previsto tra ' + Math.max(0, Math.ceil((trip.eta - state.gameMinutes) / 60)) + ' minuti di gioco.' :
         completed?.outcome ?? region.description;
+      const foundationCost = frontierFoundingCost(region.id);
+      const foundationLabel = !discovered ? 'Prima esplora la regione' : !isEpochUnlocked(state, 'borough') ? 'Richiede l’epoca del Borgo' : 'Fonda avamposto · ' + formatCost(foundationCost);
+      const foundationButton = territory ? '' : realmActionButton(foundationLabel, 'colonize', region.id, '', !canColonizeRegion(state, region.id) || !hasResourceCost(state.resources, foundationCost));
+      let localMap = '';
+      if (territory) {
+        const localStock = (['wood', 'stone', 'food', 'coins'] as Resource[]).map((resource) =>
+          '<span><small>' + escapeRealmHtml(RESOURCE_LABELS[resource]) + '</small><b>' + formatNumber(territory.stock[resource]) + '</b></span>').join('');
+        const allowedStructures = (Object.entries(FRONTIER_STRUCTURES) as Array<[FrontierStructureType, (typeof FRONTIER_STRUCTURES)[FrontierStructureType]]>)
+          .filter(([type]) => type !== 'outpost')
+          .filter(([type]) => frontierStructureAllowed(region.id, type));
+        const selectorOptions = allowedStructures.map(([type, definition]) => '<option value="' + type + '">' + escapeRealmHtml(definition.icon + ' ' + definition.name) + ' · ' + escapeRealmHtml(formatCost(definition.cost)) + '</option>').join('');
+        const cells = Array.from({ length: FRONTIER_GRID_SIZE * FRONTIER_GRID_SIZE }, (_, index) => {
+          const x = index % FRONTIER_GRID_SIZE;
+          const y = Math.floor(index / FRONTIER_GRID_SIZE);
+          const structure = territory.structures.find((entry) => entry.x === x && entry.y === y);
+          if (structure) {
+            const definition = FRONTIER_STRUCTURES[structure.type];
+            return '<button type="button" class="realm-frontier-tile built" disabled title="' + escapeRealmHtml(definition.name + ' · livello ' + structure.level) + '"><span>' + definition.icon + '</span><small>' + escapeRealmHtml(definition.name) + '</small></button>';
+          }
+          return '<button type="button" class="realm-frontier-tile empty" data-action="frontierTile" data-id="' + region.id + '" data-value="' + x + ',' + y + '" aria-label="Costruisci nella casella ' + x + ',' + y + '">+</button>';
+        }).join('');
+        const activeIncident = territory.activeIncident && territory.activeIncident.endsAt > state.gameMinutes
+          ? '<p class="realm-frontier-incident"><b>⚠ ' + escapeRealmHtml(territory.activeIncident.title) + '</b> · produzione ridotta per ' + Math.ceil((territory.activeIncident.endsAt - state.gameMinutes) / 60) + ' min di gioco</p>'
+          : '';
+        localMap = '<div class="realm-frontier-colony"><div class="realm-frontier-colony-head"><div><b>Territorio giocabile · griglia 5×5</b><small>Stabilità ' + Math.round(territory.stability) + '/100 · rischio climatico e incursioni locali</small></div></div>' +
+          '<div class="realm-frontier-stock">' + localStock + '</div>' + activeIncident +
+          '<div class="realm-frontier-buildbar"><label>Nuova struttura<select data-frontier-structure="' + region.id + '">' + selectorOptions + '</select></label><small>Scegli una struttura, poi clicca una casella vuota della mappa. Le riserve locali si esauriscono e gli incidenti riducono temporaneamente la produzione.</small></div>' +
+          '<div class="realm-frontier-grid terrain-' + territory.climate + '" role="group" aria-label="Mappa costruibile di ' + escapeRealmHtml(region.name) + '">' + cells + '</div></div>';
+      }
       return '<article class="realm-region-card"><div><div class="realm-card-title"><h3>' + escapeRealmHtml(region.name) + '</h3><span>' + status + '</span></div><p>' + escapeRealmHtml(tripText) + '</p><small>Durata base: ' + Math.ceil(region.duration / 60) + ' minuti · provviste e ritmo si scelgono qui sopra' + (goods.tools > 0 ? ' · 1 attrezzo migliora il successo' : '') + '</small></div>' +
-        realmActionButton(trip ? 'Spedizione in corso' : discovered ? 'Esplora di nuovo' : 'Invia equipaggio', 'expedition', region.id, '', !unlocked || !availableScouts.length || state.resources.food < 8 || activeTrips.length >= (world.researched.includes('cartography') ? 2 : 1) || !!trip) + '</article>'; 
+        foundationButton + localMap +
+        realmActionButton(trip ? 'Spedizione in corso' : discovered ? 'Esplora di nuovo' : 'Invia equipaggio', 'expedition', region.id, '', !unlocked || !availableScouts.length || state.resources.food < 8 || activeTrips.length >= (world.researched.includes('cartography') ? 2 : 1) || !!trip) + '</article>';
     }).join('');
     const trips = world.expeditions.slice(-5).reverse().map((trip) => {
       const regionName = REGIONS.find((region) => region.id === trip.region)?.name ?? trip.region;
       return '<div class="realm-history-row"><span class="realm-status-dot ' + trip.status + '"></span><div><b>' + escapeRealmHtml(regionName) + '</b><small>' + escapeRealmHtml(trip.outcome) + '</small></div><strong>' + (trip.status === 'active' ? Math.ceil((trip.eta - state.gameMinutes) / 60) + ' min' : trip.status === 'success' ? 'Riuscita' : 'Parziale') + '</strong></div>';
     }).join('');
-    const diplomacy = world.factions.map((faction) => '<article class="realm-faction-card"><div><h3>' + escapeRealmHtml(faction.name) + '</h3><p>' + escapeRealmHtml(faction.specialty) + '</p><div class="realm-meter"><div><span>Relazioni</span><b>' + faction.relation + '/100</b></div><span class="realm-meter-track"><i style="width:' + faction.relation + '%"></i></span></div>' +
-      '<small>' + (faction.treaty ? 'Trattato attivo · rotta commerciale' : faction.relation >= 55 ? 'Pronta per un accordo commerciale' : 'Servono rapporti a 55 per un trattato') + '</small></div><div class="realm-button-row">' +
-      realmActionButton('Dono · 8 monete', 'diplomacy', faction.id, 'gift', state.resources.coins < 8) +
-      realmActionButton('Scambio · 6 legna', 'diplomacy', faction.id, 'trade', state.resources.wood < 6) +
-      realmActionButton(faction.treaty ? 'Trattato firmato' : 'Firma trattato · 10 monete', 'diplomacy', faction.id, 'treaty', faction.treaty || faction.relation < 55 || state.resources.coins < 10) +
-      '</div></article>').join('');
+    const diplomacy = world.factions.map((faction) => {
+      const need = faction.need ?? (faction.id === 'salmastra' ? 'wood' : faction.id === 'rocciacupa' ? 'food' : 'stone');
+      const offer = faction.offer ?? (faction.id === 'salmastra' ? 'food' : faction.id === 'rocciacupa' ? 'stone' : 'wood');
+      const needAmount = faction.needAmount ?? (faction.id === 'salmastra' ? 6 : faction.id === 'rocciacupa' ? 8 : 5);
+      const offerAmount = faction.offerAmount ?? (faction.id === 'salmastra' ? 10 : faction.id === 'rocciacupa' ? 7 : 9);
+      const benefit = faction.treatyBenefit ?? (faction.id === 'salmastra' ? 'provviste e pesca' : faction.id === 'rocciacupa' ? 'pietra e strumenti' : 'legname e recupero forestale');
+      return '<article class="realm-faction-card"><div><h3>' + escapeRealmHtml(faction.name) + '</h3><p>' + escapeRealmHtml(faction.specialty) + '</p><div class="realm-meter"><div><span>Relazioni</span><b>' + faction.relation + '/100</b></div><span class="realm-meter-track"><i style="width:' + faction.relation + '%"></i></span></div>' +
+        '<p class="realm-faction-offer"><b>Chiede:</b> ' + needAmount + ' ' + escapeRealmHtml(RESOURCE_LABELS[need]) + ' · <b>Offre:</b> ' + offerAmount + ' ' + escapeRealmHtml(RESOURCE_LABELS[offer]) + '</p>' +
+        '<small>' + (faction.treaty ? 'Trattato attivo · rotta: ' + escapeRealmHtml(benefit) : faction.relation >= 55 ? 'Pronta per un accordo commerciale' : 'Servono rapporti a 55 per un trattato') + '</small></div><div class="realm-button-row">' +
+        realmActionButton('Dono · 8 monete', 'diplomacy', faction.id, 'gift', state.resources.coins < 8) +
+        realmActionButton('Scambia ' + needAmount + ' ' + RESOURCE_LABELS[need], 'diplomacy', faction.id, 'trade', state.resources[need] < needAmount) +
+        realmActionButton(faction.treaty ? 'Trattato firmato' : 'Firma trattato · 10 monete', 'diplomacy', faction.id, 'treaty', faction.treaty || faction.relation < 55 || state.resources.coins < 10) +
+        '</div></article>';
+    }).join('');
     const frontierMap = renderFrontierMap(world);
     root.innerHTML = '<div class="realm-summary-grid"><div><small>REGIONI NOTE</small><strong>' + world.discoveredRegions.length + '/' + REGIONS.length + '</strong></div><div><small>SPEDIZIONI ATTIVE</small><strong>' + activeTrips.length + '/' + (world.researched.includes('cartography') ? 2 : 1) + '</strong></div><div><small>ESPLORATORI DISPONIBILI</small><strong>' + activeScouts + '</strong></div></div>' +
-      '<p class="realm-intro">Le spedizioni consumano cibo, richiedono un cittadino assegnato a Esploratore e possono riportare risorse, attrezzi, conoscenze e incontri diplomatici. Alcune regioni richiedono la cartografia.</p>' +
-      '<h3 class="realm-section-title">Carta della frontiera</h3>' + frontierMap +
+      '<p class="realm-intro">Le spedizioni consumano provviste e possono sbloccare storie a scelta permanente. Dopo una ricognizione riuscita, nell’epoca del Borgo puoi fondare un avamposto: ogni regione ha una mappa costruibile 5×5, scorte locali finite, strutture specializzate e incidenti climatici o politici. Le colonie producono solo finché hanno riserve e stabilità sufficienti.</p>' +
+      '<h3 class="realm-section-title">Carta generale della frontiera</h3>' + frontierMap +
       '<h3 class="realm-section-title">Frontiera e spedizioni</h3>' + expeditionPlanner + '<div class="realm-region-list">' + regions + '</div>' +
       '<div class="realm-card"><div class="realm-card-title"><h3>Diario delle spedizioni</h3><span>ULTIME CINQUE</span></div>' + (trips || '<p>Non è ancora partita nessuna squadra.</p>') + '</div>' +
-      '<h3 class="realm-section-title">Diplomazia e rotte commerciali</h3><p class="realm-intro">Invia doni e commercia per migliorare i rapporti. Con relazione almeno 55 puoi firmare un trattato: la rotta aumenta le entrate ogni minuto di gioco.</p>' +
+      '<h3 class="realm-section-title">Diplomazia e rotte commerciali</h3><p class="realm-intro">Ogni comunità ha merci diverse da vendere e materiali di cui ha bisogno. Il trattato apre una rotta permanente con consegne periodiche dedicate: legname da Selvalunga, provviste da Porto Salmastra, pietra da Rocciacupa.</p>' +
       '<div class="realm-faction-list">' + diplomacy + '</div>';
     return;
   }
@@ -835,6 +874,12 @@ export function setupUI(): void {
     const value = button.dataset.value ?? '';
     if (action === 'law') dispatch('microregno:realm-action', { type: 'law', id, value });
     else if (action === 'research') dispatch('microregno:realm-action', { type: 'research', id });
+    else if (action === 'colonize') dispatch('microregno:realm-action', { type: 'colonize', id: id as RegionId });
+    else if (action === 'frontierTile') {
+      const selected = realmContent.querySelector<HTMLSelectElement>('select[data-frontier-structure="' + id + '"]')?.value as FrontierStructureType | undefined;
+      const [x, y] = value.split(',').map(Number);
+      if (selected && Number.isInteger(x) && Number.isInteger(y)) dispatch('microregno:realm-action', { type: 'frontierBuild', region: id as RegionId, structure: selected, x: x!, y: y! });
+    }
     else if (action === 'expedition') {
       const leader = realmContent.querySelector<HTMLSelectElement>('[data-expedition-leader]')?.value;
       const crewSelect = realmContent.querySelector<HTMLSelectElement>('[data-expedition-crew]');

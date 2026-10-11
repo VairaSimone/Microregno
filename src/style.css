@@ -850,6 +850,32 @@ dialog p strong { color: #38583b; }
 .realm-card-title>span{font-size:9px;letter-spacing:.08em;color:#82907a;font-weight:900;text-align:right}
 .realm-section-title{margin:8px 0 0;font-size:16px}
 .realm-citizen-list,.realm-region-list,.realm-faction-list,.realm-research-list,.realm-project-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.realm-frontier-colony{margin-top:12px;padding:10px;border:1px solid #d8dfcd;border-radius:12px;background:#f3f4e9}
+.realm-frontier-colony-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;color:#365541;font-size:11px}
+.realm-frontier-colony-head small{display:block;margin-top:4px;color:#71806c;font-size:9px;line-height:1.4}
+.realm-frontier-stock{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:8px 0}
+.realm-frontier-stock span{display:flex;flex-direction:column;gap:3px;padding:6px 5px;background:#e5eadb;border-radius:7px;min-width:0}
+.realm-frontier-stock small{font-size:8px;color:#6b7a63;overflow:hidden;text-overflow:ellipsis}
+.realm-frontier-stock b{font-size:13px;color:#365541}
+.realm-frontier-buildbar{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.realm-frontier-buildbar label{display:flex;flex-direction:column;gap:5px;font-size:9px;text-transform:uppercase;color:#778374;font-weight:900}
+.realm-frontier-buildbar select{width:100%;padding:7px 8px;border:1px solid #cad4c1;border-radius:8px;background:#fafbf4;color:#2d4435;font:inherit;font-size:10px;text-transform:none}
+.realm-frontier-buildbar small{font-size:9px;color:#7b8576;line-height:1.45}
+.realm-frontier-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:5px;border:1px solid #d0d8c5;border-radius:9px;background:#d9e1cb}
+.realm-frontier-grid.terrain-alpine{background:#d9dcd5}
+.realm-frontier-grid.terrain-wetland{background:#d0e3dc}
+.realm-frontier-grid.terrain-ruins{background:#e2ddcd}
+.realm-frontier-grid.terrain-border{background:#dfddc6}
+.realm-frontier-tile{position:relative;display:flex;min-width:0;min-height:42px;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:3px 2px;border:1px solid #bdc9ae;border-radius:5px;background:#eaf0df;color:#35553d}
+.realm-frontier-tile.empty{cursor:pointer;font-size:19px;font-weight:800;background:#f7f8ed;border-style:dashed}
+.realm-frontier-tile.empty:hover{background:#dbeacb;border-color:#67946a}
+.realm-frontier-tile.built{background:#c3d8b5;border-color:#8fb083}
+.realm-frontier-tile span{font-size:15px;line-height:1.1}
+.realm-frontier-tile small{font-size:7px;line-height:1.1;overflow-wrap:anywhere;color:#526a4d}
+.realm-frontier-incident{padding:7px 8px;margin:7px 0;border-radius:7px;background:#f4e7ce;color:#8a4a28;font-size:9px;line-height:1.4}
+.realm-faction-offer{margin:8px 0;padding:8px;border-radius:8px;background:#f1f3e8;color:#526a4f;font-size:10px;line-height:1.45}
+.realm-region-card{min-width:0}
+
 .realm-citizen-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
 .realm-citizen-head strong{display:block;font-size:14px}
 .realm-citizen-head small{display:block;font-size:10px;color:#788474;margin-top:4px;line-height:1.4}

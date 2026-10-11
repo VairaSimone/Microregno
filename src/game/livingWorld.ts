@@ -3,7 +3,8 @@ import { BUILDINGS } from './definitions';
 import { getSeason } from './community';
 import type {
   Building, BuildingType, Citizen, CommunityState, Expedition, Faction, FoodPolicy, ForestPolicy,
-  CitizenIllness, GameState, GoodsBag, MarketResource, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
+  CitizenIllness, FrontierIncident, FrontierPerkId, FrontierStructure, FrontierStructureType, FrontierTerritory,
+  GameState, GoodsBag, MarketResource, Profession, ProjectId, RealmAction, RealmEvent, RealmEventChoice, ResearchDefinition, ResearchId,
   MarketState, RegionId, Resource, ResourceBag, RealmPolicies, TaxPolicy, GuardPolicy, TradableGood, WorldState,
 } from './types';
 
@@ -30,6 +31,66 @@ export const REGIONS: Array<{ id: RegionId; name: string; description: string; d
   { id: 'ancient-ruins', name: 'Rovine della Corona', description: 'Resti di una civiltà e conoscenze sepolte.', duration: 180, requirement: 'cartography' },
   { id: 'borderlands', name: 'Terre di confine', description: 'Nuove comunità, merci rare e opportunità diplomatiche.', duration: 210, requirement: 'cartography' },
 ];
+
+export const FRONTIER_GRID_SIZE = 5;
+export const FRONTIER_STRUCTURES: Record<FrontierStructureType, {
+  name: string; icon: string; description: string; cost: Partial<ResourceBag>;
+  allowedRegions: RegionId[]; output: Resource | 'research' | 'stability' | null; amount: number;
+}> = {
+  outpost: { name: 'Avamposto', icon: '⌂', description: 'Punto sicuro da cui amministrare il territorio.', cost: {}, allowedRegions: REGIONS.map((region) => region.id), output: null, amount: 0 },
+  lumberCamp: { name: 'Campo boschivo', icon: '🪵', description: 'Raccoglie legname dalle riserve locali.', cost: { wood: 8, stone: 2 }, allowedRegions: ['forest', 'borderlands'], output: 'wood', amount: 5 },
+  quarry: { name: 'Cava di frontiera', icon: '⛏', description: 'Estrae pietra dalle riserve minerarie locali.', cost: { wood: 8, stone: 5 }, allowedRegions: ['mountains', 'ancient-ruins'], output: 'stone', amount: 4 },
+  fishery: { name: 'Peschiera', icon: '🐟', description: 'Raccoglie cibo dalle acque e dalle rive.', cost: { wood: 8, food: 4 }, allowedRegions: ['lake'], output: 'food', amount: 6 },
+  tradingPost: { name: 'Posto commerciale', icon: '⚖', description: 'Genera monete e consolida gli scambi regionali.', cost: { wood: 10, stone: 6, coins: 4 }, allowedRegions: ['lake', 'borderlands'], output: 'coins', amount: 3 },
+  archive: { name: 'Archivio delle rovine', icon: '📜', description: 'Trasforma le scoperte locali in conoscenza per il regno.', cost: { wood: 12, stone: 12, coins: 8 }, allowedRegions: ['ancient-ruins'], output: 'research', amount: 3 },
+  watchtower: { name: 'Torre di frontiera', icon: '♜', description: 'Riduce le incursioni e aiuta il territorio a riprendersi.', cost: { wood: 10, stone: 8 }, allowedRegions: REGIONS.map((region) => region.id), output: 'stability', amount: 0.8 },
+};
+
+const FRONTIER_PROFILES: Record<RegionId, {
+  climate: FrontierTerritory['climate']; risk: number; foundingCost: Partial<ResourceBag>;
+  stock: ResourceBag; reserveResource: Resource;
+}> = {
+  forest: { climate: 'woodland', risk: 15, foundingCost: { wood: 16, stone: 5, coins: 6 }, stock: { wood: 80, stone: 18, food: 35, coins: 8 }, reserveResource: 'wood' },
+  mountains: { climate: 'alpine', risk: 26, foundingCost: { wood: 12, stone: 18, coins: 10 }, stock: { wood: 20, stone: 90, food: 14, coins: 8 }, reserveResource: 'stone' },
+  lake: { climate: 'wetland', risk: 18, foundingCost: { wood: 12, stone: 8, coins: 5 }, stock: { wood: 28, stone: 18, food: 90, coins: 22 }, reserveResource: 'food' },
+  'ancient-ruins': { climate: 'ruins', risk: 24, foundingCost: { wood: 18, stone: 16, coins: 18 }, stock: { wood: 18, stone: 65, food: 12, coins: 25 }, reserveResource: 'stone' },
+  borderlands: { climate: 'border', risk: 28, foundingCost: { wood: 20, stone: 16, coins: 22 }, stock: { wood: 50, stone: 45, food: 30, coins: 45 }, reserveResource: 'coins' },
+};
+const FRONTIER_PERKS: FrontierPerkId[] = ['forest-reserve', 'forest-contract', 'mountain-charter', 'mountain-shelters', 'lake-cooperative', 'lake-tolls', 'border-customs', 'border-watch', 'archive-network'];
+const FACTION_TRADE_PROFILES: Record<string, Pick<Faction, 'need' | 'offer' | 'needAmount' | 'offerAmount' | 'treatyBenefit'>> = {
+  selvalunga: { need: 'stone', needAmount: 5, offer: 'wood', offerAmount: 9, treatyBenefit: 'legname e recupero forestale' },
+  salmastra: { need: 'wood', needAmount: 6, offer: 'food', offerAmount: 10, treatyBenefit: 'provviste e pesca' },
+  rocciacupa: { need: 'food', needAmount: 8, offer: 'stone', offerAmount: 7, treatyBenefit: 'pietra e strumenti' },
+};
+const FRONTIER_INCIDENTS: Record<RegionId, { kind: FrontierIncident['kind']; title: string; loss: Resource }> = {
+  forest: { kind: 'wildfire', title: 'Incendio nel bosco', loss: 'wood' },
+  mountains: { kind: 'landslide', title: 'Frana al passo', loss: 'stone' },
+  lake: { kind: 'flood', title: 'Piena sulle rive', loss: 'food' },
+  'ancient-ruins': { kind: 'collapse', title: 'Crollo nelle rovine', loss: 'stone' },
+  borderlands: { kind: 'raiders', title: 'Incursione alla frontiera', loss: 'coins' },
+};
+
+export function frontierFoundingCost(region: RegionId): Partial<ResourceBag> {
+  return { ...FRONTIER_PROFILES[region].foundingCost };
+}
+export function frontierStructureAllowed(region: RegionId, structure: FrontierStructureType): boolean {
+  return structure !== 'outpost' && FRONTIER_STRUCTURES[structure].allowedRegions.includes(region);
+}
+export function canColonizeRegion(state: GameState, region: RegionId): boolean {
+  const world = state.world;
+  return !!world && world.discoveredRegions.includes(region) &&
+    !world.frontierTerritories.some((territory) => territory.region === region) &&
+    isEpochUnlocked(state, 'borough') && REGIONS.some((entry) => entry.id === region);
+}
+function createFrontierTerritory(region: RegionId, gameMinutes: number): FrontierTerritory {
+  const profile = FRONTIER_PROFILES[region];
+  return {
+    region, name: REGIONS.find((entry) => entry.id === region)?.name ?? region, climate: profile.climate,
+    foundedAt: gameMinutes, stock: { ...profile.stock }, stability: region === 'borderlands' ? 58 : region === 'ancient-ruins' ? 62 : region === 'mountains' ? 66 : region === 'lake' ? 80 : 86,
+    structures: [{ id: 'outpost-' + region + '-' + gameMinutes, type: 'outpost', x: 2, y: 2, level: 1 }],
+    lastIncidentAt: -1, activeIncident: null,
+  };
+}
 
 export const PROJECTS: Array<{ id: ProjectId; name: string; description: string; stages: Array<Partial<ResourceBag>> }> = [
   { id: 'aqueduct', name: 'Acquedotto del borgo', description: 'Stabilizza i raccolti e migliora l’efficienza agricola.', stages: [{ wood: 10, stone: 8 }, { wood: 14, stone: 12, coins: 8 }, { stone: 18, coins: 14 }] },
@@ -70,7 +131,11 @@ function refreshMarket(seed: number, gameMinutes: number, market: MarketState, g
   return { prices, demand, cycle, nextShiftAt: gameMinutes + 120 };
 }
 const DEFAULT_POLICIES: RealmPolicies = { tax: 'balanced', food: 'balanced', forest: 'managed', guard: 'none' };
-const EVENT_IDS = ['drought', 'caravan', 'wanderer', 'wolves', 'fair', 'caravan-rescue', 'drought-recovery', 'ruins-found', 'archive-clue'];
+const EVENT_IDS = ['drought', 'caravan', 'wanderer', 'wolves', 'fair', 'caravan-rescue', 'drought-recovery', 'ruins-found', 'archive-clue', 'forest-expedition', 'mountain-expedition', 'lake-expedition', 'border-expedition'];
+
+function RESOURCE_NAME(resource: Resource): string {
+  return resource === 'wood' ? 'legname' : resource === 'stone' ? 'pietra' : resource === 'food' ? 'cibo' : 'monete';
+}
 
 function clamp(value: number, low = 0, high = 100): number {
   return Math.max(low, Math.min(high, Math.round(value * 100) / 100));
@@ -114,7 +179,8 @@ function validEventChoice(value: unknown): value is RealmEventChoice {
     && finiteOptional(choice.researchDelta) && (choice.researchDelta === undefined || choice.researchDelta >= 0)
     && finiteOptional(choice.populationDelta) && (choice.populationDelta === undefined || (Number.isInteger(choice.populationDelta) && Math.abs(choice.populationDelta) <= 100))
     && (choice.chain === undefined || (typeof choice.chain === 'string' && EVENT_IDS.includes(choice.chain)))
-    && (choice.profession === undefined || PROFESSIONS.includes(choice.profession));
+    && (choice.profession === undefined || PROFESSIONS.includes(choice.profession))
+    && (choice.frontierPerk === undefined || ['forest-reserve', 'forest-contract', 'mountain-charter', 'mountain-shelters', 'lake-cooperative', 'lake-tolls', 'border-customs', 'border-watch', 'archive-network'].includes(choice.frontierPerk));
 }
 
 function makeCitizen(seed: number, index: number, gameMinutes: number): Citizen {
@@ -156,9 +222,9 @@ export function createWorldState(seed: number, population = 5, gameMinutes = 0):
   const citizens = Array.from({ length: Math.max(0, population) }, (_, index) => makeCitizen(seed, index, gameMinutes));
   const factionSeed = Math.abs(seed);
   const factions: Faction[] = [
-    { id: 'selvalunga', name: 'Selvalunga', specialty: 'Legname e botanica', relation: 28 + factionSeed % 20, lastContact: 0, treaty: false },
-    { id: 'salmastra', name: 'Porto Salmastra', specialty: 'Commercio e pesca', relation: 32 + (factionSeed >> 3) % 21, lastContact: 0, treaty: false },
-    { id: 'rocciacupa', name: 'Rocciacupa', specialty: 'Pietra e artigiani', relation: 25 + (factionSeed >> 6) % 25, lastContact: 0, treaty: false },
+    { id: 'selvalunga', name: 'Selvalunga', specialty: 'Legname, botanica e protezione dei boschi', relation: 28 + factionSeed % 20, lastContact: 0, treaty: false, ...FACTION_TRADE_PROFILES.selvalunga },
+    { id: 'salmastra', name: 'Porto Salmastra', specialty: 'Pesca, sale e trasporto via acqua', relation: 32 + (factionSeed >> 3) % 21, lastContact: 0, treaty: false, ...FACTION_TRADE_PROFILES.salmastra },
+    { id: 'rocciacupa', name: 'Rocciacupa', specialty: 'Pietra, attrezzi e lavori minerari', relation: 25 + (factionSeed >> 6) % 25, lastContact: 0, treaty: false, ...FACTION_TRADE_PROFILES.rocciacupa },
   ];
   return {
     version: 1, nextCitizenId: citizens.length + 1, citizens, goods: { ...DEFAULT_GOODS },
@@ -167,7 +233,7 @@ export function createWorldState(seed: number, population = 5, gameMinutes = 0):
     activeEvent: null, nextEventAt: gameMinutes + 240, queuedEvent: null, eventQueue: [],
     projectStages: { aqueduct: 0, 'stone-bridge': 0, 'artisan-quarter': 0, 'grand-archive': 0 },
     market: createMarketState(gameMinutes), forestHealth: 100, weather: { id: 'clear', endsAt: 0 },
-    completedProjects: [], factions, tradeRoutes: [],
+    completedProjects: [], factions, tradeRoutes: [], frontierTerritories: [], frontierPerks: [],
   };
 }
 
@@ -353,8 +419,51 @@ export function ensureWorldState(state: GameState): GameState {
     weather: existing.weather && ['clear', 'drought'].includes(existing.weather.id) && Number.isFinite(existing.weather.endsAt)
       ? { ...existing.weather } : { id: 'clear', endsAt: 0 },
     completedProjects: [...new Set(existing.completedProjects.filter((id): id is ProjectId => PROJECTS.some((project) => project.id === id)))],
-    factions: existing.factions.filter((faction) => faction && typeof faction.id === 'string' && typeof faction.name === 'string' && typeof faction.specialty === 'string' && Number.isFinite(faction.relation)).map((faction) => ({ ...faction, relation: clamp(faction.relation), lastContact: Number.isFinite(faction.lastContact) ? Math.max(0, faction.lastContact) : 0, treaty: faction.treaty === true })),
+    factions: existing.factions.filter((faction) => faction && typeof faction.id === 'string' && typeof faction.name === 'string' && typeof faction.specialty === 'string' && Number.isFinite(faction.relation)).map((faction) => {
+      const fallback = FACTION_TRADE_PROFILES[faction.id] ?? FACTION_TRADE_PROFILES.selvalunga;
+      const validResource = (value: unknown): value is Resource => ['wood', 'stone', 'food', 'coins'].includes(value as string);
+      return {
+        ...fallback, ...faction, relation: clamp(faction.relation),
+        lastContact: Number.isFinite(faction.lastContact) ? Math.max(0, faction.lastContact) : 0,
+        treaty: faction.treaty === true,
+        need: validResource(faction.need) ? faction.need : fallback.need,
+        offer: validResource(faction.offer) ? faction.offer : fallback.offer,
+        needAmount: Number.isFinite(faction.needAmount) ? Math.max(1, Math.min(100, faction.needAmount!)) : fallback.needAmount,
+        offerAmount: Number.isFinite(faction.offerAmount) ? Math.max(1, Math.min(100, faction.offerAmount!)) : fallback.offerAmount,
+        treatyBenefit: typeof faction.treatyBenefit === 'string' ? faction.treatyBenefit : fallback.treatyBenefit,
+      };
+    }),
     tradeRoutes: [...new Set(existing.tradeRoutes.filter((id) => typeof id === 'string' && existing.factions.some((faction) => faction?.id === id)))],
+    frontierTerritories: Array.isArray(existing.frontierTerritories) ? existing.frontierTerritories
+      .filter((territory) => territory && typeof territory === 'object' && REGIONS.some((region) => region.id === (territory as FrontierTerritory).region))
+      .slice(0, REGIONS.length).map((raw): FrontierTerritory => {
+        const source = raw as Partial<FrontierTerritory>;
+        const region = source.region as RegionId;
+        const profile = FRONTIER_PROFILES[region];
+        const stock = source.stock && typeof source.stock === 'object' ? source.stock as Partial<ResourceBag> : {};
+        const cleanAmount = (key: Resource) => Number.isFinite(stock[key]) ? Math.max(0, Math.min(profile.stock[key], stock[key]!)) : profile.stock[key];
+        const structures = Array.isArray(source.structures) ? source.structures.filter((entry) => entry && typeof entry.id === 'string'
+          && Object.prototype.hasOwnProperty.call(FRONTIER_STRUCTURES, entry.type)
+          && Number.isInteger(entry.x) && entry.x >= 0 && entry.x < FRONTIER_GRID_SIZE
+          && Number.isInteger(entry.y) && entry.y >= 0 && entry.y < FRONTIER_GRID_SIZE
+          && Number.isFinite(entry.level)).map((entry) => ({ ...entry, level: Math.max(1, Math.min(3, Math.floor(entry.level))) })).slice(0, FRONTIER_GRID_SIZE * FRONTIER_GRID_SIZE) : [];
+        const hazard = source.activeIncident && ['wildfire', 'landslide', 'flood', 'collapse', 'raiders'].includes(source.activeIncident.kind)
+          && Number.isFinite(source.activeIncident.endsAt) && source.activeIncident.endsAt > state.gameMinutes
+          ? { ...source.activeIncident, startedAt: Math.max(0, Number.isFinite(source.activeIncident.startedAt) ? source.activeIncident.startedAt : state.gameMinutes),
+              endsAt: Math.max(state.gameMinutes, source.activeIncident.endsAt), outputPenalty: Math.max(0.1, Math.min(1, Number.isFinite(source.activeIncident.outputPenalty) ? source.activeIncident.outputPenalty : 0.5)) }
+          : null;
+        const result: FrontierTerritory = {
+          region, name: typeof source.name === 'string' ? source.name.slice(0, 80) : (REGIONS.find((entry) => entry.id === region)?.name ?? region),
+          climate: profile.climate, foundedAt: Number.isFinite(source.foundedAt) ? Math.max(0, source.foundedAt!) : state.gameMinutes,
+          stock: { wood: cleanAmount('wood'), stone: cleanAmount('stone'), food: cleanAmount('food'), coins: cleanAmount('coins') },
+          stability: Number.isFinite(source.stability) ? clamp(source.stability!) : 70,
+          structures: structures.length ? structures : [{ id: 'outpost-' + region + '-' + state.gameMinutes, type: 'outpost', x: 2, y: 2, level: 1 }],
+          lastIncidentAt: Number.isFinite(source.lastIncidentAt) ? Math.max(-1, source.lastIncidentAt!) : -1,
+          activeIncident: hazard,
+        };
+        return result;
+      }) : [],
+    frontierPerks: Array.isArray(existing.frontierPerks) ? [...new Set(existing.frontierPerks.filter((perk): perk is FrontierPerkId => FRONTIER_PERKS.includes(perk)))].slice(0, FRONTIER_PERKS.length) : [],
   };
   return { ...state, world };
 }
@@ -377,6 +486,31 @@ export function getCitizenWorkplace(state: GameState, citizen: Citizen): Buildin
   if (explicit) return explicit;
   const numericId = Number(citizen.id.slice(citizen.id.lastIndexOf('-') + 1)) || 1;
   return compatible[(Math.max(1, numericId) - 1) % compatible.length] ?? null;
+}
+
+/** True only when a building touches a continuous road route reaching the Town Hall or Market. */
+export function isRoadConnectedToHub(state: GameState, building: Building): boolean {
+  if (building.type === 'road') return false;
+  const roads = state.buildings.filter((entry) => entry.type === 'road');
+  if (!roads.length) return false;
+  const key = (x: number, y: number) => x + ',' + y;
+  const roadByKey = new Map(roads.map((road) => [key(road.x, road.y), road]));
+  const adjacent = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
+  const hubs = state.buildings.filter((entry) => entry.type === 'townHall' || entry.type === 'market');
+  const queue = roads.filter((road) => hubs.some((hub) => adjacent(road, hub)));
+  const connected = new Set(queue.map((road) => key(road.x, road.y)));
+  for (let index = 0; index < queue.length; index++) {
+    const road = queue[index]!;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const roadKey = key(road.x + dx!, road.y + dy!);
+      const next = roadByKey.get(roadKey);
+      if (next && !connected.has(roadKey)) {
+        connected.add(roadKey);
+        queue.push(next);
+      }
+    }
+  }
+  return roads.some((road) => connected.has(key(road.x, road.y)) && adjacent(road, building));
 }
 
 export function getCitizenActivity(state: GameState, citizen: Citizen): import('./types').CitizenActivity {
@@ -425,7 +559,7 @@ export function worldBuildingMultiplier(state: GameState, building: Building): n
   }
   if (world.researched.includes('tools') && ['farm', 'sawmill', 'quarry', 'market'].includes(building.type)) multiplier *= 1.12;
   if (world.goods.tools >= 1 && ['farm', 'sawmill', 'quarry', 'mill', 'bakery', 'workshop'].includes(building.type)) multiplier *= 1.12;
-  if (building.type !== 'road' && state.buildings.some((entry) => entry.type === 'road' && Math.abs(entry.x - building.x) + Math.abs(entry.y - building.y) <= 1)) multiplier *= 1.08;
+  if (isRoadConnectedToHub(state, building)) multiplier *= 1.12;
   if (world.completedProjects.includes('artisan-quarter')) multiplier *= 1.08;
   if (building.type === 'farm' && world.researched.includes('irrigation')) multiplier *= 1.15;
   if (building.type === 'farm' && world.weather.id === 'drought' && state.gameMinutes < world.weather.endsAt) multiplier *= 0.68;
@@ -530,12 +664,28 @@ function eventTemplate(id: string, gameMinutes: number, seed = 2310, actor?: Cit
     { id: 'save-rain', label: 'Conserva le riserve', detail: 'Ricevi meno cibo, ma prepari il magazzino.', reward: { food: 9, wood: 3 }, moodDelta: 2, trustDelta: 2 },
   ]);
   if (id === 'ruins-found') return event(id, 'Le rovine parlano', 'Gli esploratori hanno portato tavolette con simboli antichi. Il Consiglio può finanziare lo studio o sigillare il sito.', [
-    { id: 'study-tablets', label: 'Studia le tavolette', detail: 'Spendi materiali per guadagnare conoscenza e monete.', cost: { wood: 6, stone: 5 }, reward: { coins: 12 }, researchDelta: 18, chain: 'archive-clue' },
+    { id: 'study-tablets', label: 'Studia le tavolette', detail: 'Spendi materiali per guadagnare conoscenza e monete. I testi resteranno consultabili nel territorio.', cost: { wood: 6, stone: 5 }, reward: { coins: 12 }, researchDelta: 18, chain: 'archive-clue', frontierPerk: 'archive-network' },
     { id: 'seal-site', label: 'Proteggi le rovine', detail: 'Nessun costo e una comunità più fiduciosa.', trustDelta: 6, moodDelta: 2 },
   ]);
   if (id === 'archive-clue') return event(id, 'Una mappa dimenticata', 'La ricerca rivela una strada antica verso le terre di confine. Una nuova via commerciale potrebbe cambiare il regno.', [
     { id: 'fund-map', label: 'Finanzia la spedizione', detail: 'Spendi monete per aprire una nuova rotta.', cost: { coins: 10 }, reward: { coins: 4, stone: 4 }, researchDelta: 10, trustDelta: 4 },
     { id: 'keep-secret', label: 'Tieni il segreto', detail: 'Conserva i materiali e migliora la sicurezza.', reward: { wood: 3 }, moodDelta: 1, trustDelta: -1 },
+  ]);
+  if (id === 'forest-expedition') return event(id, 'Il patto della radura', 'La squadra ha trovato un bosco antico. I taglialegna locali chiedono se il regno proteggerà la radura o firmerà un contratto di raccolta intensiva.', [
+    { id: 'protect-grove', label: 'Proteggi la radura', detail: 'Le riserve forestali cresceranno più lentamente, ma la colonia sarà meno esposta agli incendi.', moodDelta: 4, trustDelta: 5, frontierPerk: 'forest-reserve' },
+    { id: 'commercial-grove', label: 'Firma il contratto forestale', detail: 'I campi boschivi produrranno più legname, a costo di un rischio ambientale maggiore.', reward: { wood: 8 }, moodDelta: -2, trustDelta: -2, frontierPerk: 'forest-contract' },
+  ]);
+  if (id === 'mountain-expedition') return event(id, 'I diritti del passo', 'I minatori hanno trovato un valico sicuro e una vena di pietra. Il Consiglio può privilegiare sicurezza o estrazione.', [
+    { id: 'secure-pass', label: 'Metti in sicurezza il passo', detail: 'Una rete di ripari ridurrà gli effetti delle frane.', moodDelta: 3, trustDelta: 5, frontierPerk: 'mountain-shelters' },
+    { id: 'grant-mining-charter', label: 'Concedi la licenza mineraria', detail: 'Le cave di frontiera estrarranno più pietra dalle riserve conosciute.', reward: { stone: 8 }, moodDelta: -1, trustDelta: 1, frontierPerk: 'mountain-charter' },
+  ]);
+  if (id === 'lake-expedition') return event(id, 'Gli abitanti del lago', 'I pescatori del Lago velato conoscono i canali, ma non si fidano ancora del Consiglio. Puoi condividere i vantaggi o imporre dazi al traghetto.', [
+    { id: 'lake-cooperative', label: 'Accordo con i pescatori', detail: 'Le peschiere renderanno di più e il territorio recupererà più rapidamente.', moodDelta: 5, trustDelta: 5, frontierPerk: 'lake-cooperative' },
+    { id: 'lake-tolls', label: 'Imponi un dazio al traghetto', detail: 'I posti commerciali al lago guadagneranno più monete, ma la cooperazione sarà fragile.', reward: { coins: 7 }, moodDelta: -2, trustDelta: -3, frontierPerk: 'lake-tolls' },
+  ]);
+  if (id === 'border-expedition') return event(id, 'Una frontiera senza legge', 'Oltre il confine si incontrano mercanti, famiglie in transito e predoni. Il Consiglio deve scegliere tra commerciare apertamente o fortificare la strada.', [
+    { id: 'border-customs', label: 'Apri una dogana', detail: 'I posti commerciali produrranno più monete e renderanno stabile lo scambio con Porto Salmastra.', moodDelta: 3, trustDelta: 4, frontierPerk: 'border-customs' },
+    { id: 'border-watch', label: 'Fortifica il confine', detail: 'Le torri ridurranno il rischio delle incursioni e aumenteranno la stabilità locale.', cost: { wood: 5, stone: 4 }, moodDelta: 2, trustDelta: 3, frontierPerk: 'border-watch' },
   ]);
   const choiceSets: RealmEvent[] = [
     event('drought', 'Settimane senza pioggia', 'La terra è secca e i contadini temono un raccolto scarso. Il Consiglio deve scegliere fra investire, comprare scorte o razionare.', [
@@ -681,6 +831,11 @@ export function advanceRealmMinute(input: GameState): GameState {
   let citizens = world.citizens.map((citizen) => ({ ...citizen, skills: { ...citizen.skills }, traits: [...citizen.traits], relationships: { ...citizen.relationships } }));
   const notes: string[] = [];
   let community = state.community ? { ...state.community } : undefined;
+  let frontierTerritories = world.frontierTerritories.map((territory) => ({
+    ...territory, stock: { ...territory.stock }, structures: territory.structures.map((structure) => ({ ...structure })),
+    activeIncident: territory.activeIncident ? { ...territory.activeIncident } : null,
+  }));
+  let frontierResearch = 0;
   const activeExpeditions = world.expeditions.filter((expedition) => expedition.status === 'active');
   const hasFoodRation = resources.food > 0.1;
   const rationDemand = Math.max(0.01, state.population * 0.008);
@@ -938,8 +1093,99 @@ export function advanceRealmMinute(input: GameState): GameState {
     }
   }
 
+  frontierTerritories = frontierTerritories.map((territory) => territory.activeIncident && territory.activeIncident.endsAt <= state.gameMinutes
+    ? { ...territory, activeIncident: null }
+    : territory);
+
+  if (state.gameMinutes > 0 && state.gameMinutes % 60 === 0 && frontierTerritories.length) {
+    frontierTerritories = frontierTerritories.map((territory) => {
+      const profile = FRONTIER_PROFILES[territory.region];
+      const stock = { ...territory.stock };
+      const towers = territory.structures.filter((structure) => structure.type === 'watchtower').reduce((sum, structure) => sum + structure.level, 0);
+      let stability = clamp(territory.stability + 0.25 + towers * 0.7 + (territory.region === 'lake' && world.frontierPerks.includes('lake-cooperative') ? 0.3 : 0));
+      const incidentPenalty = territory.activeIncident && territory.activeIncident.endsAt > state.gameMinutes ? territory.activeIncident.outputPenalty : 1;
+      const factor = Math.max(0.35, Math.min(1, 0.45 + stability / 180)) * incidentPenalty;
+      for (const structure of territory.structures) {
+        const definition = FRONTIER_STRUCTURES[structure.type];
+        if (structure.type === 'watchtower') continue;
+        let output = definition.amount * structure.level;
+        if (structure.type === 'outpost') {
+          const localResource = profile.reserveResource;
+          const harvested = Math.min(stock[localResource], Math.max(1, Math.floor(factor)));
+          stock[localResource] -= harvested;
+          resources[localResource] += harvested;
+          continue;
+        }
+        if (structure.type === 'lumberCamp' && world.frontierPerks.includes('forest-contract')) output *= 1.3;
+        if (structure.type === 'quarry' && world.frontierPerks.includes('mountain-charter')) output *= 1.25;
+        if (structure.type === 'fishery' && world.frontierPerks.includes('lake-cooperative')) output *= 1.25;
+        if (structure.type === 'tradingPost' && world.frontierPerks.includes('lake-tolls') && territory.region === 'lake') output += 2;
+        if (structure.type === 'tradingPost' && world.frontierPerks.includes('border-customs') && territory.region === 'borderlands') output += 3;
+        if (structure.type === 'archive' && world.frontierPerks.includes('archive-network')) output += 2;
+        const amount = Math.max(1, Math.floor(output * factor));
+        if (definition.output === 'research') {
+          frontierResearch += amount;
+        } else if (definition.output === 'coins') {
+          resources.coins += amount;
+        } else if (definition.output && definition.output !== 'stability') {
+          const key = definition.output;
+          const harvested = Math.min(stock[key], amount);
+          stock[key] -= harvested;
+          resources[key] += harvested;
+        }
+      }
+      return { ...territory, stock, stability };
+    });
+  }
+
+  if (state.gameMinutes > 0 && state.gameMinutes % 360 === 0) {
+    frontierTerritories = frontierTerritories.map((territory) => {
+      const profile = FRONTIER_PROFILES[territory.region];
+      const stock = { ...territory.stock };
+      if (territory.region === 'forest' && world.frontierPerks.includes('forest-reserve')) {
+        stock.wood = Math.min(profile.stock.wood, stock.wood + 6);
+      }
+      const active = territory.activeIncident && territory.activeIncident.endsAt > state.gameMinutes;
+      if (active || state.gameMinutes - territory.lastIncidentAt < 360) return { ...territory, stock };
+      const towers = territory.structures.filter((structure) => structure.type === 'watchtower').reduce((sum, structure) => sum + structure.level, 0);
+      let risk = profile.risk + (100 - territory.stability) * 0.22 - towers * 11 - (world.policies.guard === 'patrol' ? 6 : 0);
+      if (territory.region === 'forest' && world.frontierPerks.includes('forest-reserve')) risk -= 6;
+      if (territory.region === 'forest' && world.frontierPerks.includes('forest-contract')) risk += 5;
+      if (territory.region === 'mountains' && world.frontierPerks.includes('mountain-shelters')) risk -= 8;
+      if (territory.region === 'borderlands' && world.frontierPerks.includes('border-watch')) risk -= 12;
+      risk = Math.max(3, Math.min(55, risk));
+      const regionHash = territory.region.split('').reduce((sum, character) => sum + character.charCodeAt(0), 0);
+      const roll = Math.abs(state.seed * 19 + state.gameMinutes * 7 + regionHash * 13) % 100;
+      if (roll >= risk) return { ...territory, stock };
+      const incidentProfile = FRONTIER_INCIDENTS[territory.region];
+      const lossResource = incidentProfile.loss;
+      const lost = Math.min(stock[lossResource], Math.ceil(stock[lossResource] * (territory.region === 'borderlands' ? 0.18 : 0.12)));
+      stock[lossResource] -= lost;
+      const incident: FrontierIncident = {
+        kind: incidentProfile.kind, title: incidentProfile.title, startedAt: state.gameMinutes,
+        endsAt: state.gameMinutes + 180, outputPenalty: 0.5,
+      };
+      notes.push(incident.title + ' a ' + territory.name + ': la stabilità cala e la produzione sarà dimezzata per tre ore di gioco.');
+      return { ...territory, stock, stability: clamp(territory.stability - 10), activeIncident: incident, lastIncidentAt: state.gameMinutes };
+    });
+  }
+
+  if (state.gameMinutes > 0 && state.gameMinutes % 60 === 0) {
+    for (const factionId of world.tradeRoutes) {
+      if (factionId === 'selvalunga') resources.wood += 2;
+      else if (factionId === 'salmastra') { resources.food += 3; resources.coins += 0.75; }
+      else if (factionId === 'rocciacupa') { resources.stone += 2; resources.coins += 0.5; }
+    }
+    if (world.tradeRoutes.length && state.gameMinutes % 360 === 0) {
+      notes.push('Le rotte diplomatiche hanno consegnato merci secondo gli accordi: legname da Selvalunga, provviste da Salmastra e pietra da Rocciacupa.');
+    }
+  }
+
   const assignedScholars = schoolScholarCount(state, citizens);
-  let nextWorld: WorldState = { ...world, nextCitizenId, citizens, goods, researchPoints: world.researchPoints + 0.025 + assignedScholars * 0.09 };
+  let nextWorld: WorldState = {
+    ...world, nextCitizenId, citizens, goods, frontierTerritories,
+    researchPoints: world.researchPoints + 0.025 + assignedScholars * 0.09 + frontierResearch,
+  };
   if (state.gameMinutes >= nextWorld.market.nextShiftAt) {
     nextWorld = { ...nextWorld, market: refreshMarket(state.seed, state.gameMinutes, nextWorld.market, goods, nextWorld.weather.id === 'drought' && state.gameMinutes < nextWorld.weather.endsAt, nextWorld.activeEvent?.id ?? null) };
     notes.push('La domanda del mercato è cambiata: le quotazioni di grano, pane e beni lavorati sono aggiornate.');
@@ -968,20 +1214,25 @@ export function advanceRealmMinute(input: GameState): GameState {
     citizens = citizens.map((citizen) => crewIds.includes(citizen.id) ? { ...citizen, status: 'resident', activity: 'resting', expeditionId: null, energy: clamp(citizen.energy + 18), lastAction: success ? 'È tornato da una spedizione' : 'È tornato stanco da una spedizione difficile' } : citizen);
     if (success) {
       const reward = expeditionReward(expedition.region);
+      const firstDiscovery = !nextWorld.discoveredRegions.includes(expedition.region);
       Object.assign(resources, applyReward(resources, reward.resources));
       Object.assign(goods, applyGoods(goods, reward.goods));
       nextWorld = { ...nextWorld, discoveredRegions: [...new Set([...nextWorld.discoveredRegions, expedition.region])], researchPoints: nextWorld.researchPoints + reward.research };
       expedition = { ...expedition, status: 'success', outcome: reward.note };
       notes.push(reward.note);
-      if (expedition.region === 'ancient-ruins') {
+      if (firstDiscovery) {
+        const storyForRegion: Record<RegionId, string> = {
+          forest: 'forest-expedition', mountains: 'mountain-expedition', lake: 'lake-expedition',
+          'ancient-ruins': 'ruins-found', borderlands: 'border-expedition',
+        };
+        const storyId = storyForRegion[expedition.region];
         const eventQueue = [...(nextWorld.eventQueue ?? (nextWorld.queuedEvent ? [nextWorld.queuedEvent] : []))];
-        if (!eventQueue.includes('ruins-found')) eventQueue.push('ruins-found');
+        if (nextWorld.activeEvent?.id !== storyId && !eventQueue.includes(storyId)) eventQueue.push(storyId);
         const queued = eventQueue.slice(0, 16);
         nextWorld = { ...nextWorld, eventQueue: queued, queuedEvent: queued[0] ?? null, nextEventAt: Math.min(nextWorld.nextEventAt, state.gameMinutes + 45) };
-      }
-      if (expedition.region === 'borderlands') {
-        const factions = nextWorld.factions.map((faction, factionIndex) => factionIndex === 0 ? { ...faction, relation: clamp(faction.relation + 8) } : faction);
-        nextWorld = { ...nextWorld, factions };
+        if (expedition.region === 'borderlands') {
+          nextWorld = { ...nextWorld, factions: nextWorld.factions.map((faction) => faction.id === 'salmastra' ? { ...faction, relation: clamp(faction.relation + 8) } : faction) };
+        }
       }
     } else {
       expedition = { ...expedition, status: 'partial', outcome: 'La squadra ha trovato poco e deve riposare prima di ripartire.' };
@@ -1076,11 +1327,40 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
     ok: true, message,
   });
 
-  if ((action.type === 'research' || action.type === 'expedition' || action.type === 'project' || action.type === 'diplomacy')
+  if ((action.type === 'research' || action.type === 'expedition' || action.type === 'project' || action.type === 'diplomacy' || action.type === 'colonize' || action.type === 'frontierBuild')
     && !isEpochUnlocked(state, 'borough')) {
     return fail('Queste decisioni si aprono nell’epoca del Borgo. Raggiungi 12 abitanti, apri un mercato e migliora un edificio.');
   }
 
+  if (action.type === 'colonize') {
+    if (!canColonizeRegion(state, action.id)) {
+      if (!world.discoveredRegions.includes(action.id)) return fail('Prima devi esplorare con successo questo territorio. Le mappe non bastano: serve una spedizione di rientro.');
+      if (world.frontierTerritories.some((territory) => territory.region === action.id)) return fail('In questo territorio esiste già un avamposto.');
+      return fail('Fondare un avamposto richiede l’epoca del Borgo e una regione libera.');
+    }
+    const cost = frontierFoundingCost(action.id);
+    if (!hasCost(resources, cost)) return fail('Materiali insufficienti per fondare l’avamposto: ' + Object.entries(cost).map(([key, amount]) => amount + ' ' + (key === 'wood' ? 'legname' : key === 'stone' ? 'pietra' : key === 'food' ? 'cibo' : 'monete')).join(', ') + '.');
+    resources = pay(resources, cost);
+    const territory = createFrontierTerritory(action.id, state.gameMinutes);
+    world = { ...world, frontierTerritories: [...world.frontierTerritories, territory] };
+    return finish('Avamposto fondato nel territorio: ' + territory.name + '. Ora puoi costruire sul suo terreno 5×5 e amministrarne le riserve locali.');
+  }
+  if (action.type === 'frontierBuild') {
+    const territory = world.frontierTerritories.find((entry) => entry.region === action.region);
+    if (!territory) return fail('Prima fonda un avamposto nel territorio.');
+    if (!Number.isInteger(action.x) || !Number.isInteger(action.y) || action.x < 0 || action.y < 0 || action.x >= FRONTIER_GRID_SIZE || action.y >= FRONTIER_GRID_SIZE) return fail('Casella di frontiera non valida.');
+    if (territory.structures.some((entry) => entry.x === action.x && entry.y === action.y)) return fail('La casella è già occupata da una struttura.');
+    if (!FRONTIER_STRUCTURES[action.structure] || !frontierStructureAllowed(action.region, action.structure)) return fail('Questa struttura non è adatta al territorio scelto.');
+    const definition = FRONTIER_STRUCTURES[action.structure];
+    if (!hasCost(resources, definition.cost)) return fail('Materiali insufficienti per costruire ' + definition.name + '.');
+    resources = pay(resources, definition.cost);
+    const structure: FrontierStructure = {
+      id: 'frontier-' + action.region + '-' + action.structure + '-' + state.gameMinutes + '-' + action.x + '-' + action.y,
+      type: action.structure, x: action.x, y: action.y, level: 1,
+    };
+    world = { ...world, frontierTerritories: world.frontierTerritories.map((entry) => entry.region === action.region ? { ...entry, structures: [...entry.structures, structure] } : entry) };
+    return finish(definition.name + ' costruito in ' + territory.name + '. La produzione dipende dalle riserve e dalla stabilità locale.');
+  }
   if (action.type === 'assign') {
     const citizen = world.citizens.find((entry) => entry.id === action.citizenId);
     if (!citizen) return fail('Questo cittadino non esiste più.');
@@ -1222,7 +1502,12 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
       : choice.chain
         ? state.gameMinutes + 75
         : state.gameMinutes + 300;
-    world = { ...world, citizens, goods, activeEvent: null, eventQueue: queued, queuedEvent, nextEventAt, researchPoints: world.researchPoints + (choice.researchDelta ?? 0), weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather };
+    world = {
+      ...world, citizens, goods, activeEvent: null, eventQueue: queued, queuedEvent, nextEventAt,
+      researchPoints: world.researchPoints + (choice.researchDelta ?? 0),
+      frontierPerks: choice.frontierPerk ? [...new Set([...world.frontierPerks, choice.frontierPerk])] : world.frontierPerks,
+      weather: event.id === 'drought-recovery' ? { id: 'clear', endsAt: 0 } : world.weather,
+    };
     community = applyCommunityEffects(community, choice.moodDelta ?? 0, choice.trustDelta ?? 0);
     return finish(event.title + ' — ' + choice.label + '. ' + choice.detail);
   }
@@ -1262,11 +1547,16 @@ export function performRealmAction(input: GameState, action: RealmAction): { sta
       return finish('Hai inviato un dono a ' + faction.name + '. I rapporti migliorano.');
     }
     if (action.value === 'trade') {
-      if (resources.wood < 6) return fail('Lo scambio richiede 6 legname.');
-      resources.wood -= 6;
-      resources.coins += 12;
-      world = { ...world, factions: world.factions.map((entry) => entry.id === faction.id ? { ...entry, relation: clamp(entry.relation + 5), lastContact: state.gameMinutes } : entry) };
-      return finish('Scambio completato con ' + faction.name + ': 6 legname per 12 monete.');
+      const profile = FACTION_TRADE_PROFILES[faction.id] ?? FACTION_TRADE_PROFILES.selvalunga;
+      const need = faction.need ?? profile.need!;
+      const offer = faction.offer ?? profile.offer!;
+      const needAmount = faction.needAmount ?? profile.needAmount!;
+      const offerAmount = faction.offerAmount ?? profile.offerAmount!;
+      if (resources[need] < needAmount) return fail(faction.name + ' richiede ' + needAmount + ' ' + RESOURCE_NAME(need) + ' per lo scambio, ma le tue scorte non bastano.');
+      resources[need] -= needAmount;
+      resources[offer] += offerAmount;
+      world = { ...world, factions: world.factions.map((entry) => entry.id === faction.id ? { ...entry, relation: clamp(entry.relation + 7), lastContact: state.gameMinutes } : entry) };
+      return finish('Scambio con ' + faction.name + ': ' + needAmount + ' ' + RESOURCE_NAME(need) + ' in cambio di ' + offerAmount + ' ' + RESOURCE_NAME(offer) + '. I rapporti migliorano.');
     }
     if (faction.treaty || world.tradeRoutes.includes(faction.id)) return fail('Esiste già un accordo con questa comunità.');
     if (faction.relation < 55) return fail('I rapporti devono raggiungere 55 prima di firmare un accordo. Puoi inviare un dono o commerciare.');
